@@ -1,0 +1,12 @@
+# --- Local Postgres (Docker) ---
+POSTGRES_USER=pactum
+POSTGRES_PASSWORD=change_me
+POSTGRES_DB=pactum_dev
+
+# --- Connection string the app uses ---
+DATABASE_URL="postgresql://pactum:change_me@localhost:5432/pactum_dev?schema=public"
+
+# --- App config ---
+JWT_SECRET="generate-with-openssl-rand-base64-32"
+PORT=4000
+CORS_ORIGIN="http://localhost:5173"
