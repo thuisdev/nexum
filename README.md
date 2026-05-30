@@ -4,7 +4,7 @@
 
 **Status:** In development 
 
-**Author:** Adrian — [@thuisdev(https://github.com/thuisdev)
+**Author:** Adrian — [@thuisdev(https://github.com/thuisdev)]
 
 ## What is this
 
