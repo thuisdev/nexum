@@ -1,0 +1,29 @@
+services:
+
+  db:
+
+    image: postgres:16-alpine
+
+    container_name: pactum-db
+
+    restart: unless-stopped
+
+    environment:
+
+      POSTGRES_USER: pactum
+
+      POSTGRES_PASSWORD: pactum_local
+
+      POSTGRES_DB: pactum_dev
+
+    ports:
+
+      - "5432:5432"
+
+    volumes:
+
+      - pactum-db-data:/var/lib/postgresql/data
+
+volumes:
+
+  pactum-db-data:
