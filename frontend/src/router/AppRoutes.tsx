@@ -1,31 +1,22 @@
-import { lazy, Suspense, type LazyExoticComponent, type ComponentType } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import { ROUTES } from './routes'
 import MainLayout from '@/components/layout/MainLayout'
 import ProtectedRoute from './guards/ProtectedRoute'
 import DashboardRedirect from '@/pages/DashboardRedirect'
-
-const LandingPage = lazy(() => import('@/pages/LandingPage'))
-const LoginPage = lazy(() => import('@/pages/LoginPage'))
-const RegisterPage = lazy(() => import('@/pages/RegisterPage'))
-const JobBoardPage = lazy(() => import('@/pages/JobBoardPage'))
-const ClientDashboard = lazy(() => import('@/pages/ClientDashboard'))
-const FreelancerDashboard = lazy(() => import('@/pages/FreelancerDashboard'))
-const CreateProjectPage = lazy(() => import('@/pages/CreateProjectPage'))
-const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'))
-const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'))
-const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
-const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
-
-const PageLoader = () => (
-  <div className="flex min-h-screen items-center justify-center">Loading…</div>
-)
-
-const withSuspense = (Page: LazyExoticComponent<ComponentType>) => (
-  <Suspense fallback={<PageLoader />}>
-    <Page />
-  </Suspense>
-)
+import {
+  LandingPage,
+  LoginPage,
+  RegisterPage,
+  JobBoardPage,
+  ClientDashboard,
+  FreelancerDashboard,
+  CreateProjectPage,
+  ProjectDetailPage,
+  UserProfilePage,
+  SettingsPage,
+  NotFoundPage,
+} from './lazyPages'
+import { withSuspense } from './withSuspense'
 
 export const router = createBrowserRouter([
   {
