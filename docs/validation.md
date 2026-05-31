@@ -1,0 +1,1 @@
+Respondent 1, follow-up: handles trust with unknown teams via manual vetting + asking network for opinions. No tooling. Confirms latent need for structured reputation (validates Pactum's review pillar). Note: their felt pain is vetting/reputation, not payment escrow — they're the paying side. Hypothesis: escrow pain is stronger on the freelancer (receiving) side.
