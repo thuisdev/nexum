@@ -11,3 +11,234 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ENUMS
+
+enum Role {
+  CLIENT
+  FREELANCER
+  ARBITER
+  ADMIN
+}
+
+enum ProjectStatus {
+  DRAFT
+  FUNDED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  DISPUTED
+  PAID
+  REFUNDED
+}
+
+enum DisputeStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED_FREELANCER
+  RESOLVED_CLIENT
+  SPLIT
+}
+
+enum NotificationType {
+  PROJECT_INVITED
+  MILESTONE_SUBMITTED
+  MILESTONE_APPROVED
+  MILESTONE_DISPUTED
+  DISPUTE_RESOLVED
+  PAYMENT_RELEASED
+}
+
+enum VerificationMethod {
+  NONE
+  PHONE
+  KYC
+  WALLET
+}
+
+enum EscrowStatus {
+  NOT_FUNDED
+  FUNDED
+  RELEASED
+  REFUNDED
+}
+
+// MODELS
+
+model User {
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  passwordHash       String
+  name               String?
+  displayName        String?
+  avatarUrl          String?
+  isVerified         Boolean            @default(false)
+  verificationMethod VerificationMethod @default(NONE)
+  verifiedAt         DateTime?
+  role               Role               @default(CLIENT)
+  walletAddress      String?            @unique
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  clientProjects     Project[]      @relation("ClientProjects")
+  freelancerProjects Project[]      @relation("FreelancerProjects")
+  arbiterProjects    Project[]      @relation("ArbiterProjects")
+  arbiterDisputes    Dispute[]      @relation("ArbiterDisputes")
+  submissions        Submission[]
+  approvals          Approval[]
+  raisedDisputes     Dispute[]      @relation("RaisedDisputes")
+  notifications      Notification[]
+  activityLogs       ActivityLog[]
+  reviewsWritten     Review[]       @relation("ReviewsWritten")
+  reviewsReceived    Review[]       @relation("ReviewsReceived")
+}
+
+model Project {
+  id           String        @id @default(uuid())
+  title        String
+  description  String
+  totalBudget  Decimal
+  currency     String        @default("USDC")
+  status       ProjectStatus @default(DRAFT)
+  escrowStatus EscrowStatus  @default(NOT_FUNDED)
+
+  clientId     String
+  freelancerId String?
+  arbiterId    String?
+
+  createdAt   DateTime  @default(now())
+  fundedAt    DateTime?
+  completedAt DateTime?
+
+  client     User  @relation("ClientProjects", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancer User? @relation("FreelancerProjects", fields: [freelancerId], references: [id])
+  arbiter    User? @relation("ArbiterProjects", fields: [arbiterId], references: [id])
+
+  milestones    Milestone[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+  reviews       Review[]
+
+  @@index([clientId])
+  @@index([freelancerId])
+  @@index([status])
+}
+
+model Milestone {
+  id          String          @id @default(uuid())
+  projectId   String
+  orderIndex  Int
+  title       String
+  description String
+  amount      Decimal
+  deadline    DateTime
+  status      MilestoneStatus @default(PENDING)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  paidAt      DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  submissions Submission[]
+  approvals   Approval[]
+  disputes    Dispute[]
+
+  @@index([projectId])
+}
+
+model Submission {
+  id          String  @id @default(uuid())
+  milestoneId String
+  submittedBy String
+  content     String
+  fileUrl     String?
+  version     Int     @default(1)
+
+  submittedAt DateTime @default(now())
+
+  milestone       Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  submittedByUser User      @relation(fields: [submittedBy], references: [id])
+}
+
+model Approval {
+  id           String  @id @default(uuid())
+  milestoneId  String
+  approvedBy   String
+  payoutTxRef  String?
+  payoutMethod String? @default("SIMULATED")
+
+  approvedAt DateTime @default(now())
+
+  milestone      Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  approvedByUser User      @relation(fields: [approvedBy], references: [id])
+}
+
+model Dispute {
+  id          String        @id @default(uuid())
+  milestoneId String
+  raisedBy    String
+  reason      String
+  status      DisputeStatus @default(OPEN)
+  arbiterId   String?
+  resolution  String?
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  milestone    Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  raisedByUser User      @relation("RaisedDisputes", fields: [raisedBy], references: [id])
+  arbiter      User?     @relation("ArbiterDisputes", fields: [arbiterId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  projectId String?
+  type      NotificationType
+  message   String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([userId])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  projectId String
+  actorId   String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor   User    @relation(fields: [actorId], references: [id])
+
+  @@index([projectId])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  projectId String
+  authorId  String
+  subjectId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author  User    @relation("ReviewsWritten", fields: [authorId], references: [id])
+  subject User    @relation("ReviewsReceived", fields: [subjectId], references: [id])
+
+  @@unique([projectId, authorId])
+}
