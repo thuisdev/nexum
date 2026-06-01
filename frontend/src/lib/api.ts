@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { TOKEN_KEY } from './constants';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -6,7 +7,7 @@ export const api = axios.create({
 
 // Attach the JWT to every outgoing request, if we have one stored
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('pactum_token');
+  const token = localStorage.getItem(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
