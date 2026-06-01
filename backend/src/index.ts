@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import 'dotenv/config';
-import { prisma } from './lib/prisma.js';
+import authRouter from './routes/auth.routes.js';
 
 const app = express();
 
@@ -12,6 +12,11 @@ app.use(cors({ origin: process.env.CORS_ORIGIN }));
 app.use(morgan('dev'));
 app.use(express.json());
 
+app.get('/health', (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.use('/auth', authRouter);
 
 const port = process.env.PORT || 4000;
 
