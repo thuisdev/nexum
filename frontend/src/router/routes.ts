@@ -1,0 +1,13 @@
+export const ROUTES = {
+    home: '/',
+    login: '/login',
+    register: '/register',
+    jobs: '/jobs',
+    dashboard: '/dashboard',
+    clientDashboard: '/dashboard/client',
+    freelancerDashboard: '/dashboard/freelancer',
+    createProject: '/projects/new',
+    project: (id: string) => `/projects/${id}`,
+    profile: (id: string) => `/users/${id}`,
+    settings: '/settings',
+} as const

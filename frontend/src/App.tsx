@@ -1,14 +1,11 @@
+import { RouterProvider } from 'react-router-dom'
+import AuthProvider from './context/AuthProvider'
+import { router } from '@/router/AppRoutes'
 
-const App = () => {
+export default function App() {
   return (
-    <div>
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <h1 className="text-4xl font-bold text-teal-400">
-          Pactum — Tailwind works
-        </h1>
-      </div>
-    </div>
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   )
 }
-
-export default App

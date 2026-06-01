@@ -1,0 +1,13 @@
+import { lazy } from 'react'
+
+export const LandingPage = lazy(() => import('@/pages/LandingPage'))
+export const LoginPage = lazy(() => import('@/pages/LoginPage'))
+export const RegisterPage = lazy(() => import('@/pages/RegisterPage'))
+export const JobBoardPage = lazy(() => import('@/pages/JobBoardPage'))
+export const ClientDashboard = lazy(() => import('@/pages/ClientDashboard'))
+export const FreelancerDashboard = lazy(() => import('@/pages/FreelancerDashboard'))
+export const CreateProjectPage = lazy(() => import('@/pages/CreateProjectPage'))
+export const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'))
+export const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'))
+export const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
+export const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
