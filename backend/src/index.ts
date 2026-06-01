@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import 'dotenv/config';
 import authRouter from './routes/auth.routes.js';
+import { errorHandler } from './middleware/error.middleware.js';
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/auth', authRouter);
+
+app.use(errorHandler)
 
 const port = process.env.PORT || 4000;
 

@@ -112,3 +112,27 @@ export const loginHandler = async (
         next(error)
     }
 }
+
+// Me Handler
+export const meHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.userId },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                createdAt: true,
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        next(error);
+    }
+}

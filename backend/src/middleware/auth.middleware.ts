@@ -34,13 +34,22 @@ const checkAuth = async (
 
 
 // Verify Admin
+const requireRole = async (...allowedRoles: Role[]) => {
+    return (req: Request, res: Response, next: NextFunction) => {
 
-// Verify Client
+        if (!req.userRole) {
+            return res.status(401).json({ error: 'Access denied' });
+        }
 
-// Verify Freelancer
+        if (!allowedRoles.includes(req.userRole)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
-// Verify Arbiter
+        next();
+    };
+};
 
 export {
-    checkAuth
-}
+    checkAuth,
+    requireRole
+};
