@@ -12,11 +12,9 @@ app.use(cors({ origin: process.env.CORS_ORIGIN }));
 app.use(morgan('dev'));
 app.use(express.json());
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 const port = process.env.PORT || 4000;
+
 app.listen(port, () => {
   console.log(`Pactum backend listening on http://localhost:${port}`);
 });
