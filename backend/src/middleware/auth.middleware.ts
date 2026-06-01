@@ -34,7 +34,7 @@ const checkAuth = async (
 
 
 // Verify Admin
-const requireRole = async (...allowedRoles: Role[]) => {
+const requireRole = (...allowedRoles: Role[]) => {
     return (req: Request, res: Response, next: NextFunction) => {
 
         if (!req.userRole) {
