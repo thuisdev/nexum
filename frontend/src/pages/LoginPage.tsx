@@ -1,55 +1,75 @@
 import { useAuth } from "@/hooks/useAuth"
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Navigate } from "react-router-dom"
+import { ROUTES } from '@/router/routes';
+import { getApiErrorMessage } from '@/lib/getApiErrorMessage';
 
 const LoginPage = () => {
-  const { login } = useAuth()
-  const navigate = useNavigate()
+  const { login, isLoggedIn, isLoading } = useAuth();
+  const navigate = useNavigate();
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (isLoading) return null;
+  if (isLoggedIn) return <Navigate to={ROUTES.dashboard} replace />;
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
-
-    e.preventDefault()
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true)
 
     try {
-      await login(email, password)
-      navigate('/dashboard')
-    } catch (error) {
-      console.log(error)
+      await login(email, password);
+      navigate(ROUTES.dashboard, { replace: true });
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Login failed'));
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <>
       <section>
+
+        <h1>Sign in</h1>
+
+        {error && <p role="alert">{error}</p>}
+
         <form onSubmit={handleSubmit}>
           <div>
-            <input type="text"
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
               id="email"
+              autoComplete="email"
               value={email}
               onChange={e => { setEmail(e.target.value) }}
-              placeholder=' '
+              required
             />
-            <label htmlFor="email">Email</label>
-          </div>
+          </div>s
           <div>
-            <input type="password"
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
               id="password"
+              autoComplete="current-password"
               value={password}
               onChange={e => { setPassword(e.target.value) }}
-              placeholder=' '
+              required
             />
-            <label htmlFor="password">Password</label>
           </div>
-          <button type="submit">
-            Sign In
+
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </section >
     </>
-  )
-}
+  );
+};
 
-export default LoginPage
+export default LoginPage;

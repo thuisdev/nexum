@@ -11,6 +11,7 @@ type AuthProviderProps = {
 
 type AuthContextValue = {
   user: User | null;
+  isLoggedIn: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
@@ -52,6 +53,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     initAuth()
   }, []);
 
+  // Is Logged in?
+
+  const isLoggedIn = !!user
+
   // Login
   const login = async (email: string, password: string) => {
     const data = await loginApi({ email, password });
@@ -71,7 +76,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // AuthContext
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, isLoggedIn }}>
       {children}
     </AuthContext.Provider>
   );
