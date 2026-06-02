@@ -2,7 +2,8 @@ import type { User } from '@/types/user';
 import type { ReactNode } from 'react';
 import { createContext, useEffect, useState } from 'react';
 import { TOKEN_KEY } from '@/lib/constants';
-import { getMe, loginApi, registerApi } from '@/hooks/useApi';
+import { getMe, loginApi, registerApi } from '@/lib/auth.api';
+import type { RegisterCredentials } from '@/types/api.types';
 
 type AuthProviderProps = {
   children: ReactNode
@@ -12,7 +13,7 @@ type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
 }
 
@@ -43,7 +44,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(res.data)
       } catch {
         logout()
-        setUser(null)
       } finally {
         setLoading(false)
       }
@@ -54,16 +54,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Login
   const login = async (email: string, password: string) => {
-    const data = await loginApi({ email, password});
+    const data = await loginApi({ email, password });
     localStorage.setItem(TOKEN_KEY, data.token)
     setUser(data.user);
   };
 
-  const register = async (email: string, password: string) => {
-    await registerApi({email, password, name: '', role: 'CLIENT'});
-    await login(email, password);
+  const register = async (credentials: RegisterCredentials) => {
+    await registerApi({
+      email: credentials.email,
+      password: credentials.password,
+      ...(credentials.name ? { name: credentials.name } : {}),
+      ...(credentials.role ? { role: credentials.role } : {}),
+    });
+    await login(credentials.email, credentials.password);
   };
-
 
   // AuthContext
   return (

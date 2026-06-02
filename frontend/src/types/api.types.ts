@@ -1,8 +1,8 @@
 export interface RegisterCredentials {
     email: string;
     password: string;
-    role: string;
-    name: string;
+    role?: 'CLIENT' | 'FREELANCER';
+    name?: string;
 }
 
 export interface LoginCredentials {
