@@ -7,6 +7,8 @@ export function getDashboardPathForRole(role: User['role']): string {
       return ROUTES.freelancerDashboard;
     case 'CLIENT':
       return ROUTES.clientDashboard;
+    case 'ADMIN':
+      return ROUTES.adminDashboard;
     default:
       return ROUTES.dashboard;
   }
