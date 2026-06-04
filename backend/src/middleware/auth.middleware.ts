@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import type { Role } from '../generated/prisma/enums';
 
 // Verifiy JWT
-const checkAuth = async (
+const checkAuth = (
     req: Request,
     res: Response,
     next: NextFunction) => {
@@ -33,7 +33,7 @@ const checkAuth = async (
 };
 
 
-// Verify Admin
+// Verify Role
 const requireRole = (...allowedRoles: Role[]) => {
     return (req: Request, res: Response, next: NextFunction) => {
 

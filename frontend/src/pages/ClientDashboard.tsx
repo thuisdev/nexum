@@ -1,10 +1,13 @@
+import { useAuth } from "@/hooks/useAuth"
 
 
 const ClientDashboard = () => {
+  const { user } = useAuth();
+
   return (
-    <div>
-      
-    </div>
+    <>
+    <h1>Welcome, {user?.name ?? user?.email ?? 'User'}</h1>
+    </>
   )
 }
 

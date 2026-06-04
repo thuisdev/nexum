@@ -1,7 +1,7 @@
 export interface User {
-    id: number;
+    id: string;
     email: string;
-    name: string;
-    role: string;
+    name: string | null;
+    role: 'CLIENT' | 'FREELANCER' | 'ARBITER' | 'ADMIN';
     createdAt: string;
 }

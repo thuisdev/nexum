@@ -1,11 +1,12 @@
-
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { getDashboardPathForRole } from '@/lib/authRedirect';
 
 const DashboardRedirect = () => {
-  return (
-    <div>
-      
-    </div>
-  )
-}
+  const { user } = useAuth();
+  if (!user) return null;
 
-export default DashboardRedirect
+  return <Navigate to={getDashboardPathForRole(user.role)} replace />;
+};
+
+export default DashboardRedirect;
