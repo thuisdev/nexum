@@ -1,32 +1,19 @@
-import type { User } from '@/types/user';
 import type { ReactNode } from 'react';
-import { createContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { User } from '@/types/user';
 import { TOKEN_KEY } from '@/lib/constants';
 import { getMe, loginApi, registerApi } from '@/lib/auth.api';
 import type { RegisterCredentials } from '@/types/api.types';
+import { AuthContext } from '@/context/auth.context';
 
 type AuthProviderProps = {
-  children: ReactNode
+  children: ReactNode;
 };
 
-type AuthContextValue = {
-  user: User | null;
-  isLoggedIn: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (credentials: RegisterCredentials) => Promise<void>;
-  logout: () => void;
-}
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setLoading] = useState(true);
 
-
-export const AuthContext = createContext<AuthContextValue | null>(null)
-
-// Auth Provider
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setLoading] = useState(true)
-
-  // Logout
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     setUser(null);
@@ -41,26 +28,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       try {
-        const res = await getMe()
-        setUser(res.data)
+        const res = await getMe();
+        setUser(res.data);
       } catch {
-        logout()
+        logout();
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     };
 
-    initAuth()
+    initAuth();
   }, []);
 
-  // Is Logged in?
+  const isLoggedIn = !!user;
 
-  const isLoggedIn = !!user
-
-  // Login
   const login = async (email: string, password: string) => {
     const data = await loginApi({ email, password });
-    localStorage.setItem(TOKEN_KEY, data.token)
+    localStorage.setItem(TOKEN_KEY, data.token);
     setUser(data.user);
   };
 
@@ -74,9 +58,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     await login(credentials.email, credentials.password);
   };
 
-  // AuthContext
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, isLoggedIn }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, register, logout, isLoggedIn }}
+    >
       {children}
     </AuthContext.Provider>
   );
