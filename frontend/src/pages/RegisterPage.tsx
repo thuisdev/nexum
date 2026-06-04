@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ROUTES } from '@/router/routes';
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage';
-import { PageLoader } from '@/router/PageLoader';
 
 type RegisterRole = 'CLIENT' | 'FREELANCER';
 
 const RegisterPage = () => {
-  const { register, isLoggedIn, isLoading } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -16,9 +15,6 @@ const RegisterPage = () => {
   const [role, setRole] = useState<RegisterRole>('CLIENT');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  if (isLoading) return < PageLoader />;
-  if (isLoggedIn) return <Navigate to={ROUTES.dashboard} replace />;
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();

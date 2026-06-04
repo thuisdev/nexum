@@ -1,21 +1,17 @@
 import { useAuth } from "@/hooks/useAuth"
 import { useState } from "react"
-import { useNavigate, Navigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { ROUTES } from '@/router/routes';
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage';
-import { PageLoader } from "@/router/PageLoader";
 
 const LoginPage = () => {
-  const { login, isLoggedIn, isLoading } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  if (isLoading) return < PageLoader />;
-  if (isLoggedIn) return <Navigate to={ROUTES.dashboard} replace />;
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
