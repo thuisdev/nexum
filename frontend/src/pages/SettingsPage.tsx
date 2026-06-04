@@ -31,7 +31,10 @@ const SettingsPage = () => {
     setError(null);
     setMessage(null);
     try {
-      await update(data)
+      await update({
+        ...(data.name?.trim() && { name: data.name.trim() }),
+        ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
+      });
       setMessage('Profile saved');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not save profile'));
