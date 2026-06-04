@@ -7,6 +7,7 @@ export const ROUTES = {
     clientDashboard: '/dashboard/client',
     freelancerDashboard: '/dashboard/freelancer',
     adminDashboard: '/dashboard/admin',
+    arbiterDashboard: '/dashboard/arbiter',
     createProject: '/projects/new',
     project: (id: string) => `/projects/${id}`,
     profile: (id: string) => `/users/${id}`,
