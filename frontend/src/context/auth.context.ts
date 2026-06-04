@@ -1,13 +1,15 @@
 import { createContext } from 'react';
 import type { User } from '@/types/user';
-import type { RegisterCredentials } from '@/types/api.types';
+import type { LoginCredentials, RegisterCredentials } from '@/types/api.types';
+import type { UpdateProfileInput } from '@/lib/validation';
 
 export type AuthContextValue = {
   user: User | null;
   isLoggedIn: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
+  update: (credentials: UpdateProfileInput) => Promise<void>;
   logout: () => void;
 };
 
