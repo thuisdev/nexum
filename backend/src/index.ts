@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import 'dotenv/config';
 import authRouter from './routes/auth.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
+import usersRouter from './routes/users.routes.js';
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter)
 
 app.use(errorHandler)
 

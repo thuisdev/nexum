@@ -124,6 +124,7 @@ export const meHandler = async (req: Request, res: Response, next: NextFunction)
                 name: true,
                 role: true,
                 createdAt: true,
+                displayName: true,
             }
         });
 
