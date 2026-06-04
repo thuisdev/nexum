@@ -9,7 +9,7 @@ export function getDashboardPathForRole(role: User['role']): string {
       return ROUTES.clientDashboard;
     case 'ADMIN':
       return ROUTES.adminDashboard;
-    case 'ARBITER' :
+    case 'ARBITER':
       return ROUTES.arbiterDashboard;
     default:
       return ROUTES.dashboard;

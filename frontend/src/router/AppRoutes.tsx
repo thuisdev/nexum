@@ -58,10 +58,10 @@ export const router = createBrowserRouter([
           {
             element: <RoleRoute allowedRoles={['ADMIN']} />,
             children: [
+              { path: ROUTES.adminDashboard, element: withSuspense(AdminDashboard) },
               { path: ROUTES.clientDashboard, element: withSuspense(ClientDashboard) },
               { path: ROUTES.freelancerDashboard, element: withSuspense(FreelancerDashboard) },
               { path: ROUTES.createProject, element: withSuspense(CreateProjectPage) },
-              { path: ROUTES.adminDashboard, element: withSuspense(AdminDashboard) },
             ]
           },
           {

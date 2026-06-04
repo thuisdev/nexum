@@ -17,9 +17,8 @@ const Navbar = () => {
       ) : (
         <>
           <Link to="/login">Login</Link>
-      Login
-    </>)
-}
+        </>)
+      }
     </>
   )
 }
