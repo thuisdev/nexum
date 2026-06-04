@@ -19,7 +19,7 @@ const LoginPage = () => {
     setIsSubmitting(true)
 
     try {
-      await login(email, password);
+      await login({email, password});
       navigate(ROUTES.dashboard, { replace: true });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Login failed'));

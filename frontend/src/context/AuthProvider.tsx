@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import type { User } from '@/types/user';
 import { TOKEN_KEY } from '@/lib/constants';
 import { getMe, loginApi, registerApi } from '@/lib/auth.api';
-import type { RegisterCredentials } from '@/types/api.types';
+import { patchMe } from '@/lib/users.api';
+import type { RegisterCredentials, LoginCredentials } from '@/types/api.types';
+import type { UpdateProfileInput } from '@/lib/validation';
 import { AuthContext } from '@/context/auth.context';
 
 type AuthProviderProps = {
@@ -42,8 +44,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const isLoggedIn = !!user;
 
-  const login = async (email: string, password: string) => {
-    const data = await loginApi({ email, password });
+  const login = async (credentails: LoginCredentials) => {
+    const data = await loginApi({
+      email: credentails.email,
+      password: credentails.password
+    });
     localStorage.setItem(TOKEN_KEY, data.token);
     setUser(data.user);
   };
@@ -55,12 +60,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       ...(credentials.name ? { name: credentials.name } : {}),
       ...(credentials.role ? { role: credentials.role } : {}),
     });
-    await login(credentials.email, credentials.password);
+    await login(credentials);
   };
+
+  const update = async (credentials: UpdateProfileInput) => {
+    const data = await patchMe(credentials);
+    setUser(data)
+  }
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, login, register, logout, isLoggedIn }}
+      value={{ user, isLoading, login, register, logout, isLoggedIn, update }}
     >
       {children}
     </AuthContext.Provider>
