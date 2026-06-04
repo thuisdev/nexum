@@ -3,6 +3,7 @@ import { useState } from "react"
 import { useNavigate, Navigate } from "react-router-dom"
 import { ROUTES } from '@/router/routes';
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage';
+import { PageLoader } from "@/router/PageLoader";
 
 const LoginPage = () => {
   const { login, isLoggedIn, isLoading } = useAuth();
@@ -13,7 +14,7 @@ const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (isLoading) return null;
+  if (isLoading) return < PageLoader />;
   if (isLoggedIn) return <Navigate to={ROUTES.dashboard} replace />;
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
@@ -35,7 +36,7 @@ const LoginPage = () => {
     <>
       <section>
 
-        <h1>Sign in</h1>
+        <h1>Login</h1>
 
         {error && <p role="alert">{error}</p>}
 
@@ -49,8 +50,9 @@ const LoginPage = () => {
               value={email}
               onChange={e => { setEmail(e.target.value) }}
               required
+              className="text-white bg-black"
             />
-          </div>s
+          </div>
           <div>
             <label htmlFor="password">Password</label>
             <input
@@ -60,6 +62,7 @@ const LoginPage = () => {
               value={password}
               onChange={e => { setPassword(e.target.value) }}
               required
+              className="text-white bg-black"
             />
           </div>
 

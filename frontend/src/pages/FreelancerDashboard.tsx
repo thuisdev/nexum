@@ -1,10 +1,12 @@
-
+import { useAuth } from "@/hooks/useAuth";
 
 const FreelancerDashboard = () => {
+  const { user } = useAuth();
+
   return (
-    <div>
-      
-    </div>
+    <>
+      <h1>Welcome, {user?.name ?? user?.email ?? 'User'}</h1>
+    </>
   )
 }
 

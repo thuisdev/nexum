@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api } from "@/lib/axiosInteceptor";
 import type { LoginCredentials, RegisterCredentials } from "@/types/api.types"
 
 // Login API Call

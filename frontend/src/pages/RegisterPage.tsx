@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ROUTES } from '@/router/routes';
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage';
+import { PageLoader } from '@/router/PageLoader';
 
 type RegisterRole = 'CLIENT' | 'FREELANCER';
 
@@ -16,7 +17,7 @@ const RegisterPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (isLoading) return null;
+  if (isLoading) return < PageLoader />;
   if (isLoggedIn) return <Navigate to={ROUTES.dashboard} replace />;
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
@@ -50,6 +51,7 @@ const RegisterPage = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            className="text-white bg-black"
           />
         </div>
 
@@ -63,6 +65,7 @@ const RegisterPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             required
+            className="text-white bg-black"
           />
         </div>
 
