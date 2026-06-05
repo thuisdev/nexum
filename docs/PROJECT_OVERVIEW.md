@@ -23,7 +23,7 @@ Phase 2 = Smart contract on Ethereum L2 (not now).
 ```
 ✅ Week 1 — Repo, Prisma schema, planning
 ✅ Week 2 — Auth backend + frontend (register, login, /me, PATCH profile, protected + role routes)
-⬜ Week 2.5 — DESIGN SPRINT (Figma) ← YOU ARE HERE
+⬜ Week 2.5 — DESIGN SPRINT (Figma) ← YOU ARE HERE → see [DESIGN_SPRINT.md](./DESIGN_SPRINT.md)
 ⬜ Week 3 — Projects (create, invite, fund)
 ⬜ Week 4 — Submit, approve, timeline, notifications
 ⬜ Week 5 — Job board, deploy, demo
