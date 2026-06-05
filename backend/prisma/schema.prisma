@@ -86,6 +86,7 @@ model User {
   walletAddress      String?            @unique
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  // bio & skills
 
   clientProjects     Project[]      @relation("ClientProjects")
   freelancerProjects Project[]      @relation("FreelancerProjects")
