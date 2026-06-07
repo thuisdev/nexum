@@ -9,6 +9,245 @@
 
 ---
 
+## START HERE — Execution order (read this first)
+
+> **Components before screens. Wireframes only in FigJam (gray boxes), not a full second pass in Figma.**  
+> **Tailwind `@theme` in code:** after Figma Variables + Button/Card exist (end of Step 2), not before.
+
+### Quick answer: Figma first thing?
+
+| Order | What | Tool |
+|-------|------|------|
+| 1 | Design specs (tokens, type, states) | Doc ✅ |
+| 2 | Flows + action matrix | FigJam |
+| 3 | Tokens → Figma Variables | Figma page 01 |
+| 4 | **Components (Hi-Fi)** | Figma page 02 |
+| 5 | **Wireframes (light)** | FigJam only |
+| 6 | **Screens (Hi-Fi)** | Figma pages 03–07 |
+| 7 | Mobile + prototype + handoff | Figma 08–10 |
+
+---
+
+## Step-by-step checklist (your roadmap)
+
+Tick boxes as you go. **Do not skip ahead to screens before Step 2 components exist.**
+
+---
+
+### Step 1 — Design specs ✅ DONE
+
+**What you have:** Token doc (ink, brand, semantic colors, typography, states, badges, component sizes, Tailwind class mapping).
+
+- [x] Color palettes `ink` + `brand` + semantic (emerald, amber, red, sky)
+- [x] Light + Dark role mapping (`bg-white dark:bg-ink-950`, etc.)
+- [x] Text roles (headings, body, muted, links, amounts)
+- [x] State matrix (buttons, inputs, nav, cards)
+- [x] Status badges (DRAFT → PAID)
+- [x] Typography (Clash Display, Satoshi, JetBrains Mono)
+- [x] Spacing, radius, shadows, breakpoints
+- [x] Component sizes (button, input, card, navbar, form)
+- [ ] **Optional:** Save doc as `docs/design/TOKENS.md` in repo
+
+**Not done yet (code — later):** `@theme` in `index.css`, fonts in `index.html` → end of Step 2 or start of Week 3.
+
+---
+
+### Step 2 — Figma foundations + components (DO THIS NOW)
+
+**Goal:** Reusable Hi-Fi components on Figma page **02 — Patterns**. No full screens yet.
+
+#### 2a — FigJam discovery (~2–3 h) ⬜ NOT DONE
+
+Do this **in parallel with start of 2b** if you hate FigJam first — but matrix must exist before ProjectCard.
+
+- [ ] Action matrix complete (every button on every surface — see template below)
+- [ ] Flow: Client create → invite → fund
+- [ ] Flow: Freelancer accept → submit
+- [ ] Flow: Client approve milestone
+- [ ] Flow: Job board → apply → client accept (Week 5 preview)
+
+**Action matrix (copy to FigJam and fill):**
+
+| Surface | Role | Primary action | Secondary | Hidden when |
+|---------|------|----------------|-----------|-------------|
+| ProjectCard | CLIENT | View project | — | — |
+| ProjectCard | FREELANCER (assigned) | View project | — | — |
+| ProjectCard | FREELANCER (pending) | Accept invite | View project | — |
+| ProjectCard | JOB BOARD | View project | Apply | already applied |
+| MilestoneCard | FREELANCER | Submit work | — | status ≠ IN_PROGRESS |
+| MilestoneCard | CLIENT | Review & approve | — | status ≠ SUBMITTED |
+| Project detail | CLIENT | Fund project | Invite freelancer | not DRAFT+accepted |
+| Navbar | logged out | — | Login, Register | — |
+| Navbar | logged in | — | Notifications, User menu | — |
+
+#### 2b — Figma Variables + text styles (~2 h) ⬜ NOT DONE
+
+Figma page **01 — Foundations**. Copy hex **exactly** from token doc.
+
+- [ ] Variables: `ink/50` … `ink/950`
+- [ ] Variables: `brand/50` … `brand/900`
+- [ ] Semantic swatches (emerald, amber, red, sky — for badges)
+- [ ] Text styles: H1, H2, H3, Body, Muted, Label, Caption, Mono/Amount
+- [ ] Layout frame template (1280 desktop, padding per token doc)
+
+#### 2c — Core components (~8–12 h) ⬜ NOT DONE
+
+Build as **Figma components with variants**. Hi-Fi from day one (use tokens, not gray).
+
+**Buttons**
+- [ ] Primary (default, hover, disabled, loading)
+- [ ] Secondary
+- [ ] Ghost
+- [ ] Danger / Destructive
+- [ ] Small size variant
+
+**Form elements**
+- [ ] Text input (default, focus, error, disabled)
+- [ ] Textarea (+ character count slot)
+- [ ] Select (role, currency)
+- [ ] Search input (job board)
+- [ ] File upload zone (empty, file selected, error)
+- [ ] Label + helper text + error message slots
+
+**Feedback**
+- [ ] Message/Alert: success, error, warning, info
+- [ ] Skeleton (card, text lines)
+
+**Data display**
+- [ ] StatusBadge (all project + milestone statuses from token doc)
+- [ ] Avatar (sm, md, initials)
+- [ ] Skill tag
+- [ ] Currency amount (mono, tabular)
+- [ ] Empty state block
+
+**Cards & lists**
+- [ ] Card / surface base
+- [ ] **ProjectCard** ⭐ (dashboard client, freelancer assigned, freelancer pending+Accept, job board+Apply)
+- [ ] **MilestoneCard** ⭐ (per status + action slot)
+- [ ] ApplicationCard (accept/reject — Week 5)
+- [ ] ActivityTimeline item
+- [ ] NotificationItem
+
+**Navigation & layout**
+- [ ] Navbar desktop (logged out + logged in)
+- [ ] Navbar mobile (hamburger / drawer)
+- [ ] User menu dropdown
+- [ ] Notification bell + dropdown panel
+- [ ] Footer
+- [ ] PageHeader (title + breadcrumb + CTA slot)
+- [ ] Auth layout shell (centered card)
+- [ ] Dashboard layout shell
+
+**Overlays**
+- [ ] Modal shell (confirm + form layouts)
+- [ ] Dialog: Fund project (confirm)
+- [ ] Dialog: Approve & release
+- [ ] Dialog: Submit work
+- [ ] Dialog: Apply (pitch)
+
+**Step 2 done when:** ProjectCard + MilestoneCard + Button + Input + StatusBadge exist as components.
+
+---
+
+### Step 3 — Wireframes (FigJam only, light) ⬜ NOT DONE
+
+**Not** 23 gray screens in Figma. **Only** gray-box flows where layout is unclear.
+
+**Tool:** FigJam (or one Figma page "00 — Wireframes" as **low-fi boxes only**).
+
+- [ ] Project Detail — box layout (header / parties / milestones / actions / timeline)
+- [ ] Create Project — box layout (form + milestone rows + budget warning)
+- [ ] Client Dashboard — box layout (header CTA + card grid)
+
+**Skip wireframes for:** Login, Register, 404 (obvious single-column).
+
+**Time budget:** 1–2 hours total. Then move on — do not polish wireframes.
+
+---
+
+### Step 4 — Hi-Fi screens (compose from Step 2 components) ⬜ NOT DONE
+
+**Only place instances of components.** No new colors/fonts here.
+
+Figma pages **03–07**. Desktop **1280px** first.
+
+#### Public
+- [ ] Landing (P-01)
+- [ ] Job Board + no results (P-02, P-03)
+- [ ] 404 (P-04)
+
+#### Auth
+- [ ] Login (A-01) + error state
+- [ ] Register (A-02) + validation errors
+
+#### Client
+- [ ] Client Dashboard + empty state (C-01)
+- [ ] Create Project + budget mismatch warning (C-02, C-03)
+- [ ] Project Detail — DRAFT, no freelancer (C-04)
+- [ ] Project Detail — invited, awaiting accept (C-05)
+- [ ] Project Detail — ready to fund (C-06)
+- [ ] Project Detail — FUNDED (C-08)
+- [ ] Project Detail — milestone SUBMITTED (C-09)
+- [ ] Project Detail — milestone PAID (C-11)
+- [ ] Project Detail — Applications tab (C-12, Week 5)
+
+#### Freelancer
+- [ ] Freelancer Dashboard + pending invites (F-01)
+- [ ] Project Detail — pending invite + Accept (F-02)
+- [ ] Project Detail — IN_PROGRESS + Submit (F-03, F-04)
+- [ ] Project Detail — submitted, awaiting approval (F-05)
+- [ ] Job Board — Apply dialog (F-06, F-07)
+
+#### Shared
+- [ ] Project Detail + Activity Timeline section (S-01, S-02)
+- [ ] Settings + success message (S-03)
+- [ ] Public User Profile (S-04)
+- [ ] Admin + Arbiter dashboard placeholder (X-01, X-02)
+
+#### States (page 08)
+- [ ] Loading skeletons (dashboard, detail)
+- [ ] Empty states wired (no projects, no jobs, no notifications)
+- [ ] API/form error examples
+
+**Step 4 order (do not randomize):**
+1. Client Dashboard
+2. Create Project
+3. Project Detail (all status frames) ⭐ master
+4. Freelancer Dashboard
+5. Landing + Auth
+6. Job Board + Settings + Profile
+7. States
+
+---
+
+### Step 5 — Mobile + prototype + handoff ⬜ NOT DONE
+
+- [ ] Mobile 375px: Landing, Auth, both Dashboards, Create Project, Project Detail, Job Board
+- [ ] Light mode complete first; dark mode on key components only (optional full dark later)
+- [ ] 3 Figma prototypes (client fund, freelancer submit, approve)
+- [ ] Consistency audit (matrix ↔ Figma)
+- [ ] `docs/design/HANDOFF.md` + screen PNG exports
+- [ ] Tailwind `@theme` + fonts in code (from token doc)
+- [ ] ClickUp Design Sprint → Done; Week 3 Build unblocked
+
+---
+
+## Where you are right now
+
+```
+✅ Step 1 — Design specs (document)
+⬜ Step 2a — FigJam matrix + flows
+⬜ Step 2b — Figma variables
+⬜ Step 2c — Components  ← YOU ARE HERE
+⬜ Step 3 — Wireframes (FigJam, light)
+⬜ Step 4 — Hi-Fi screens
+⬜ Step 5 — Mobile + handoff
+```
+
+**Today:** Step 2a (action matrix) → Step 2b (variables) → first component (Primary Button).
+
+---
+
 ## Definition of Done (sprint is complete when ALL are true)
 
 - [ ] Figma file structured (pages listed below)
