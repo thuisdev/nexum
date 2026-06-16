@@ -19,9 +19,9 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRouter);
-app.use('/api/users', usersRouter)
+app.use('/api/users', usersRouter);
 
-app.use(errorHandler)
+app.use(errorHandler);
 
 const port = process.env.PORT || 4000;
 
