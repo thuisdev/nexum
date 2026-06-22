@@ -25,8 +25,8 @@ export default function Footer() {
   return (
     <footer className="w-full border-t border-ink-200">
       <div className="mx-auto flex max-w-[1152px] flex-col gap-9 px-4 py-12 md:px-8 lg:px-8">
-        <div className="flex flex-col gap-7 md:flex-row md:gap-8 lg:gap-8">
-          <div className="flex max-w-[360px] flex-col gap-2 md:w-full lg:w-[360px]">
+        <div className="flex flex-col gap-7 lg:flex-row lg:gap-8">
+          <div className="flex w-full max-w-[360px] flex-col gap-2 lg:shrink-0">
             <Link
               to={ROUTES.home}
               className="font-display text-xl font-bold text-ink-900"
@@ -39,7 +39,7 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-7 md:flex-1 md:flex-row md:gap-8">
+          <div className="flex flex-col gap-7 md:flex-row md:flex-[3] md:gap-8">
             <LinkColumn title="Product" links={productLinks} />
             <LinkColumn title="Company" links={companyLinks} />
             <LinkColumn title="Legal" links={legalLinks} />

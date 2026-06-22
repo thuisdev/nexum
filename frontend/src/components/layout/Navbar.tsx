@@ -11,9 +11,10 @@ import { cn } from '@/lib/utils'
 
 export type NavbarProps = {
   landing?: boolean
+  unreadCount?: number
 }
 
-export default function Navbar({ landing = false }: NavbarProps) {
+export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps) {
   const { isLoggedIn, user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -60,7 +61,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
     <>
       <header
         className={cn(
-          'sticky top-0 z-20 w-full border-b border-ink-200 bg-white/90 backdrop-blur-md',
+          'sticky top-0 z-20 w-full border-b border-ink-200 bg-white/90 backdrop-blur-[8px]',
           landing ? 'h-[60px]' : 'h-14',
         )}
       >
@@ -90,7 +91,9 @@ export default function Navbar({ landing = false }: NavbarProps) {
                     aria-label="Notifications"
                   >
                     <Bell className="size-5" />
-                    <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-brand-500" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-brand-500" />
+                    )}
                   </button>
                   {notificationsOpen && (
                     <div className="absolute right-0 top-full mt-2">
@@ -106,7 +109,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
                   {userMenuOpen && (
                     <div className="absolute right-0 top-full mt-2">
                       <UserMenu
-                        name={user?.displayName ?? user?.name}
+                        userId={user?.id}
                         onLogout={handleLogout}
                       />
                     </div>

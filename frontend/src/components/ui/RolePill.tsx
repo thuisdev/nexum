@@ -9,7 +9,7 @@ export function RolePill({ role, className }: RolePillProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium leading-4 text-brand-700',
+        'inline-flex items-center rounded-full bg-brand-50 px-2.5 py-[3px] text-xs font-medium leading-4 text-brand-700',
         className,
       )}
     >

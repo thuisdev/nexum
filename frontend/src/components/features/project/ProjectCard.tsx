@@ -1,5 +1,5 @@
 import { type MouseEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@/components/ui/Link'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Divider } from '@/components/ui/Divider'
@@ -12,6 +12,8 @@ import { VerifiedIcon } from '@/components/ui/VerifiedIcon'
 import { cn } from '@/lib/utils'
 
 export type ProjectCardVariant = 'jobboard' | 'client' | 'freelancer'
+export type ClientCardState = 'in_progress' | 'draft'
+export type FreelancerCardState = 'invited' | 'in_progress'
 
 export type ProjectCardProps = {
   variant: ProjectCardVariant
@@ -20,21 +22,26 @@ export type ProjectCardProps = {
   amount: string
   currency?: string
   status?: StatusBadgeStatus
+  /** Client on jobboard / counterparty on dashboards */
   partyName?: string
   partyAvatarUrl?: string | null
   verified?: boolean
   timeAgo?: string
+  deadline?: string
   tags?: string[]
   milestoneCount?: number
   applicantCount?: number
-  progressLabel?: string
+  /** Structured progress (cards-build) */
+  milestonesDone?: number
+  milestonesTotal?: number
+  progressAmountText?: string
   progressValue?: number
-  progressMax?: number
   reviewCount?: number
   draftMeta?: string
   footLinkLabel?: string
   footLinkTo?: string
-  invited?: boolean
+  clientState?: ClientCardState
+  freelancerState?: FreelancerCardState
   submitLabel?: string
   onCardClick?: () => void
   onApply?: () => void
@@ -55,17 +62,20 @@ export function ProjectCard({
   partyAvatarUrl,
   verified = false,
   timeAgo,
+  deadline,
   tags = [],
   milestoneCount,
   applicantCount,
-  progressLabel,
+  milestonesDone,
+  milestonesTotal,
+  progressAmountText,
   progressValue = 0,
-  progressMax = 100,
   reviewCount,
   draftMeta,
   footLinkLabel,
   footLinkTo,
-  invited = false,
+  clientState = 'in_progress',
+  freelancerState = 'invited',
   submitLabel,
   onCardClick,
   onApply,
@@ -74,14 +84,16 @@ export function ProjectCard({
   onSubmit,
   className,
 }: ProjectCardProps) {
-  const showParty =
-    variant !== 'jobboard' || (variant === 'jobboard' && partyName)
+  const isJobboard = variant === 'jobboard'
+  const cardGap = isJobboard ? 'gap-3.5' : 'gap-3'
+  const partyGap = isJobboard ? 'gap-1.5' : 'gap-2'
 
-  const handleCardClick = () => {
-    onCardClick?.()
-  }
-
+  const handleCardClick = () => onCardClick?.()
   const stop = (e: MouseEvent) => e.stopPropagation()
+
+  const showProgress =
+    (variant === 'client' && clientState === 'in_progress') ||
+    (variant === 'freelancer' && freelancerState === 'in_progress')
 
   return (
     <article
@@ -91,44 +103,62 @@ export function ProjectCard({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') handleCardClick()
       }}
+      data-project-id={projectId}
       className={cn(
-        'flex w-full cursor-pointer flex-col gap-3 rounded-xl border border-ink-200 bg-white p-5 shadow-sm transition-[box-shadow,border-color,transform] duration-[180ms] hover:-translate-y-0.5 hover:border-brand-100 hover:shadow-md md:w-[360px]',
+        'flex w-full cursor-pointer flex-col rounded-xl border border-ink-200 bg-white p-5 shadow-sm',
+        'transition-[box-shadow,border-color,transform] duration-[180ms]',
+        'hover:-translate-y-0.5 hover:border-brand-100 hover:shadow-md',
+        'md:w-[360px]',
+        cardGap,
         className,
       )}
-      data-project-id={projectId}
     >
+      {/* Top row */}
       <div className="flex items-center justify-between gap-2">
-        {showParty ? (
-          <div className="flex min-w-0 items-center gap-2">
-            {partyName ? (
-              <>
+        <div className={cn('flex min-w-0 items-center', partyGap)}>
+          {isJobboard || partyName ? (
+            <>
+              {partyName && (
                 <Avatar src={partyAvatarUrl} name={partyName} size="sm" />
-                <span className="truncate text-sm font-medium text-ink-900">
-                  {partyName}
-                </span>
-                {verified && <VerifiedIcon />}
-              </>
-            ) : (
-              <span className="text-sm text-ink-500">
-                Open · {applicantCount ?? 0} applicants
+              )}
+              <span
+                className={cn(
+                  'truncate text-sm font-medium text-ink-900',
+                  !partyName && 'font-normal text-ink-500',
+                )}
+              >
+                {partyName ??
+                  (variant === 'client'
+                    ? `Open · ${applicantCount ?? 0} applicants`
+                    : 'Open')}
               </span>
-            )}
-          </div>
-        ) : (
-          <span />
-        )}
-        {variant === 'jobboard' && timeAgo ? (
-          <span className="shrink-0 text-xs text-ink-400">{timeAgo}</span>
+              {partyName && verified && <VerifiedIcon size="sm" />}
+            </>
+          ) : (
+            <span className="text-sm text-ink-500">
+              Open · {applicantCount ?? 0} applicants
+            </span>
+          )}
+        </div>
+        {isJobboard && timeAgo ? (
+          <span className="shrink-0 text-xs leading-4 text-ink-400">{timeAgo}</span>
         ) : status ? (
           <StatusBadge status={status} />
         ) : null}
       </div>
 
+      {/* Title — H3 Desktop */}
       <h3 className="font-display text-lg font-semibold leading-7 text-ink-900 md:text-xl md:leading-7">
         {title}
       </h3>
 
-      {variant === 'jobboard' && (
+      {/* Job board: deadline under title optional in spec as caption row - client group has time top right */}
+      {isJobboard && deadline && (
+        <p className="text-xs leading-4 text-ink-400">Due {deadline}</p>
+      )}
+
+      {/* Variable middle */}
+      {isJobboard && (
         <div className="flex flex-col gap-2">
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -143,29 +173,39 @@ export function ProjectCard({
 
       {variant === 'client' && (
         <div className="flex flex-col gap-2">
-          {draftMeta ? (
-            <p className="text-sm text-ink-500">{draftMeta}</p>
-          ) : null}
-          {progressLabel ? (
-            <ProgressBar
-              label={progressLabel}
-              value={progressValue}
-              max={progressMax}
-            />
-          ) : null}
+          {clientState === 'draft' && draftMeta && (
+            <p className="text-sm leading-5 text-ink-500">{draftMeta}</p>
+          )}
+          {showProgress &&
+            milestonesDone !== undefined &&
+            milestonesTotal !== undefined &&
+            progressAmountText && (
+              <ProgressBar
+                milestonesDone={milestonesDone}
+                milestonesTotal={milestonesTotal}
+                amountText={progressAmountText}
+                value={progressValue}
+                max={100}
+              />
+            )}
           {reviewCount ? <ReviewPill count={reviewCount} /> : null}
         </div>
       )}
 
       {variant === 'freelancer' && (
         <div className="flex flex-col gap-2">
-          {invited ? (
+          {freelancerState === 'invited' ? (
             <EscrowPill milestoneCount={milestoneCount} />
-          ) : progressLabel ? (
+          ) : showProgress &&
+            milestonesDone !== undefined &&
+            milestonesTotal !== undefined &&
+            progressAmountText ? (
             <ProgressBar
-              label={progressLabel}
+              milestonesDone={milestonesDone}
+              milestonesTotal={milestonesTotal}
+              amountText={progressAmountText}
               value={progressValue}
-              max={progressMax}
+              max={100}
             />
           ) : null}
         </div>
@@ -173,33 +213,35 @@ export function ProjectCard({
 
       <Divider />
 
+      {/* Foot */}
       <div
         className={cn(
-          'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between',
-          variant === 'freelancer' && invited && 'gap-3',
+          'flex flex-col gap-3',
+          variant === 'freelancer' && freelancerState === 'invited'
+            ? 'md:flex-row md:items-center md:justify-between'
+            : 'sm:flex-row sm:items-center sm:justify-between',
         )}
       >
         <p className="font-mono text-xl font-medium leading-[26px] text-ink-900">
           {amount}{' '}
-          <span className="font-sans text-[13px] text-ink-400">{currency}</span>
+          <span className="font-sans text-[13px] font-normal text-ink-400">
+            {currency}
+          </span>
         </p>
 
-        <div onClick={stop} onKeyDown={stop as never}>
-          {variant === 'jobboard' && (
-            <Button size="sm" onClick={onApply}>
+        <div className="flex shrink-0 items-center" onClick={stop} onKeyDown={stop as never}>
+          {isJobboard && (
+            <Button size="sm" className="px-[18px]" onClick={onApply}>
               Apply
             </Button>
           )}
           {variant === 'client' && footLinkTo && (
-            <Link
-              to={footLinkTo}
-              className="text-base font-medium text-brand-600 hover:text-brand-700 hover:underline"
-            >
+            <Link to={footLinkTo} className="text-base font-medium">
               {footLinkLabel ?? 'Review →'}
             </Link>
           )}
-          {variant === 'freelancer' && invited && (
-            <div className="flex gap-2 [&_button]:flex-1 sm:[&_button]:flex-none">
+          {variant === 'freelancer' && freelancerState === 'invited' && (
+            <div className="flex w-full gap-1.5 md:w-auto [&_button]:flex-1 md:[&_button]:flex-none">
               <Button variant="ghost" size="sm" onClick={onDecline}>
                 Decline
               </Button>
@@ -208,11 +250,13 @@ export function ProjectCard({
               </Button>
             </div>
           )}
-          {variant === 'freelancer' && !invited && submitLabel && (
-            <Button size="sm" onClick={onSubmit}>
-              {submitLabel}
-            </Button>
-          )}
+          {variant === 'freelancer' &&
+            freelancerState === 'in_progress' &&
+            submitLabel && (
+              <Button size="sm" onClick={onSubmit}>
+                {submitLabel}
+              </Button>
+            )}
         </div>
       </div>
     </article>

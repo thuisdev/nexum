@@ -24,10 +24,10 @@ export function StatStrip({ cells, className }: StatStripProps) {
         <div
           key={cell.id}
           className={cn(
-            'flex w-1/2 flex-col items-center gap-1 border-ink-100 px-4 py-4 md:w-full md:flex-1 md:border-r md:py-5',
-            index % 2 === 0 && 'border-r md:border-r',
+            'flex w-1/2 flex-col items-center gap-1 border-ink-100 px-4 py-4 md:w-full md:flex-1 md:px-4 md:py-5',
+            index % 2 === 0 && 'border-r',
             index < 2 && 'border-b md:border-b-0',
-            index === cells.length - 1 && 'md:border-r-0',
+            index !== cells.length - 1 && 'md:border-r',
           )}
         >
           <span

@@ -8,6 +8,7 @@ export type MilestoneCardProps = {
   deadline: string
   status: StatusBadgeStatus
   actionLabel?: string
+  actionVariant?: 'primary' | 'approve'
   onAction?: () => void
   className?: string
 }
@@ -18,13 +19,14 @@ export function MilestoneCard({
   deadline,
   status,
   actionLabel,
+  actionVariant = 'primary',
   onAction,
   className,
 }: MilestoneCardProps) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-[10px] border border-ink-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between',
+        'flex flex-col gap-3 rounded-[10px] border border-ink-200 bg-white p-4 max-md:[&_button]:w-full md:flex-row md:items-center md:justify-between',
         className,
       )}
     >
@@ -36,7 +38,13 @@ export function MilestoneCard({
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {actionLabel && onAction ? (
-          <Button size="sm" onClick={onAction}>
+          <Button
+            size="sm"
+            variant={actionVariant}
+            fullWidth
+            className="md:w-auto"
+            onClick={onAction}
+          >
             {actionLabel}
           </Button>
         ) : (

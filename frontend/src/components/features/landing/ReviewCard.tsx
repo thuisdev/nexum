@@ -4,10 +4,16 @@ import { cn } from '@/lib/utils'
 export type ReviewCardProps = {
   quote: string
   authorName: string
+  authorRole?: string
   className?: string
 }
 
-export function ReviewCard({ quote, authorName, className }: ReviewCardProps) {
+export function ReviewCard({
+  quote,
+  authorName,
+  authorRole,
+  className,
+}: ReviewCardProps) {
   return (
     <div
       className={cn(
@@ -15,11 +21,14 @@ export function ReviewCard({ quote, authorName, className }: ReviewCardProps) {
         className,
       )}
     >
-      <p className="text-sm text-amber-600">★★★★★</p>
+      <p className="text-sm leading-5 text-amber-600">★★★★★</p>
       <p className="text-base leading-6 text-ink-900">{quote}</p>
       <div className="flex items-center gap-2">
         <Avatar name={authorName} size="sm" className="!size-[26px] text-[10px]" />
-        <span className="text-xs text-ink-500">{authorName}</span>
+        <span className="text-xs leading-4 text-ink-500">
+          {authorName}
+          {authorRole ? ` · ${authorRole}` : ''}
+        </span>
       </div>
     </div>
   )

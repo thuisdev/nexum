@@ -5,16 +5,12 @@ import { ROUTES } from '@/router/routes'
 import { cn } from '@/lib/utils'
 
 export type UserMenuProps = {
-  name?: string | null
-  avatarUrl?: string | null
+  userId?: string
   onLogout: () => void
   className?: string
 }
 
-export function UserMenu({
-  onLogout,
-  className,
-}: UserMenuProps) {
+export function UserMenu({ userId, onLogout, className }: UserMenuProps) {
   const navigate = useNavigate()
 
   return (
@@ -24,6 +20,15 @@ export function UserMenu({
         className,
       )}
     >
+      {userId && (
+        <button
+          type="button"
+          onClick={() => navigate(ROUTES.profile(userId))}
+          className="block w-full px-3.5 py-2.5 text-left text-sm text-ink-900 hover:bg-ink-50"
+        >
+          Profile
+        </button>
+      )}
       <button
         type="button"
         onClick={() => navigate(ROUTES.settings)}
