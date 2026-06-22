@@ -1,1 +1,71 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "Clash Display", sans-serif;
+  --font-sans: "Satoshi", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-ink-50: #f4f6fb;
+  --color-ink-100: #e8ebf2;
+  --color-ink-200: #d2d7e2;
+  --color-ink-300: #aeb5c6;
+  --color-ink-400: #828ba1;
+  --color-ink-500: #5b6478;
+  --color-ink-600: #3a4254;
+  --color-ink-700: #272d3d;
+  --color-ink-800: #1a1f2d;
+  --color-ink-900: #10141f;
+  --color-ink-950: #0a0d16;
+
+  --color-brand-50: #eef1fe;
+  --color-brand-100: #dce2fd;
+  --color-brand-300: #8e9ef8;
+  --color-brand-500: #3b4fe0;
+  --color-brand-600: #2b3cc4;
+  --color-brand-700: #2230a0;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+
+  --color-amber-100: #fef3c7;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+
+  --color-sky-100: #e0f2fe;
+  --color-sky-700: #0369a1;
+
+  --color-red-100: #fee2e2;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+
+  --radius-sm: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  --shadow-sm: 0 1px 3px 0 rgb(16 20 31 / 0.1), 0 1px 2px -1px rgb(16 20 31 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(16 20 31 / 0.1), 0 2px 4px -2px rgb(16 20 31 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(16 20 31 / 0.1), 0 4px 6px -4px rgb(16 20 31 / 0.1);
+  --shadow-xl: 0 24px 48px -16px rgb(16 20 31 / 0.18), 0 4px 12px 0 rgb(16 20 31 / 0.06);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-ink-900);
+  }
+
+  body {
+    background: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+}
