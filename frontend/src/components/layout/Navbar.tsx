@@ -1,6 +1,6 @@
 import { Bell, Menu } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { MobileNavSheet } from '@/components/layout/MobileNavSheet'
@@ -17,18 +17,11 @@ export type NavbarProps = {
 export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps) {
   const { isLoggedIn, user, logout } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const bellRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    setMobileOpen(false)
-    setUserMenuOpen(false)
-    setNotificationsOpen(false)
-  }, [location.pathname])
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
