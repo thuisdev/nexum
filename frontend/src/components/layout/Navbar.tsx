@@ -21,14 +21,16 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [prevPathname, setPrevPathname] = useState(location.pathname)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const bellRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  if (location.pathname !== prevPathname) {
+    setPrevPathname(location.pathname)
     setMobileOpen(false)
     setUserMenuOpen(false)
     setNotificationsOpen(false)
-  }, [location.pathname])
+  }
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -123,10 +125,7 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
                 <Link to={ROUTES.login} className={navLinkClass}>
                   Login
                 </Link>
-                <Button
-                  size="sm"
-                  onClick={() => navigate(ROUTES.register)}
-                >
+                <Button onClick={() => navigate(ROUTES.register)}>
                   Register
                 </Button>
               </>
