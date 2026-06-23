@@ -71,13 +71,21 @@ export default function SettingsPage() {
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="flex flex-col gap-4"
+        >
           <FormField
             label="Display name"
             htmlFor="displayName"
             error={errors.displayName?.message}
           >
-            <Input id="displayName" {...register('displayName')} />
+            <Input
+              id="displayName"
+              error={!!errors.displayName}
+              {...register('displayName')}
+            />
           </FormField>
 
           <FormField
@@ -85,7 +93,7 @@ export default function SettingsPage() {
             htmlFor="name"
             error={errors.name?.message}
           >
-            <Input id="name" {...register('name')} />
+            <Input id="name" error={!!errors.name} {...register('name')} />
           </FormField>
 
           <FormField label="Bio">

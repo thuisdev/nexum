@@ -3,6 +3,7 @@ import type { Role } from '../generated/prisma/enums.js';
 import { prisma } from '../lib/prisma.js';
 import type {
   CreateProjectInput,
+  InviteFreelancerInput,
   UpdateProjectInput,
 } from '../schemas/project.schema.js';
 
@@ -22,13 +23,18 @@ const serializeProject = (project: ProjectWithMilestones) => ({
 });
 
 const canAccessProject = (
-  project: { clientId: string; freelancerId: string | null },
+  project: {
+    clientId: string;
+    freelancerId: string | null;
+    invitedFreelancerId: string | null;
+  },
   userId: string,
   userRole: Role,
 ) =>
   userRole === 'ADMIN' ||
   project.clientId === userId ||
-  project.freelancerId === userId;
+  project.freelancerId === userId ||
+  project.invitedFreelancerId === userId;
 
 /** Create project + milestones + activity log in one transaction. */
 export const createProject = async (
@@ -79,7 +85,12 @@ export const listProjects = async (userId: string, userRole: Role) => {
       : userRole === 'CLIENT'
         ? { clientId: userId }
         : userRole === 'FREELANCER'
-          ? { freelancerId: userId }
+          ? {
+              OR: [
+                { freelancerId: userId },
+                { invitedFreelancerId: userId },
+              ],
+            }
           : { id: '__none__' };
 
   const projects = await prisma.project.findMany({
@@ -139,6 +150,121 @@ export const updateProject = async (
       ...(input.description !== undefined && { description: input.description }),
     },
     include: { milestones: true },
+  });
+
+  return serializeProject(updated);
+};
+
+/** Client invites a freelancer by email while project is DRAFT. */
+export const inviteFreelancer = async (
+  projectId: string,
+  clientId: string,
+  input: InviteFreelancerInput,
+) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.status !== 'DRAFT') {
+    return 'not_draft' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'freelancer_already_assigned' as const;
+  }
+
+  const freelancer = await prisma.user.findUnique({
+    where: { email: input.freelancerEmail },
+  });
+
+  if (!freelancer) {
+    return 'freelancer_not_found' as const;
+  }
+
+  if (freelancer.role !== 'FREELANCER') {
+    return 'not_freelancer_role' as const;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.project.update({
+      where: { id: projectId },
+      data: { invitedFreelancerId: freelancer.id },
+      include: { milestones: true },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: freelancer.id,
+        projectId,
+        type: 'PROJECT_INVITED',
+        message: `You were invited to project "${result.title}"`,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'FREELANCER_INVITED',
+        metadata: {
+          freelancerId: freelancer.id,
+          freelancerEmail: freelancer.email,
+        },
+      },
+    });
+
+    return result;
+  });
+
+  return serializeProject(updated);
+};
+
+/** Invited freelancer accepts — sets freelancerId and clears invite. */
+export const acceptInvite = async (projectId: string, freelancerId: string) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.invitedFreelancerId !== freelancerId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.status !== 'DRAFT') {
+    return 'not_draft' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'already_accepted' as const;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.project.update({
+      where: { id: projectId },
+      data: {
+        freelancerId,
+        invitedFreelancerId: null,
+      },
+      include: { milestones: true },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: freelancerId,
+        action: 'FREELANCER_ACCEPTED',
+        metadata: { freelancerId },
+      },
+    });
+
+    return result;
   });
 
   return serializeProject(updated);

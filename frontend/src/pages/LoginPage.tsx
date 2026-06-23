@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
@@ -8,27 +10,30 @@ import { Input } from '@/components/ui/Input'
 import { Link } from '@/components/ui/Link'
 import { useAuth } from '@/hooks/useAuth'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { loginSchema, type LoginInput } from '@/lib/validation'
 import { ROUTES } from '@/router/routes'
 
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  })
+
+  const onSubmit = async (data: LoginInput) => {
     setError(null)
-    setIsSubmitting(true)
     try {
-      await login({ email, password })
+      await login(data)
       navigate(ROUTES.dashboard, { replace: true })
     } catch (err) {
       setError(getApiErrorMessage(err, 'Wrong email or password.'))
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -40,26 +45,36 @@ export default function LoginPage() {
 
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Email" htmlFor="email">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="flex flex-col gap-4"
+      >
+        <FormField
+          label="Email"
+          htmlFor="email"
+          error={errors.email?.message}
+        >
           <Input
             id="email"
             type="email"
             autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+            error={!!errors.email}
+            {...register('email')}
           />
         </FormField>
 
-        <FormField label="Password" htmlFor="password">
+        <FormField
+          label="Password"
+          htmlFor="password"
+          error={errors.password?.message}
+        >
           <Input
             id="password"
             type="password"
             autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+            error={!!errors.password}
+            {...register('password')}
           />
         </FormField>
 

@@ -86,3 +86,10 @@ export const updateProjectSchema = z.object({
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+
+/** Body for POST /api/projects/:id/invite */
+export const inviteFreelancerSchema = z.object({
+  freelancerEmail: z.string().trim().email('Invalid freelancer email'),
+});
+
+export type InviteFreelancerInput = z.infer<typeof inviteFreelancerSchema>;
