@@ -66,8 +66,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const update = async (credentials: UpdateProfileInput) => {
     const data = await patchMe(credentials);
-    setUser(data)
-  }
+    setUser(data);
+    return data;
+  };
 
   return (
     <AuthContext.Provider

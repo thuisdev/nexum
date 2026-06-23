@@ -28,7 +28,7 @@ export default function FreelancerDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
 
-  const loadProjects = useCallback(async () => {
+  const refreshProjects = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -42,8 +42,28 @@ export default function FreelancerDashboard() {
   }, [])
 
   useEffect(() => {
-    void loadProjects()
-  }, [loadProjects])
+    let cancelled = false
+
+    listProjects()
+      .then((data) => {
+        if (!cancelled) {
+          setProjects(data)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Could not load projects'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filtered = useMemo(() => {
     if (!user) return []
@@ -63,7 +83,7 @@ export default function FreelancerDashboard() {
     setAcceptingId(projectId)
     try {
       await acceptInvite(projectId)
-      await loadProjects()
+      await refreshProjects()
       navigate(ROUTES.project(projectId))
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))

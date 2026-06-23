@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { Button } from '@/components/ui/Button'
@@ -25,22 +25,29 @@ export default function JobBoardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadJobs = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await listJobs()
-      setJobs(data)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not load job board'))
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    let cancelled = false
+
+    listJobs()
+      .then((data) => {
+        if (!cancelled) {
+          setJobs(data)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Could not load job board'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    void loadJobs()
-  }, [loadJobs])
 
   const filtered = useMemo(() => {
     return jobs.filter((job) => {

@@ -23,7 +23,7 @@ export default function ClientDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [inviteProjectId, setInviteProjectId] = useState<string | null>(null)
 
-  const loadProjects = useCallback(async () => {
+  const refreshProjects = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -37,8 +37,28 @@ export default function ClientDashboard() {
   }, [])
 
   useEffect(() => {
-    void loadProjects()
-  }, [loadProjects])
+    let cancelled = false
+
+    listProjects()
+      .then((data) => {
+        if (!cancelled) {
+          setProjects(data)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Could not load projects'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <AppSection>
@@ -92,7 +112,7 @@ export default function ClientDashboard() {
           open={!!inviteProjectId}
           projectId={inviteProjectId}
           onClose={() => setInviteProjectId(null)}
-          onSuccess={() => void loadProjects()}
+          onSuccess={() => void refreshProjects()}
         />
       )}
     </AppSection>

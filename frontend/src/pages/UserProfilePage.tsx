@@ -30,20 +30,27 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (!id) return
 
-    const load = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await getPublicProfile(id)
-        setProfile(data)
-      } catch (err) {
-        setError(getApiErrorMessage(err, 'Profile not found'))
-      } finally {
-        setLoading(false)
-      }
-    }
+    let cancelled = false
 
-    void load()
+    getPublicProfile(id)
+      .then((data) => {
+        if (!cancelled) {
+          setProfile(data)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Profile not found'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   if (loading) {

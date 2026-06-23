@@ -41,7 +41,7 @@ export default function ProjectDetailPage() {
   const [inviteOpen, setInviteOpen] = useState(searchParams.get('invite') === '1')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const loadProject = useCallback(async () => {
+  const reloadProject = useCallback(async () => {
     if (!id) return
 
     setLoading(true)
@@ -86,8 +86,60 @@ export default function ProjectDetailPage() {
   }, [id, user])
 
   useEffect(() => {
-    void loadProject()
-  }, [loadProject])
+    if (!id) return
+
+    let cancelled = false
+
+    const load = async () => {
+      if (user) {
+        try {
+          const full = await getProject(id)
+          if (cancelled) return
+          setProject(full)
+          setPreview(null)
+          setMode('full')
+          setLoading(false)
+          return
+        } catch (err) {
+          if (cancelled) return
+          if (
+            !axios.isAxiosError(err) ||
+            (err.response?.status !== 403 && err.response?.status !== 404)
+          ) {
+            setError(getApiErrorMessage(err, 'Could not load project'))
+            setMode('error')
+            setLoading(false)
+            return
+          }
+        }
+      }
+
+      try {
+        const data = await getProjectPreview(id)
+        if (cancelled) return
+        setPreview(data)
+        setProject(null)
+        setMode('preview')
+        setError(null)
+      } catch {
+        if (cancelled) return
+        setError(
+          user
+            ? 'This project is private or does not exist.'
+            : 'Project not found. Log in if you were invited.',
+        )
+        setMode('error')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, user])
 
   const closeInviteModal = () => {
     setInviteOpen(false)
@@ -302,7 +354,7 @@ export default function ProjectDetailPage() {
           open={inviteOpen}
           projectId={id}
           onClose={closeInviteModal}
-          onSuccess={() => void loadProject()}
+          onSuccess={() => void reloadProject()}
         />
       )}
     </AppSection>
