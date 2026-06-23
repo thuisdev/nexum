@@ -22,7 +22,7 @@ export const registerHandler = async (
       return;
     }
 
-    const { email, password, name, role } = result.data;
+    const { email, password, name, displayName, role } = result.data;
 
     // 2. Reject duplicate email
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -38,12 +38,14 @@ export const registerHandler = async (
         email,
         passwordHash,
         name,
+        displayName,
         ...(role ? { role } : {}),
       },
       select: {
         id: true,
         email: true,
         name: true,
+        displayName: true,
         role: true,
         createdAt: true,
       },
@@ -127,6 +129,8 @@ export const meHandler = async (
         role: true,
         createdAt: true,
         displayName: true,
+        bio: true,
+        skills: true,
       },
     });
 

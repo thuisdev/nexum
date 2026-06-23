@@ -68,6 +68,7 @@ export const createProjectSchema = z
     description: z.string().trim().min(1, 'Description is required'),
     totalBudget: moneySchema,
     currency: z.string().trim().min(1).default('USDC'),
+    isPublic: z.boolean().default(false),
     milestones: z
       .array(milestoneInputSchema)
       .min(1, 'At least one milestone is required'),

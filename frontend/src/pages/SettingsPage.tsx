@@ -15,8 +15,7 @@ import { updateProfileSchema, type UpdateProfileInput } from '@/lib/validation'
 
 export default function SettingsPage() {
   const { user, update } = useAuth()
-  const [bio, setBio] = useState('')
-  const [skills, setSkills] = useState('')
+  const [skillsText, setSkillsText] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,7 +26,7 @@ export default function SettingsPage() {
     reset,
   } = useForm<UpdateProfileInput>({
     resolver: zodResolver(updateProfileSchema),
-    defaultValues: { name: '', displayName: '' },
+    defaultValues: { name: '', displayName: '', bio: '' },
   })
 
   useEffect(() => {
@@ -35,7 +34,9 @@ export default function SettingsPage() {
       reset({
         name: user.name ?? '',
         displayName: user.displayName ?? '',
+        bio: user.bio ?? '',
       })
+      setSkillsText((user.skills ?? []).join(', '))
     }
   }, [user, reset])
 
@@ -43,9 +44,16 @@ export default function SettingsPage() {
     setError(null)
     setMessage(null)
     try {
+      const skills = skillsText
+        .split(',')
+        .map((skill) => skill.trim())
+        .filter(Boolean)
+
       await update({
         ...(data.name?.trim() && { name: data.name.trim() }),
         ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
+        ...(data.bio !== undefined && { bio: data.bio.trim() }),
+        skills,
       })
       setMessage('Profile saved')
     } catch (err) {
@@ -66,8 +74,8 @@ export default function SettingsPage() {
             name={user?.displayName ?? user?.name}
             size="settings"
           />
-          <Button variant="secondary" size="sm" type="button">
-            Change photo
+          <Button variant="secondary" size="sm" type="button" disabled>
+            Change photo (soon)
           </Button>
         </div>
 
@@ -96,18 +104,18 @@ export default function SettingsPage() {
             <Input id="name" error={!!errors.name} {...register('name')} />
           </FormField>
 
-          <FormField label="Bio">
+          <FormField label="Bio" htmlFor="bio">
             <Textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
+              id="bio"
               placeholder="Tell clients and freelancers about yourself…"
+              {...register('bio')}
             />
           </FormField>
 
           <FormField label="Skills" helper="Separate with commas">
             <Input
-              value={skills}
-              onChange={(e) => setSkills(e.target.value)}
+              value={skillsText}
+              onChange={(e) => setSkillsText(e.target.value)}
               placeholder="Solidity, React, Foundry"
             />
           </FormField>
@@ -115,9 +123,6 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-2 md:flex-row md:justify-end md:gap-2">
             <Button type="submit" loading={isSubmitting} fullWidth className="md:w-auto">
               Save changes
-            </Button>
-            <Button variant="ghost" type="button" fullWidth className="md:w-auto">
-              Cancel
             </Button>
           </div>
         </form>

@@ -84,9 +84,10 @@ model User {
   verifiedAt         DateTime?
   role               Role               @default(CLIENT)
   walletAddress      String?            @unique
+  bio                String?
+  skills             String[]           @default([])
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-  // bio & skills
 
   clientProjects     Project[]      @relation("ClientProjects")
   freelancerProjects Project[]      @relation("FreelancerProjects")
@@ -110,6 +111,7 @@ model Project {
   currency     String        @default("USDC")
   status       ProjectStatus @default(DRAFT)
   escrowStatus EscrowStatus  @default(NOT_FUNDED)
+  isPublic     Boolean       @default(false)
 
   clientId            String
   freelancerId        String?
@@ -134,6 +136,7 @@ model Project {
   @@index([freelancerId])
   @@index([invitedFreelancerId])
   @@index([status])
+  @@index([isPublic])
 }
 
 model Milestone {

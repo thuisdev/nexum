@@ -4,6 +4,7 @@ import {
   handleAcceptInvite,
   handleCreateProject,
   handleGetProject,
+  handleGetProjectPreview,
   handleInviteProject,
   handleListProjects,
   handleUpdateProject,
@@ -14,6 +15,7 @@ const router = Router();
 
 router.post('/', checkAuth, requireRole('CLIENT'), handleCreateProject);
 router.get('/', checkAuth, handleListProjects);
+router.get('/:id/preview', handleGetProjectPreview);
 router.post('/:id/invite', checkAuth, requireRole('CLIENT'), handleInviteProject);
 router.post('/:id/accept', checkAuth, requireRole('FREELANCER'), handleAcceptInvite);
 router.get('/:id', checkAuth, handleGetProject);

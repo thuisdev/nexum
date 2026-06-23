@@ -4,8 +4,10 @@ import {
   acceptInvite,
   createProject,
   getProjectById,
+  getProjectPreview,
   inviteFreelancer,
   listProjects,
+  listPublicJobs,
   updateProject,
 } from '../services/project.services.js';
 import {
@@ -76,6 +78,41 @@ export const handleGetProject = async (
     }
 
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/projects/:id/preview — public preview (no auth). */
+export const handleGetProjectPreview = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = String(req.params.id);
+    const project = await getProjectPreview(projectId);
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found or not public' });
+      return;
+    }
+
+    res.json(project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/jobs — public job board listings. */
+export const handleListJobs = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const jobs = await listPublicJobs();
+    res.json(jobs);
   } catch (error) {
     next(error);
   }

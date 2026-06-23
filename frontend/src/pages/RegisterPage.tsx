@@ -29,6 +29,7 @@ export default function RegisterPage() {
       email: '',
       password: '',
       name: '',
+      displayName: '',
       role: 'CLIENT',
     },
   })
@@ -41,6 +42,7 @@ export default function RegisterPage() {
         password: data.password,
         role: data.role,
         ...(data.name?.trim() && { name: data.name.trim() }),
+        ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
       })
       navigate(ROUTES.dashboard, { replace: true })
     } catch (err) {
@@ -73,6 +75,14 @@ export default function RegisterPage() {
             id="name"
             placeholder="Your name"
             {...register('name')}
+          />
+        </FormField>
+
+        <FormField label="Display name" htmlFor="displayName" helper="Optional — shown publicly on your profile">
+          <Input
+            id="displayName"
+            placeholder="e.g. bob.eth"
+            {...register('displayName')}
           />
         </FormField>
 

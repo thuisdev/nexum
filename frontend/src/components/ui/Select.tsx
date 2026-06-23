@@ -14,7 +14,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           'relative flex h-10 w-full items-center rounded-lg border bg-white',
           error
             ? 'border-red-600'
-            : 'border-ink-200 focus-within:border-brand-500 focus-within:ring-[3px] focus-within:ring-brand-500/20',
+            : 'border-ink-200 focus-within:border-brand-500',
           disabled && 'cursor-not-allowed opacity-50 bg-ink-50',
           className,
         )}

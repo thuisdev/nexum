@@ -48,6 +48,7 @@ export const createProject = async (
         description: input.description,
         totalBudget: new Prisma.Decimal(input.totalBudget),
         currency: input.currency,
+        isPublic: input.isPublic,
         clientId,
         milestones: {
           create: input.milestones.map((milestone) => ({
@@ -268,4 +269,86 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
   });
 
   return serializeProject(updated);
+};
+
+const clientPublicSelect = {
+  id: true,
+  displayName: true,
+  name: true,
+  isVerified: true,
+  avatarUrl: true,
+} as const;
+
+type ProjectWithClient = Prisma.ProjectGetPayload<{
+  include: {
+    milestones: true;
+    client: { select: typeof clientPublicSelect };
+  };
+}>;
+
+const serializePreview = (project: ProjectWithClient) => ({
+  id: project.id,
+  title: project.title,
+  description: project.description,
+  totalBudget: project.totalBudget.toString(),
+  currency: project.currency,
+  status: project.status,
+  isPublic: project.isPublic,
+  createdAt: project.createdAt.toISOString(),
+  client: project.client,
+  milestones: project.milestones
+    .sort((a, b) => a.orderIndex - b.orderIndex)
+    .map((milestone) => ({
+      orderIndex: milestone.orderIndex,
+      title: milestone.title,
+      description: milestone.description,
+      amount: milestone.amount.toString(),
+      deadline: milestone.deadline.toISOString(),
+    })),
+});
+
+const serializeJobListing = (project: ProjectWithClient) => ({
+  id: project.id,
+  title: project.title,
+  totalBudget: project.totalBudget.toString(),
+  currency: project.currency,
+  status: project.status,
+  milestoneCount: project.milestones.length,
+  client: project.client,
+  createdAt: project.createdAt.toISOString(),
+});
+
+/** Public job board — open DRAFT projects marked isPublic. */
+export const listPublicJobs = async () => {
+  const projects = await prisma.project.findMany({
+    where: {
+      isPublic: true,
+      status: 'DRAFT',
+      freelancerId: null,
+    },
+    include: {
+      milestones: true,
+      client: { select: clientPublicSelect },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return projects.map(serializeJobListing);
+};
+
+/** Public preview for a single project (no auth). */
+export const getProjectPreview = async (projectId: string) => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: {
+      milestones: true,
+      client: { select: clientPublicSelect },
+    },
+  });
+
+  if (!project || !project.isPublic) {
+    return null;
+  }
+
+  return serializePreview(project);
 };

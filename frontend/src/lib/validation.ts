@@ -23,6 +23,7 @@ export type LoginInput = z.infer<typeof loginSchema>
 export const registerSchema = z.object({
   role: z.enum(['CLIENT', 'FREELANCER']),
   name: z.string().optional(),
+  displayName: z.string().optional(),
   email: z
     .string()
     .min(1, 'Email is required')
@@ -39,6 +40,8 @@ export const updateProfileSchema = z.object({
     .trim()
     .min(1, 'Display name cannot be empty')
     .optional(),
+  bio: z.string().trim().optional(),
+  skills: z.array(z.string().trim().min(1)).optional(),
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

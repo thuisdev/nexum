@@ -7,6 +7,7 @@ import authRouter from './routes/auth.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import usersRouter from './routes/users.routes.js';
 import projectsRouter from './routes/projects.routes.js';
+import jobsRouter from './routes/jobs.routes.js';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/projects', projectsRouter);
+app.use('/api/jobs', jobsRouter);
 
 app.use(errorHandler);
 

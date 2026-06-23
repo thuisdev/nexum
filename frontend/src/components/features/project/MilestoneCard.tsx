@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 export type MilestoneCardProps = {
   title: string
+  description?: string
   amount: string
   deadline: string
   status: StatusBadgeStatus
@@ -15,6 +16,7 @@ export type MilestoneCardProps = {
 
 export function MilestoneCard({
   title,
+  description,
   amount,
   deadline,
   status,
@@ -32,6 +34,9 @@ export function MilestoneCard({
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="text-base font-medium leading-6 text-ink-900">{title}</p>
+        {description && (
+          <p className="text-sm leading-5 text-ink-600">{description}</p>
+        )}
         <p className="font-mono text-xs leading-4 text-ink-400">
           {amount} USDC · Due {deadline}
         </p>

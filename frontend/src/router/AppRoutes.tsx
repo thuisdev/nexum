@@ -28,6 +28,8 @@ export const router = createBrowserRouter([
     children: [
       { path: ROUTES.home, element: withSuspense(LandingPage) },
       { path: ROUTES.jobs, element: withSuspense(JobBoardPage) },
+      { path: '/projects/:id', element: withSuspense(ProjectDetailPage) },
+      { path: '/users/:id', element: withSuspense(UserProfilePage) },
       {
         element: <GuestRoute />,
         children: [
@@ -39,8 +41,6 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           { path: ROUTES.dashboard, element: <DashboardRedirect /> },
-          { path: '/projects/:id', element: withSuspense(ProjectDetailPage) },
-          { path: '/users/:id', element: withSuspense(UserProfilePage) },
           { path: ROUTES.settings, element: withSuspense(SettingsPage) },
           {
             element: <RoleRoute allowedRoles={['CLIENT']} />,

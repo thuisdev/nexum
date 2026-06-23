@@ -4,6 +4,7 @@ import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { FormField } from '@/components/ui/FormField'
+import { InlineAlert } from '@/components/ui/InlineAlert'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
@@ -12,6 +13,8 @@ import {
   type MilestoneRowData,
   type MilestoneRowErrors,
 } from '@/components/features/project/MilestoneRow'
+import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { createProject } from '@/lib/projects.api'
 import {
   createProjectFormSchema,
   type CreateProjectFormInput,
@@ -75,6 +78,8 @@ export default function CreateProjectPage() {
     emptyMilestone(),
   ])
   const [errors, setErrors] = useState<FormErrors>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const totalAllocated = milestones.reduce(
     (sum, m) => sum + (parseFloat(m.amount) || 0),
@@ -84,7 +89,7 @@ export default function CreateProjectPage() {
   const budgetMatch =
     budgetNum > 0 && Math.abs(totalAllocated - budgetNum) < 0.01
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const formData: CreateProjectFormInput = {
       title,
       description,
@@ -105,12 +110,42 @@ export default function CreateProjectPage() {
     }
 
     setErrors({})
-    navigate(ROUTES.clientDashboard)
+    setSubmitError(null)
+    setSubmitting(true)
+
+    try {
+      const isPublic = formData.visibility === 'public'
+      const project = await createProject({
+        title: formData.title,
+        description: formData.description,
+        totalBudget: formData.budget,
+        currency: formData.currency,
+        isPublic,
+        milestones: formData.milestones.map((milestone, index) => ({
+          orderIndex: index,
+          title: milestone.title,
+          description: milestone.title,
+          amount: milestone.amount,
+          deadline: milestone.deadline,
+        })),
+      })
+
+      navigate(
+        isPublic
+          ? ROUTES.project(project.id)
+          : `${ROUTES.project(project.id)}?invite=1`,
+      )
+    } catch (err) {
+      setSubmitError(getApiErrorMessage(err, 'Could not create project'))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <AppSection narrow>
       <PageHeader title="New project" />
+      {submitError && <InlineAlert variant="error">{submitError}</InlineAlert>}
       <div className="flex flex-col gap-4 rounded-xl border border-ink-200 bg-white p-6 shadow-sm">
         <FormField label="Project title" error={errors.title}>
           <Input
@@ -203,7 +238,8 @@ export default function CreateProjectPage() {
             type="button"
             fullWidth
             className="md:w-auto"
-            onClick={handleCreate}
+            loading={submitting}
+            onClick={() => void handleCreate()}
           >
             Create project
           </Button>

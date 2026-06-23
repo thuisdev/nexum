@@ -47,7 +47,7 @@ export default function Footer() {
         </div>
 
         <p className="text-center text-xs leading-4 text-ink-400">
-          Pactum · 2026 · Built as Metana M12 capstone
+          Copyright © 2026 Pactum. All rights reserved.
         </p>
       </div>
     </footer>
