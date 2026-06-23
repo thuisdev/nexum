@@ -13,6 +13,7 @@ export { StatStrip, type StatCell, type StatStripProps } from './landing/StatStr
 export { StepCard, type StepCardProps } from './landing/StepCard'
 export { NotificationDropdown, type NotificationDropdownProps } from './notifications/NotificationDropdown'
 export { NotificationItem, type NotificationItemProps } from './notifications/NotificationItem'
+export { EmptyState, EmptyStateButton } from '../ui/EmptyState'
 export { ProfileIdentity, type ProfileIdentityProps } from './profile/ProfileIdentity'
 export { ProfileReviewCard, type ProfileReviewCardProps } from './profile/ProfileReviewCard'
 export { WorkList, type WorkListItem, type WorkListProps } from './profile/WorkList'

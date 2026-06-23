@@ -1,6 +1,6 @@
 import { Bell, Menu } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { MobileNavSheet } from '@/components/layout/MobileNavSheet'
@@ -17,11 +17,18 @@ export type NavbarProps = {
 export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps) {
   const { isLoggedIn, user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const bellRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMobileOpen(false)
+    setUserMenuOpen(false)
+    setNotificationsOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -50,12 +57,14 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
   const navLinkClass =
     'text-sm font-medium text-ink-500 transition-colors hover:text-ink-900 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2'
 
+  const isLanding = location.pathname === ROUTES.home
+
   return (
     <>
       <header
         className={cn(
           'sticky top-0 z-20 w-full border-b border-ink-200 bg-white/90 backdrop-blur-[8px]',
-          landing ? 'h-[60px]' : 'h-14',
+          isLanding || landing ? 'h-[60px]' : 'h-14',
         )}
       >
         <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-4 lg:px-8">

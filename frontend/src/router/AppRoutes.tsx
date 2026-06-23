@@ -72,7 +72,7 @@ export const router = createBrowserRouter([
           }
         ],
       },
+      { path: '*', element: withSuspense(NotFoundPage) },
     ],
   },
-  { path: '*', element: withSuspense(NotFoundPage) },
 ])
