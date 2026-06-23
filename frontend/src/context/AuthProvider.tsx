@@ -58,6 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       email: credentials.email,
       password: credentials.password,
       ...(credentials.name ? { name: credentials.name } : {}),
+      ...(credentials.displayName ? { displayName: credentials.displayName } : {}),
       ...(credentials.role ? { role: credentials.role } : {}),
     });
     await login(credentials);
@@ -65,8 +66,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const update = async (credentials: UpdateProfileInput) => {
     const data = await patchMe(credentials);
-    setUser(data)
-  }
+    setUser(data);
+    return data;
+  };
 
   return (
     <AuthContext.Provider

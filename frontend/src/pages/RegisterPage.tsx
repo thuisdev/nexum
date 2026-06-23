@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
@@ -9,36 +11,42 @@ import { Link } from '@/components/ui/Link'
 import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/hooks/useAuth'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { registerSchema, type RegisterInput } from '@/lib/validation'
 import { ROUTES } from '@/router/routes'
 
-type RegisterRole = 'CLIENT' | 'FREELANCER'
-
 export default function RegisterPage() {
-  const { register } = useAuth()
+  const { register: registerUser } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
-  const [role, setRole] = useState<RegisterRole>('CLIENT')
   const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      name: '',
+      displayName: '',
+      role: 'CLIENT',
+    },
+  })
+
+  const onSubmit = async (data: RegisterInput) => {
     setError(null)
-    setIsSubmitting(true)
     try {
-      await register({
-        email,
-        password,
-        role,
-        ...(name.trim() && { name: name.trim() }),
+      await registerUser({
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        ...(data.name?.trim() && { name: data.name.trim() }),
+        ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
       })
       navigate(ROUTES.dashboard, { replace: true })
     } catch (err) {
       setError(getApiErrorMessage(err, 'Email already in use.'))
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -50,13 +58,13 @@ export default function RegisterPage() {
 
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="flex flex-col gap-4"
+      >
         <FormField label="I am a…" htmlFor="role">
-          <Select
-            id="role"
-            value={role}
-            onChange={(e) => setRole(e.target.value as RegisterRole)}
-          >
+          <Select id="role" {...register('role')}>
             <option value="CLIENT">Client (I want to hire)</option>
             <option value="FREELANCER">Freelancer (I want to work)</option>
           </Select>
@@ -66,37 +74,46 @@ export default function RegisterPage() {
           <Input
             id="name"
             placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            {...register('name')}
           />
         </FormField>
 
-        <FormField label="Email" htmlFor="email">
+        <FormField label="Display name" htmlFor="displayName" helper="Optional — shown publicly on your profile">
+          <Input
+            id="displayName"
+            placeholder="e.g. bob.eth"
+            {...register('displayName')}
+          />
+        </FormField>
+
+        <FormField
+          label="Email"
+          htmlFor="email"
+          error={errors.email?.message}
+        >
           <Input
             id="email"
             type="email"
             placeholder="you@email.com"
             autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+            error={!!errors.email}
+            {...register('email')}
           />
         </FormField>
 
         <FormField
           label="Password"
           htmlFor="password"
-          helper="At least 8 characters"
+          helper={errors.password ? undefined : 'At least 8 characters'}
+          error={errors.password?.message}
         >
           <Input
             id="password"
             type="password"
             placeholder="At least 8 characters"
             autoComplete="new-password"
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+            error={!!errors.password}
+            {...register('password')}
           />
         </FormField>
 

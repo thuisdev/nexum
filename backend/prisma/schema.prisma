@@ -84,12 +84,14 @@ model User {
   verifiedAt         DateTime?
   role               Role               @default(CLIENT)
   walletAddress      String?            @unique
+  bio                String?
+  skills             String[]           @default([])
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-  // bio & skills
 
   clientProjects     Project[]      @relation("ClientProjects")
   freelancerProjects Project[]      @relation("FreelancerProjects")
+  invitedProjects    Project[]      @relation("InvitedProjects")
   arbiterProjects    Project[]      @relation("ArbiterProjects")
   arbiterDisputes    Dispute[]      @relation("ArbiterDisputes")
   submissions        Submission[]
@@ -109,18 +111,21 @@ model Project {
   currency     String        @default("USDC")
   status       ProjectStatus @default(DRAFT)
   escrowStatus EscrowStatus  @default(NOT_FUNDED)
+  isPublic     Boolean       @default(false)
 
-  clientId     String
-  freelancerId String?
-  arbiterId    String?
+  clientId            String
+  freelancerId        String?
+  invitedFreelancerId String?
+  arbiterId           String?
 
   createdAt   DateTime  @default(now())
   fundedAt    DateTime?
   completedAt DateTime?
 
-  client     User  @relation("ClientProjects", fields: [clientId], references: [id], onDelete: Cascade)
-  freelancer User? @relation("FreelancerProjects", fields: [freelancerId], references: [id])
-  arbiter    User? @relation("ArbiterProjects", fields: [arbiterId], references: [id])
+  client            User  @relation("ClientProjects", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancer        User? @relation("FreelancerProjects", fields: [freelancerId], references: [id])
+  invitedFreelancer User? @relation("InvitedProjects", fields: [invitedFreelancerId], references: [id])
+  arbiter           User? @relation("ArbiterProjects", fields: [arbiterId], references: [id])
 
   milestones    Milestone[]
   notifications Notification[]
@@ -129,7 +134,9 @@ model Project {
 
   @@index([clientId])
   @@index([freelancerId])
+  @@index([invitedFreelancerId])
   @@index([status])
+  @@index([isPublic])
 }
 
 model Milestone {

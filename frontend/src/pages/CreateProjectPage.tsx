@@ -4,13 +4,21 @@ import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { FormField } from '@/components/ui/FormField'
+import { InlineAlert } from '@/components/ui/InlineAlert'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import {
   MilestoneRow,
   type MilestoneRowData,
+  type MilestoneRowErrors,
 } from '@/components/features/project/MilestoneRow'
+import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { createProject } from '@/lib/projects.api'
+import {
+  createProjectFormSchema,
+  type CreateProjectFormInput,
+} from '@/lib/validation'
 import { ROUTES } from '@/router/routes'
 
 function emptyMilestone(): MilestoneRowData {
@@ -20,6 +28,43 @@ function emptyMilestone(): MilestoneRowData {
     amount: '',
     deadline: '',
   }
+}
+
+type FormErrors = {
+  title?: string
+  description?: string
+  budget?: string
+  milestones?: string
+  milestoneRows?: MilestoneRowErrors[]
+}
+
+function validateForm(data: CreateProjectFormInput): FormErrors {
+  const result = createProjectFormSchema.safeParse(data)
+  if (result.success) return {}
+
+  const errors: FormErrors = {}
+  const milestoneRows: MilestoneRowErrors[] = data.milestones.map(() => ({}))
+
+  for (const issue of result.error.issues) {
+    const [root, index, field] = issue.path
+
+    if (root === 'milestones' && typeof index === 'number' && field) {
+      const row = milestoneRows[index] ?? {}
+      row[field as keyof MilestoneRowErrors] = issue.message
+      milestoneRows[index] = row
+    } else if (root === 'milestones' && field === undefined) {
+      errors.milestones = issue.message
+    } else if (typeof root === 'string' && index === undefined) {
+      errors[root as keyof Omit<FormErrors, 'milestones' | 'milestoneRows'>] =
+        issue.message
+    }
+  }
+
+  if (milestoneRows.some((row) => row.title || row.amount || row.deadline)) {
+    errors.milestoneRows = milestoneRows
+  }
+
+  return errors
 }
 
 export default function CreateProjectPage() {
@@ -32,6 +77,9 @@ export default function CreateProjectPage() {
   const [milestones, setMilestones] = useState<MilestoneRowData[]>([
     emptyMilestone(),
   ])
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const totalAllocated = milestones.reduce(
     (sum, m) => sum + (parseFloat(m.amount) || 0),
@@ -41,32 +89,89 @@ export default function CreateProjectPage() {
   const budgetMatch =
     budgetNum > 0 && Math.abs(totalAllocated - budgetNum) < 0.01
 
+  const handleCreate = async () => {
+    const formData: CreateProjectFormInput = {
+      title,
+      description,
+      budget,
+      currency,
+      visibility: visibility as 'public' | 'private',
+      milestones: milestones.map(({ title, amount, deadline }) => ({
+        title,
+        amount,
+        deadline,
+      })),
+    }
+
+    const nextErrors = validateForm(formData)
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+
+    setErrors({})
+    setSubmitError(null)
+    setSubmitting(true)
+
+    try {
+      const isPublic = formData.visibility === 'public'
+      const project = await createProject({
+        title: formData.title,
+        description: formData.description,
+        totalBudget: formData.budget,
+        currency: formData.currency,
+        isPublic,
+        milestones: formData.milestones.map((milestone, index) => ({
+          orderIndex: index,
+          title: milestone.title,
+          description: milestone.title,
+          amount: milestone.amount,
+          deadline: milestone.deadline,
+        })),
+      })
+
+      navigate(
+        isPublic
+          ? ROUTES.project(project.id)
+          : `${ROUTES.project(project.id)}?invite=1`,
+      )
+    } catch (err) {
+      setSubmitError(getApiErrorMessage(err, 'Could not create project'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <AppSection narrow>
       <PageHeader title="New project" />
+      {submitError && <InlineAlert variant="error">{submitError}</InlineAlert>}
       <div className="flex flex-col gap-4 rounded-xl border border-ink-200 bg-white p-6 shadow-sm">
-        <FormField label="Project title">
+        <FormField label="Project title" error={errors.title}>
           <Input
             placeholder="e.g. Frontend for DeFi dashboard"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            error={!!errors.title}
           />
         </FormField>
 
-        <FormField label="Description">
+        <FormField label="Description" error={errors.description}>
           <Textarea
             placeholder="Describe the scope, deliverables, and timeline…"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            error={!!errors.description}
           />
         </FormField>
 
         <div className="flex flex-col gap-4 md:flex-row md:gap-4">
-          <FormField label="Total budget" className="md:flex-1">
+          <FormField label="Total budget" className="md:flex-1" error={errors.budget}>
             <Input
               placeholder="800"
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
+              error={!!errors.budget}
             />
           </FormField>
           <FormField label="Currency" className="md:w-40 md:shrink-0">
@@ -92,11 +197,12 @@ export default function CreateProjectPage() {
 
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-ink-900">Milestones</span>
-          {milestones.map((row) => (
+          {milestones.map((row, index) => (
             <MilestoneRow
               key={row.id}
               value={row}
               canRemove={milestones.length > 1}
+              errors={errors.milestoneRows?.[index]}
               onChange={(next) =>
                 setMilestones((prev) =>
                   prev.map((m) => (m.id === row.id ? next : m)),
@@ -120,6 +226,11 @@ export default function CreateProjectPage() {
             {currency}
             {budgetMatch ? ' ✓' : ''}
           </p>
+          {errors.milestones && (
+            <p className="text-xs leading-4 text-red-600" role="alert">
+              {errors.milestones}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 md:flex-row md:gap-2">
@@ -127,7 +238,8 @@ export default function CreateProjectPage() {
             type="button"
             fullWidth
             className="md:w-auto"
-            onClick={() => navigate(ROUTES.clientDashboard)}
+            loading={submitting}
+            onClick={() => void handleCreate()}
           >
             Create project
           </Button>

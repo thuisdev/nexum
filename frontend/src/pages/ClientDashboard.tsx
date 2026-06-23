@@ -1,14 +1,64 @@
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
-import { EmptyState, EmptyStateButton, ProjectCard } from '@/components/features'
-import { CLIENT_PROJECTS } from '@/lib/mockData'
+import { InlineAlert } from '@/components/ui/InlineAlert'
+import {
+  EmptyState,
+  EmptyStateButton,
+  InviteFreelancerModal,
+  ProjectCard,
+} from '@/components/features'
+import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { listProjects } from '@/lib/projects.api'
+import { projectToClientCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
+import type { Project } from '@/types/project'
 
 export default function ClientDashboard() {
   const navigate = useNavigate()
-  const projects = CLIENT_PROJECTS
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [inviteProjectId, setInviteProjectId] = useState<string | null>(null)
+
+  const refreshProjects = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await listProjects()
+      setProjects(data)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not load projects'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    listProjects()
+      .then((data) => {
+        if (!cancelled) {
+          setProjects(data)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Could not load projects'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <AppSection>
@@ -20,16 +70,29 @@ export default function ClientDashboard() {
           </Button>
         }
       />
-      {projects.length > 0 ? (
+
+      {error && <InlineAlert variant="error">{error}</InlineAlert>}
+
+      {loading ? (
+        <p className="text-sm text-ink-500">Loading projects…</p>
+      ) : projects.length > 0 ? (
         <div className="flex flex-wrap gap-6">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              variant="client"
-              {...project}
-              onCardClick={() => navigate(ROUTES.project(project.id))}
-            />
-          ))}
+          {projects.map((project) => {
+            const card = projectToClientCardProps(project)
+            const canInvite =
+              project.status === 'DRAFT' && !project.freelancerId
+
+            return (
+              <ProjectCard
+                key={project.id}
+                variant="client"
+                {...card}
+                showInvite={canInvite}
+                onCardClick={() => navigate(ROUTES.project(project.id))}
+                onInvite={() => setInviteProjectId(project.id)}
+              />
+            )
+          })}
         </div>
       ) : (
         <EmptyState
@@ -41,6 +104,15 @@ export default function ClientDashboard() {
               onClick={() => navigate(ROUTES.createProject)}
             />
           }
+        />
+      )}
+
+      {inviteProjectId && (
+        <InviteFreelancerModal
+          open={!!inviteProjectId}
+          projectId={inviteProjectId}
+          onClose={() => setInviteProjectId(null)}
+          onSuccess={() => void refreshProjects()}
         />
       )}
     </AppSection>

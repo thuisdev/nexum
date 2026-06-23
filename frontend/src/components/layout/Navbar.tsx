@@ -91,7 +91,7 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
                   <button
                     type="button"
                     onClick={() => setNotificationsOpen((v) => !v)}
-                    className="relative rounded p-1 text-ink-600 hover:text-ink-900 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40"
+                    className="relative rounded p-1 text-brand-500 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40"
                     aria-label="Notifications"
                   >
                     <Bell className="size-5" />

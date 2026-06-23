@@ -3,6 +3,7 @@ export interface RegisterCredentials {
     password: string;
     role?: 'CLIENT' | 'FREELANCER';
     name?: string;
+    displayName?: string;
 }
 
 export interface LoginCredentials {

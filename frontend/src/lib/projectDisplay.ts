@@ -1,0 +1,127 @@
+import type { Project, ProjectPreview, JobBoardProject } from '@/types/project'
+import type { PublicUserProfile } from '@/types/user'
+import type { StatusBadgeStatus } from '@/components/ui/StatusBadge'
+
+export function displayName(
+  user: Pick<PublicUserProfile, 'displayName' | 'name'> | null | undefined,
+  fallback = 'Anonymous',
+) {
+  return user?.displayName ?? user?.name ?? fallback
+}
+
+export function formatRelativeTime(iso: string) {
+  const date = new Date(iso)
+  const diffMs = Date.now() - date.getTime()
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (days <= 0) return 'Today'
+  if (days === 1) return '1d ago'
+  if (days < 7) return `${days}d ago`
+  if (days < 30) return `${Math.floor(days / 7)}w ago`
+  return date.toLocaleDateString()
+}
+
+export function formatDeadline(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+export function mapProjectStatus(status: string): StatusBadgeStatus {
+  switch (status) {
+    case 'DRAFT':
+      return 'DRAFT'
+    case 'FUNDED':
+      return 'FUNDED'
+    case 'IN_PROGRESS':
+      return 'IN_PROGRESS'
+    case 'COMPLETED':
+      return 'COMPLETED'
+    case 'CANCELLED':
+      return 'REJECTED'
+    default:
+      return 'DRAFT'
+  }
+}
+
+export function mapMilestoneStatus(status: string): StatusBadgeStatus {
+  switch (status) {
+    case 'PENDING':
+      return 'PENDING'
+    case 'IN_PROGRESS':
+      return 'IN_PROGRESS'
+    case 'SUBMITTED':
+      return 'SUBMITTED'
+    case 'APPROVED':
+      return 'APPROVED'
+    case 'PAID':
+      return 'PAID'
+    default:
+      return 'PENDING'
+  }
+}
+
+export function projectDraftMeta(project: Project) {
+  if (project.isPublic) {
+    return 'Not funded yet · public on job board'
+  }
+  if (project.invitedFreelancerId && !project.freelancerId) {
+    return 'Private · invite sent · waiting for acceptance'
+  }
+  if (!project.freelancerId) {
+    return 'Private · invite a freelancer'
+  }
+  return 'Private · freelancer accepted'
+}
+
+export function jobToCardProps(job: JobBoardProject) {
+  return {
+    id: job.id,
+    title: job.title,
+    amount: job.totalBudget,
+    currency: job.currency,
+    partyName: displayName(job.client),
+    milestoneCount: job.milestoneCount,
+    timeAgo: formatRelativeTime(job.createdAt),
+  }
+}
+
+export function projectToClientCardProps(project: Project) {
+  return {
+    id: project.id,
+    title: project.title,
+    amount: project.totalBudget,
+    currency: project.currency,
+    status: mapProjectStatus(project.status),
+    clientState:
+      project.status === 'DRAFT' ? ('draft' as const) : ('in_progress' as const),
+    draftMeta: projectDraftMeta(project),
+    milestoneCount: project.milestones.length,
+  }
+}
+
+export function projectToFreelancerCardProps(
+  project: Project,
+  userId: string,
+) {
+  const isInvited =
+    project.invitedFreelancerId === userId && !project.freelancerId
+
+  return {
+    id: project.id,
+    title: project.title,
+    amount: project.totalBudget,
+    currency: project.currency,
+    status: mapProjectStatus(project.status),
+    freelancerState: isInvited
+      ? ('invited' as const)
+      : ('in_progress' as const),
+    milestoneCount: project.milestones.length,
+  }
+}
+
+export function previewClientName(preview: ProjectPreview) {
+  return displayName(preview.client)
+}

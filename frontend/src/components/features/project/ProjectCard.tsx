@@ -44,6 +44,8 @@ export type ProjectCardProps = {
   freelancerState?: FreelancerCardState
   submitLabel?: string
   onCardClick?: () => void
+  onInvite?: () => void
+  showInvite?: boolean
   onApply?: () => void
   onAccept?: () => void
   onDecline?: () => void
@@ -78,6 +80,8 @@ export function ProjectCard({
   freelancerState = 'invited',
   submitLabel,
   onCardClick,
+  onInvite,
+  showInvite = false,
   onApply,
   onAccept,
   onDecline,
@@ -229,7 +233,12 @@ export function ProjectCard({
           </span>
         </p>
 
-        <div className="flex shrink-0 items-center" onClick={stop} onKeyDown={stop as never}>
+        <div className="flex shrink-0 items-center gap-2" onClick={stop} onKeyDown={stop as never}>
+          {variant === 'client' && showInvite && onInvite && (
+            <Button size="sm" variant="secondary" onClick={onInvite}>
+              Invite
+            </Button>
+          )}
           {isJobboard && (
             <Button size="sm" className="px-[18px]" onClick={onApply}>
               Apply
