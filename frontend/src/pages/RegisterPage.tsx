@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -34,11 +35,13 @@ export default function RegisterPage() {
     },
   })
 
+  const role = watch('role')
+
   const onSubmit = async (data: RegisterInput) => {
     setError(null)
     try {
       await registerUser({
-        email: data.email,
+        email: data.email.trim(),
         password: data.password,
         role: data.role,
         ...(data.name?.trim() && { name: data.name.trim() }),
@@ -56,6 +59,11 @@ export default function RegisterPage() {
         Create your account
       </h2>
 
+      <p className="text-sm leading-5 text-ink-500">
+        Account basics here — add bio and skills later in{' '}
+        <span className="font-medium text-ink-700">Profile settings</span>.
+      </p>
+
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
       <form
@@ -68,22 +76,6 @@ export default function RegisterPage() {
             <option value="CLIENT">Client (I want to hire)</option>
             <option value="FREELANCER">Freelancer (I want to work)</option>
           </Select>
-        </FormField>
-
-        <FormField label="Name" htmlFor="name">
-          <Input
-            id="name"
-            placeholder="Your name"
-            {...register('name')}
-          />
-        </FormField>
-
-        <FormField label="Display name" htmlFor="displayName" helper="Optional — shown publicly on your profile">
-          <Input
-            id="displayName"
-            placeholder="e.g. bob.eth"
-            {...register('displayName')}
-          />
         </FormField>
 
         <FormField
@@ -114,6 +106,39 @@ export default function RegisterPage() {
             autoComplete="new-password"
             error={!!errors.password}
             {...register('password')}
+          />
+        </FormField>
+
+        <FormField
+          label="Display name"
+          htmlFor="displayName"
+          helper={
+            role === 'FREELANCER'
+              ? 'Shown on your public profile and job board — e.g. bob.eth'
+              : 'Shown publicly when you post projects — optional'
+          }
+          error={errors.displayName?.message}
+        >
+          <Input
+            id="displayName"
+            placeholder={role === 'FREELANCER' ? 'bob.eth' : 'Your company or alias'}
+            error={!!errors.displayName}
+            {...register('displayName')}
+          />
+        </FormField>
+
+        <FormField
+          label="Legal name"
+          htmlFor="name"
+          helper="Optional — not shown publicly"
+          error={errors.name?.message}
+        >
+          <Input
+            id="name"
+            placeholder="Your real name"
+            autoComplete="name"
+            error={!!errors.name}
+            {...register('name')}
           />
         </FormField>
 
