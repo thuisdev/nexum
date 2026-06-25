@@ -5,6 +5,7 @@ export type StatCell = {
   value: string
   label: string
   highlight?: boolean
+  tone?: 'emerald' | 'amber' | 'brand'
 }
 
 export type StatStripProps = {
@@ -15,6 +16,13 @@ export type StatStripProps = {
 
 export function StatStrip({ cells, align = 'center', className }: StatStripProps) {
   const centered = align === 'center'
+
+  const valueTone = (cell: StatCell) => {
+    if (!cell.highlight) return 'text-ink-900'
+    if (cell.tone === 'amber') return 'text-amber-600'
+    if (cell.tone === 'brand') return 'text-brand-700'
+    return 'text-emerald-700'
+  }
 
   return (
     <div
@@ -37,10 +45,13 @@ export function StatStrip({ cells, align = 'center', className }: StatStripProps
           <span
             className={cn(
               'font-mono text-[22px] font-medium leading-7',
-              cell.highlight ? 'text-emerald-700' : 'text-ink-900',
+              valueTone(cell),
             )}
           >
             {cell.value}
+            {(cell.id === 'stars' || cell.id === 'rating') && cell.highlight && (
+              <span className="ml-0.5 font-sans text-base text-amber-500">★</span>
+            )}
           </span>
           <span
             className={cn(

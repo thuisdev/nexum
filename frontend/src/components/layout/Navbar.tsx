@@ -58,8 +58,15 @@ export default function Navbar({ landing = false }: NavbarProps) {
     navigate(ROUTES.home)
   }
 
-  const navLinkClass =
-    'text-sm font-medium text-ink-500 transition-colors hover:text-ink-900 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2'
+  const navLinkClass = (path: string) =>
+    cn(
+      'text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2',
+      location.pathname === path ||
+        (path === ROUTES.dashboard &&
+          location.pathname.startsWith('/dashboard'))
+        ? 'text-ink-900'
+        : 'text-ink-500 hover:text-ink-900',
+    )
 
   const isLanding = location.pathname === ROUTES.home
 
@@ -80,13 +87,13 @@ export default function Navbar({ landing = false }: NavbarProps) {
           </Link>
 
           <div className="hidden items-center gap-[18px] lg:flex">
-            <Link to={ROUTES.jobs} className={navLinkClass}>
+            <Link to={ROUTES.jobs} className={navLinkClass(ROUTES.jobs)}>
               Jobs
             </Link>
 
             {isLoggedIn ? (
               <>
-                <Link to={ROUTES.dashboard} className={navLinkClass}>
+                <Link to={ROUTES.dashboard} className={navLinkClass(ROUTES.dashboard)}>
                   Dashboard
                 </Link>
                 <div ref={bellRef} className="relative">
@@ -133,7 +140,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
               </>
             ) : (
               <>
-                <Link to={ROUTES.login} className={navLinkClass}>
+                <Link to={ROUTES.login} className={navLinkClass(ROUTES.login)}>
                   Login
                 </Link>
                 <Button onClick={() => navigate(ROUTES.register)}>

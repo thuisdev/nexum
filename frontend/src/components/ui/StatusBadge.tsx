@@ -15,6 +15,7 @@ export type StatusBadgeStatus =
   | 'REJECTED'
   | 'REVISION'
   | 'CANCELLED'
+  | 'DISPUTED'
 
 const statusStyles: Record<
   StatusBadgeStatus,
@@ -54,6 +55,7 @@ const statusStyles: Record<
   REJECTED: { bg: 'bg-red-100', text: 'text-red-700', label: 'REJECTED' },
   REVISION: { bg: 'bg-red-100', text: 'text-red-700', label: 'REVISION' },
   CANCELLED: { bg: 'bg-red-100', text: 'text-red-700', label: 'CANCELLED' },
+  DISPUTED: { bg: 'bg-red-100', text: 'text-red-700', label: 'DISPUTED' },
 }
 
 export type StatusBadgeProps = {

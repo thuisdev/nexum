@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import { DashboardGridSkeleton } from '@/components/ui/Skeleton'
 import {
   EmptyState,
   JobBoardFilters,
@@ -65,7 +66,7 @@ export default function JobBoardPage() {
   }, [jobs, search, activeChip])
 
   return (
-    <AppSection>
+    <AppSection className="!py-8 md:!py-12">
       <JobBoardHeader />
       <JobBoardFilters
         searchValue={search}
@@ -78,9 +79,9 @@ export default function JobBoardPage() {
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
       {loading ? (
-        <p className="text-sm text-ink-500">Loading open projects…</p>
+        <DashboardGridSkeleton count={6} />
       ) : filtered.length > 0 ? (
-        <div className="flex flex-wrap gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((job) => (
             <ProjectCard
               key={job.id}

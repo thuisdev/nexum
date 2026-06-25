@@ -14,6 +14,7 @@ import {
   FreelancerDashboard,
   CreateProjectPage,
   ProjectDetailPage,
+  EditProjectPage,
   UserProfilePage,
   SettingsPage,
   NotFoundPage,
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
             children: [
               { path: ROUTES.clientDashboard, element: withSuspense(ClientDashboard) },
               { path: ROUTES.createProject, element: withSuspense(CreateProjectPage) },
+              { path: '/projects/:id/edit', element: withSuspense(EditProjectPage) },
             ]
           },
           {
@@ -62,6 +64,7 @@ export const router = createBrowserRouter([
               { path: ROUTES.clientDashboard, element: withSuspense(ClientDashboard) },
               { path: ROUTES.freelancerDashboard, element: withSuspense(FreelancerDashboard) },
               { path: ROUTES.createProject, element: withSuspense(CreateProjectPage) },
+              { path: '/projects/:id/edit', element: withSuspense(EditProjectPage) },
             ]
           },
           {

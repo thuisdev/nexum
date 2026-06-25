@@ -10,6 +10,7 @@ export const ROUTES = {
     arbiterDashboard: '/dashboard/arbiter',
     createProject: '/projects/new',
     project: (id: string) => `/projects/${id}`,
+    editProject: (id: string) => `/projects/${id}/edit`,
     profile: (id: string) => `/users/${id}`,
     settings: '/settings',
 } as const

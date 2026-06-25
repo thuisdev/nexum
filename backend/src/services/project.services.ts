@@ -1,7 +1,9 @@
 import { Prisma } from '../generated/prisma/client.js';
 import type { Role } from '../generated/prisma/enums.js';
+import { DisputeStatus } from '../generated/prisma/enums.js';
 import { prisma } from '../lib/prisma.js';
 import type {
+  AppendMilestonesInput,
   CreateProjectInput,
   InviteFreelancerInput,
   UpdateProjectInput,
@@ -27,6 +29,7 @@ const canAccessProject = (
     clientId: string;
     freelancerId: string | null;
     invitedFreelancerId: string | null;
+    arbiterId?: string | null;
   },
   userId: string,
   userRole: Role,
@@ -34,7 +37,16 @@ const canAccessProject = (
   userRole === 'ADMIN' ||
   project.clientId === userId ||
   project.freelancerId === userId ||
-  project.invitedFreelancerId === userId;
+  project.invitedFreelancerId === userId ||
+  (userRole === 'ARBITER' && project.arbiterId === userId);
+
+const clientPublicSelect = {
+  id: true,
+  displayName: true,
+  name: true,
+  isVerified: true,
+  avatarUrl: true,
+} as const;
 
 /** Create project + milestones + activity log in one transaction. */
 export const createProject = async (
@@ -93,7 +105,30 @@ export const listProjects = async (userId: string, userRole: Role) => {
                 { invitedFreelancerId: userId },
               ],
             }
-          : { id: '__none__' };
+          : userRole === 'ARBITER'
+            ? {
+                OR: [
+                  { arbiterId: userId },
+                  {
+                    milestones: {
+                      some: {
+                        disputes: {
+                          some: {
+                            status: {
+                              in: [
+                                DisputeStatus.OPEN,
+                                DisputeStatus.IN_REVIEW,
+                              ],
+                            },
+                            arbiterId: userId,
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              }
+            : { id: '__none__' };
 
   const projects = await prisma.project.findMany({
     where,
@@ -111,26 +146,65 @@ export const getProjectById = async (
 ) => {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    include: { milestones: true },
+    include: {
+      milestones: true,
+      client: { select: clientPublicSelect },
+      freelancer: { select: clientPublicSelect },
+    },
   });
 
   if (!project) {
     return null;
   }
 
-  if (!canAccessProject(project, userId, userRole)) {
+  const openDispute = await prisma.dispute.findFirst({
+    where: {
+      milestone: { projectId },
+      status: { in: [DisputeStatus.OPEN, DisputeStatus.IN_REVIEW] },
+    },
+    include: {
+      milestone: {
+        select: { id: true, title: true, status: true, orderIndex: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const arbiterCanAccess =
+    userRole === 'ARBITER' &&
+    openDispute &&
+    (openDispute.arbiterId === userId || openDispute.arbiterId === null);
+
+  if (
+    !canAccessProject(project, userId, userRole) &&
+    !arbiterCanAccess &&
+    userRole !== 'ADMIN'
+  ) {
     return 'forbidden' as const;
   }
 
-  return serializeProject(project);
+  return {
+    ...serializeProject(project),
+    client: project.client,
+    freelancer: project.freelancer,
+    openDispute: openDispute
+      ? {
+          id: openDispute.id,
+          milestoneId: openDispute.milestoneId,
+          raisedBy: openDispute.raisedBy,
+          reason: openDispute.reason,
+          status: openDispute.status,
+          resolution: openDispute.resolution,
+          createdAt: openDispute.createdAt.toISOString(),
+          resolvedAt: openDispute.resolvedAt?.toISOString() ?? null,
+          milestone: openDispute.milestone,
+        }
+      : null,
+  };
 };
 
-/** Update title/description while project is still DRAFT (client only). */
-export const updateProject = async (
-  projectId: string,
-  clientId: string,
-  input: UpdateProjectInput,
-) => {
+/** Delete DRAFT project before a freelancer is assigned. */
+export const deleteProject = async (projectId: string, clientId: string) => {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
 
   if (!project) {
@@ -141,20 +215,216 @@ export const updateProject = async (
     return 'forbidden' as const;
   }
 
-  if (project.status !== 'DRAFT') {
-    return 'not_editable' as const;
+  if (!draftEditable(project)) {
+    return 'not_deletable' as const;
   }
 
-  const updated = await prisma.project.update({
+  if (project.freelancerId) {
+    return 'freelancer_assigned' as const;
+  }
+
+  await prisma.project.delete({ where: { id: projectId } });
+  return { id: projectId };
+};
+
+const draftEditable = (project: { status: string; escrowStatus: string }) =>
+  project.status === 'DRAFT' && project.escrowStatus === 'NOT_FUNDED';
+
+/** Full edit while DRAFT, not funded, no freelancer assigned. */
+export const updateProject = async (
+  projectId: string,
+  clientId: string,
+  input: UpdateProjectInput,
+) => {
+  const project = await prisma.project.findUnique({
     where: { id: projectId },
-    data: {
-      ...(input.title !== undefined && { title: input.title }),
-      ...(input.description !== undefined && { description: input.description }),
-    },
     include: { milestones: true },
   });
 
-  return serializeProject(updated);
+  if (!project) {
+    return null;
+  }
+
+  if (project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (!draftEditable(project)) {
+    return 'not_editable' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'freelancer_assigned' as const;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (input.milestones) {
+      await tx.milestone.deleteMany({ where: { projectId } });
+    }
+
+    const result = await tx.project.update({
+      where: { id: projectId },
+      data: {
+        ...(input.title !== undefined && { title: input.title }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.totalBudget !== undefined && {
+          totalBudget: new Prisma.Decimal(input.totalBudget),
+        }),
+        ...(input.currency !== undefined && { currency: input.currency }),
+        ...(input.isPublic !== undefined && { isPublic: input.isPublic }),
+        ...(input.skills !== undefined && { skills: input.skills }),
+        ...(input.milestones && {
+          milestones: {
+            create: input.milestones.map((milestone) => ({
+              orderIndex: milestone.orderIndex,
+              title: milestone.title,
+              description: milestone.description,
+              amount: new Prisma.Decimal(milestone.amount),
+              deadline: milestone.deadline,
+            })),
+          },
+        }),
+      },
+      include: {
+        milestones: true,
+        client: { select: clientPublicSelect },
+        freelancer: { select: clientPublicSelect },
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'PROJECT_UPDATED',
+        metadata: { fields: Object.keys(input) },
+      },
+    });
+
+    return result;
+  });
+
+  return {
+    ...serializeProject(updated),
+    client: updated.client,
+    freelancer: updated.freelancer,
+  };
+};
+
+/** Append milestones after freelancer accepted (existing milestones locked). */
+export const appendMilestones = async (
+  projectId: string,
+  clientId: string,
+  input: AppendMilestonesInput,
+) => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: { milestones: true },
+  });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (!draftEditable(project)) {
+    return 'not_editable' as const;
+  }
+
+  if (!project.freelancerId) {
+    return 'no_freelancer' as const;
+  }
+
+  const hasStartedWork = project.milestones.some((m) => m.status !== 'PENDING');
+  if (hasStartedWork) {
+    return 'milestones_in_progress' as const;
+  }
+
+  const startIndex = project.milestones.length;
+  const newMilestones = input.milestones.map((milestone, index) => ({
+    orderIndex: startIndex + index,
+    title: milestone.title,
+    description: milestone.description,
+    amount: milestone.amount,
+    deadline: milestone.deadline,
+  }));
+
+  const newTotal =
+    project.milestones.reduce((sum, m) => sum + Number(m.amount), 0) +
+    newMilestones.reduce((sum, m) => sum + Number(m.amount), 0);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.milestone.createMany({
+      data: newMilestones.map((milestone) => ({
+        projectId,
+        orderIndex: milestone.orderIndex,
+        title: milestone.title,
+        description: milestone.description,
+        amount: new Prisma.Decimal(milestone.amount),
+        deadline: milestone.deadline,
+      })),
+    });
+
+    const result = await tx.project.update({
+      where: { id: projectId },
+      data: { totalBudget: new Prisma.Decimal(newTotal.toFixed(2)) },
+      include: {
+        milestones: true,
+        client: { select: clientPublicSelect },
+        freelancer: { select: clientPublicSelect },
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'MILESTONES_ADDED',
+        metadata: { count: newMilestones.length },
+      },
+    });
+
+    return result;
+  });
+
+  return {
+    ...serializeProject(updated),
+    client: updated.client,
+    freelancer: updated.freelancer,
+  };
+};
+
+export const getProjectActivity = async (
+  projectId: string,
+  userId: string,
+  userRole: Role,
+) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (!canAccessProject(project, userId, userRole)) {
+    return 'forbidden' as const;
+  }
+
+  const logs = await prisma.activityLog.findMany({
+    where: { projectId },
+    include: { actor: { select: clientPublicSelect } },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  return logs.map((log) => ({
+    id: log.id,
+    action: log.action,
+    metadata: log.metadata,
+    createdAt: log.createdAt.toISOString(),
+    actor: log.actor,
+  }));
 };
 
 /** Client invites a freelancer by email while project is DRAFT. */
@@ -326,14 +596,6 @@ export const fundProject = async (projectId: string, clientId: string) => {
 
   return serializeProject(updated);
 };
-
-const clientPublicSelect = {
-  id: true,
-  displayName: true,
-  name: true,
-  isVerified: true,
-  avatarUrl: true,
-} as const;
 
 type ProjectWithClient = Prisma.ProjectGetPayload<{
   include: {

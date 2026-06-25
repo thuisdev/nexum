@@ -113,10 +113,9 @@ export function ProjectCard({
       }}
       data-project-id={projectId}
       className={cn(
-        'flex w-full cursor-pointer flex-col rounded-xl border border-ink-200 bg-white p-5 shadow-sm',
+        'flex h-full w-full cursor-pointer flex-col rounded-xl border border-ink-200 bg-white p-5 shadow-sm',
         'transition-[box-shadow,border-color,transform] duration-[180ms]',
         'hover:-translate-y-0.5 hover:border-brand-100 hover:shadow-md',
-        'md:w-[360px]',
         cardGap,
         className,
       )}
@@ -165,39 +164,67 @@ export function ProjectCard({
         <p className="text-xs leading-4 text-ink-400">Due {deadline}</p>
       )}
 
-      {/* Variable middle */}
-      {isJobboard && (
-        <div className="flex flex-col gap-2">
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
-                <Tag key={tag}>{tag}</Tag>
-              ))}
-            </div>
-          )}
-          <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
-        </div>
-      )}
-
-      {variant === 'client' && (
-        <div className="flex flex-col gap-2">
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
-                <Tag key={tag}>{tag}</Tag>
-              ))}
-            </div>
-          )}
-          {clientState === 'draft' && draftMeta && (
-            <p className="text-sm leading-5 text-ink-500">{draftMeta}</p>
-          )}
-          {(clientState === 'draft' || clientState === 'in_progress') && (
+      {/* Variable middle — grows so footer stays at card bottom */}
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        {isJobboard && (
+          <>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
+              </div>
+            )}
             <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
-          )}
-          {showProgress &&
-            milestonesDone !== undefined &&
-            milestonesTotal !== undefined &&
-            progressAmountText && (
+          </>
+        )}
+
+        {variant === 'client' && (
+          <>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
+              </div>
+            )}
+            {clientState === 'draft' && draftMeta && (
+              <p className="text-sm leading-5 text-ink-500">{draftMeta}</p>
+            )}
+            {(clientState === 'draft' || clientState === 'in_progress') && (
+              <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
+            )}
+            {showProgress &&
+              milestonesDone !== undefined &&
+              milestonesTotal !== undefined &&
+              progressAmountText && (
+                <ProgressBar
+                  milestonesDone={milestonesDone}
+                  milestonesTotal={milestonesTotal}
+                  amountText={progressAmountText}
+                  value={progressValue}
+                  max={100}
+                />
+              )}
+            {reviewCount ? <ReviewPill count={reviewCount} /> : null}
+          </>
+        )}
+
+        {variant === 'freelancer' && (
+          <>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
+              </div>
+            )}
+            {freelancerState === 'invited' ? (
+              <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
+            ) : showProgress &&
+              milestonesDone !== undefined &&
+              milestonesTotal !== undefined &&
+              progressAmountText ? (
               <ProgressBar
                 milestonesDone={milestonesDone}
                 milestonesTotal={milestonesTotal}
@@ -205,48 +232,23 @@ export function ProjectCard({
                 value={progressValue}
                 max={100}
               />
-            )}
-          {reviewCount ? <ReviewPill count={reviewCount} /> : null}
-        </div>
-      )}
-
-      {variant === 'freelancer' && (
-        <div className="flex flex-col gap-2">
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
-                <Tag key={tag}>{tag}</Tag>
-              ))}
-            </div>
-          )}
-          {freelancerState === 'invited' ? (
-            <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
-          ) : showProgress &&
-            milestonesDone !== undefined &&
-            milestonesTotal !== undefined &&
-            progressAmountText ? (
-            <ProgressBar
-              milestonesDone={milestonesDone}
-              milestonesTotal={milestonesTotal}
-              amountText={progressAmountText}
-              value={progressValue}
-              max={100}
-            />
-          ) : null}
-        </div>
-      )}
-
-      <Divider />
-
-      {/* Foot */}
-      <div
-        className={cn(
-          'flex flex-col gap-3',
-          variant === 'freelancer' && freelancerState === 'invited'
-            ? 'md:flex-row md:items-center md:justify-between'
-            : 'sm:flex-row sm:items-center sm:justify-between',
+            ) : null}
+          </>
         )}
-      >
+      </div>
+
+      <div className="mt-auto flex flex-col gap-3">
+        <Divider />
+
+        {/* Foot */}
+        <div
+          className={cn(
+            'flex flex-col gap-3',
+            variant === 'freelancer' && freelancerState === 'invited'
+              ? 'md:flex-row md:items-center md:justify-between'
+              : 'sm:flex-row sm:items-center sm:justify-between',
+          )}
+        >
         <p className="font-mono text-xl font-medium leading-[26px] text-ink-900">
           {amount}{' '}
           <span className="font-sans text-[13px] font-normal text-ink-400">
@@ -287,6 +289,7 @@ export function ProjectCard({
                 {submitLabel}
               </Button>
             )}
+        </div>
         </div>
       </div>
     </article>

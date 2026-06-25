@@ -8,6 +8,9 @@ export interface PublicUserProfile {
   skills: string[]
   isVerified: boolean
   createdAt: string
+  reviewCount: number
+  totalStars: number
+  averageRating: number
 }
 
 export interface User {

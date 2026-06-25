@@ -1,37 +1,93 @@
-import axios from 'axios'
-import { useCallback, useEffect, useState } from 'react'
+import { ListChecks } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Link } from '@/components/ui/Link'
 import { AppSection } from '@/components/layout/AppSection'
 import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import { Modal, ModalActions } from '@/components/ui/Modal'
+import { StickyActionBar } from '@/components/ui/StickyActionBar'
 import {
+  ActivityTimeline,
   InviteFreelancerModal,
   MilestoneCard,
-  PartiesBlock,
+  MilestoneStepper,
+  ProjectDetailHero,
+  ProjectEscrowSection,
+  ProjectOverflowMenu,
+  type ProjectDetailParty,
+  type ProjectOverflowItem,
 } from '@/components/features'
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import { Tag } from '@/components/ui/Tag'
-import { EscrowPill } from '@/components/ui/EscrowPill'
+import { DisputeDialog } from '@/components/features/dialogs/DisputeDialog'
+import {
+  DisputePanel,
+  ResolveDisputeDialog,
+} from '@/components/features/dialogs/ResolveDisputeDialog'
+import { EmptyPanel } from '@/components/ui/EmptyPanel'
+import { SectionLabel } from '@/components/ui/Tag'
+import { ProjectDetailSkeleton } from '@/components/ui/Skeleton'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import {
   acceptInvite,
+  deleteProject,
   fundProject,
   getProject,
+  getProjectActivity,
   getProjectPreview,
+  openDispute,
+  resolveDispute,
 } from '@/lib/projects.api'
 import {
+  canDeleteProject,
+  canEditProject,
+  displayName,
   formatDeadline,
   mapMilestoneStatus,
   mapProjectStatus,
   previewClientName,
   projectEscrowLabel,
   resolveClientCardStatus,
+  resolveDisputeCta,
   resolveFreelancerCardStatus,
 } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
-import type { Project, ProjectPreview } from '@/types/project'
+import type { Project, ProjectActivity, ProjectPreview } from '@/types/project'
+import axios from 'axios'
+
+function resolveParties(
+  project: Project | null,
+  preview: ProjectPreview | null,
+): ProjectDetailParty[] {
+  const parties: ProjectDetailParty[] = []
+
+  if (project?.client) {
+    parties.push({
+      id: project.client.id,
+      name: displayName(project.client),
+      role: 'Client',
+      avatarUrl: project.client.avatarUrl,
+      verified: project.client.isVerified,
+    })
+  } else if (preview?.client) {
+    parties.push({
+      id: preview.client.id,
+      name: previewClientName(preview),
+      role: 'Client',
+    })
+  }
+
+  if (project?.freelancer) {
+    parties.push({
+      id: project.freelancer.id,
+      name: displayName(project.freelancer),
+      role: 'Freelancer',
+      avatarUrl: project.freelancer.avatarUrl,
+      verified: project.freelancer.isVerified,
+    })
+  }
+
+  return parties
+}
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -41,12 +97,16 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null)
   const [preview, setPreview] = useState<ProjectPreview | null>(null)
+  const [activity, setActivity] = useState<ProjectActivity[]>([])
   const [mode, setMode] = useState<'full' | 'preview' | 'error'>('full')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(searchParams.get('invite') === '1')
   const [actionLoading, setActionLoading] = useState(false)
-
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [disputeOpen, setDisputeOpen] = useState(false)
+  const [resolveOpen, setResolveOpen] = useState(false)
+  const [viewDisputeOpen, setViewDisputeOpen] = useState(false)
   const reloadProject = useCallback(async () => {
     if (!id) return
 
@@ -59,6 +119,12 @@ export default function ProjectDetailPage() {
         setProject(full)
         setPreview(null)
         setMode('full')
+        try {
+          const logs = await getProjectActivity(id)
+          setActivity(logs)
+        } catch {
+          setActivity([])
+        }
         setLoading(false)
         return
       } catch (err) {
@@ -78,6 +144,7 @@ export default function ProjectDetailPage() {
       const data = await getProjectPreview(id)
       setPreview(data)
       setProject(null)
+      setActivity([])
       setMode('preview')
     } catch {
       setError(
@@ -92,60 +159,8 @@ export default function ProjectDetailPage() {
   }, [id, user])
 
   useEffect(() => {
-    if (!id) return
-
-    let cancelled = false
-
-    const load = async () => {
-      if (user) {
-        try {
-          const full = await getProject(id)
-          if (cancelled) return
-          setProject(full)
-          setPreview(null)
-          setMode('full')
-          setLoading(false)
-          return
-        } catch (err) {
-          if (cancelled) return
-          if (
-            !axios.isAxiosError(err) ||
-            (err.response?.status !== 403 && err.response?.status !== 404)
-          ) {
-            setError(getApiErrorMessage(err, 'Could not load project'))
-            setMode('error')
-            setLoading(false)
-            return
-          }
-        }
-      }
-
-      try {
-        const data = await getProjectPreview(id)
-        if (cancelled) return
-        setPreview(data)
-        setProject(null)
-        setMode('preview')
-        setError(null)
-      } catch {
-        if (cancelled) return
-        setError(
-          user
-            ? 'This project is private or does not exist.'
-            : 'Project not found. Log in if you were invited.',
-        )
-        setMode('error')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [id, user])
+    void reloadProject()
+  }, [reloadProject])
 
   const closeInviteModal = () => {
     setInviteOpen(false)
@@ -159,9 +174,12 @@ export default function ProjectDetailPage() {
     if (!id) return
     setActionLoading(true)
     try {
-      const updated = await acceptInvite(id)
-      setProject(updated)
+      await acceptInvite(id)
+      const full = await getProject(id)
+      setProject(full)
       setMode('full')
+      const logs = await getProjectActivity(id)
+      setActivity(logs)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))
     } finally {
@@ -173,9 +191,12 @@ export default function ProjectDetailPage() {
     if (!id) return
     setActionLoading(true)
     try {
-      const updated = await fundProject(id)
-      setProject(updated)
+      await fundProject(id)
+      const full = await getProject(id)
+      setProject(full)
       setMode('full')
+      const logs = await getProjectActivity(id)
+      setActivity(logs)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not fund project'))
     } finally {
@@ -190,6 +211,16 @@ export default function ProjectDetailPage() {
     user.id === project.clientId &&
     (user.role === 'CLIENT' || user.role === 'ADMIN')
 
+  const canEdit =
+    mode === 'full' && project && user && canEditProject(project, user.id)
+
+  const canDelete =
+    mode === 'full' && project && user && canDeleteProject(project, user.id)
+
+  const disputeCta =
+    mode === 'full' && project && user
+      ? resolveDisputeCta(project, user.id, user.role)
+      : null
   const isInvitedFreelancer =
     mode === 'full' &&
     project &&
@@ -206,9 +237,10 @@ export default function ProjectDetailPage() {
 
   const title = project?.title ?? preview?.title ?? 'Project'
   const description = project?.description ?? preview?.description
-  const budget = project?.totalBudget ?? preview?.totalBudget
+  const budget = project?.totalBudget ?? preview?.totalBudget ?? '0'
   const currency = project?.currency ?? preview?.currency ?? 'USDC'
   const skills = project?.skills ?? preview?.skills ?? []
+  const parties = resolveParties(project, preview)
 
   const statusInfo =
     mode === 'full' && project && user
@@ -236,182 +268,310 @@ export default function ProjectDetailPage() {
           status: 'PENDING',
         }))
 
-  const backTarget = user ? ROUTES.dashboard : ROUTES.jobs
+  const milestoneStats = useMemo(() => {
+    const total = milestones.length
+    const paid = milestones.filter((m) => m.status === 'PAID').length
+    return { total, paid }
+  }, [milestones])
+
+  const handleDelete = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      await deleteProject(id)
+      navigate(ROUTES.clientDashboard)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not delete project'))
+      setDeleteOpen(false)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleOpenDispute = async (reason: string) => {
+    if (!id || !disputeCta || disputeCta.action !== 'open') return
+    if (reason.length < 10) {
+      setError('Please describe the issue in at least 10 characters')
+      return
+    }
+    setActionLoading(true)
+    try {
+      await openDispute(id, {
+        milestoneId: disputeCta.milestoneId,
+        reason,
+      })
+      setDisputeOpen(false)
+      await reloadProject()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not open dispute'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleResolveDispute = async (outcome: string, resolution: string) => {
+    if (!project?.openDispute || resolution.length < 5) return
+    setActionLoading(true)
+    try {
+      await resolveDispute(project.openDispute.id, { outcome, resolution })
+      setResolveOpen(false)
+      await reloadProject()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not resolve dispute'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const overflowItems = useMemo((): ProjectOverflowItem[] => {
+    if (!id) return []
+    const items: ProjectOverflowItem[] = []
+    if (canEdit) {
+      items.push({
+        id: 'edit',
+        label: 'Edit project',
+        onClick: () => navigate(ROUTES.editProject(id)),
+      })
+    }
+    if (canDelete) {
+      items.push({
+        id: 'delete',
+        label: 'Delete project',
+        tone: 'danger',
+        onClick: () => setDeleteOpen(true),
+      })
+    }
+    return items
+  }, [canDelete, canEdit, id, navigate])
+
+  const workflowActions = (
+    <>
+      {canInvite && id && (
+        <Button className="w-full sm:w-auto" onClick={() => setInviteOpen(true)}>
+          Invite freelancer
+        </Button>
+      )}
+      {isInvitedFreelancer && (
+        <Button
+          className="w-full sm:w-auto"
+          loading={actionLoading}
+          onClick={() => void handleAccept()}
+        >
+          Accept invite
+        </Button>
+      )}
+      {mode === 'full' && project && canFund && (
+        <Button
+          className="w-full sm:w-auto"
+          loading={actionLoading}
+          onClick={() => void handleFund()}
+        >
+          Fund project
+        </Button>
+      )}
+      {mode === 'preview' && !user && (
+        <>
+          <Button className="w-full sm:w-auto" onClick={() => navigate(ROUTES.register)}>
+            Sign up to apply
+          </Button>
+          <Button
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={() => navigate(ROUTES.login)}
+          >
+            Log in
+          </Button>
+        </>
+      )}
+    </>
+  )
+
+  const hasMobileActions = Boolean(
+    canInvite ||
+      isInvitedFreelancer ||
+      canFund ||
+      (mode === 'preview' && !user),
+  )
+
+  const showEscrowSection =
+    mode === 'full' && Boolean(disputeCta || project?.openDispute)
 
   if (loading) {
     return (
-      <AppSection>
-        <p className="text-sm text-ink-500">Loading project…</p>
+      <AppSection className="!py-8 md:!py-12">
+        <ProjectDetailSkeleton />
       </AppSection>
     )
   }
 
   if (mode === 'error') {
     return (
-      <AppSection>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-fit"
-          onClick={() => navigate(backTarget)}
-        >
-          ← Back
-        </Button>
+      <AppSection className="!py-8 md:!py-12">
         <InlineAlert variant="error">{error ?? 'Project not found'}</InlineAlert>
       </AppSection>
     )
   }
 
   return (
-    <AppSection>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-fit"
-        onClick={() => navigate(backTarget)}
-      >
-        ← Back
-      </Button>
+    <>
+      <AppSection className={hasMobileActions ? '!pb-28 md:!pb-12' : '!py-8 md:!py-12'}>
+        <div className="flex flex-col gap-8">
+          {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
-      {error && <InlineAlert variant="error">{error}</InlineAlert>}
+          {mode === 'preview' && (
+            <InlineAlert variant="info">
+              Public preview — milestones and scope only. Apply or accept requires an
+              account.
+            </InlineAlert>
+          )}
 
-      {mode === 'preview' && (
-        <InlineAlert variant="info">
-          Public preview — milestones and scope only. Apply or accept requires an
-          account.
-        </InlineAlert>
-      )}
-
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-3">
-          <h1 className="font-display text-2xl font-bold leading-8 text-ink-900 md:text-[36px] md:leading-10">
-            {title}
-          </h1>
-          <StatusBadge status={statusInfo.status} label={statusInfo.label} />
-        </div>
-
-        {skills.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {skills.map((skill) => (
-              <Tag key={skill}>{skill}</Tag>
-            ))}
-          </div>
-        )}
-
-        {(project || preview) && (
-          <EscrowPill
-            label={project ? projectEscrowLabel(project) : 'Escrow-backed'}
-            milestoneCount={
-              project?.milestones.length ?? preview?.milestones.length
-            }
+          <ProjectDetailHero
+            title={title}
+            status={statusInfo.status}
+            statusLabel={statusInfo.label}
+            skills={skills}
+            escrowLabel={project ? projectEscrowLabel(project) : 'Escrow-backed'}
+            milestoneCount={milestoneStats.total}
+            milestonesPaid={milestoneStats.paid}
+            milestonesTotal={milestoneStats.total}
+            description={description}
+            budget={budget}
+            currency={currency}
+            parties={parties}
+            menu={<ProjectOverflowMenu items={overflowItems} />}
+            actions={workflowActions}
           />
-        )}
 
-        {description && (
-          <p className="max-w-3xl text-base leading-6 text-ink-600">
-            {description}
-          </p>
-        )}
+          {showEscrowSection && (
+            <ProjectEscrowSection
+              disputeCta={disputeCta}
+              openDispute={project?.openDispute}
+              onOpenDispute={() => setDisputeOpen(true)}
+              onViewDispute={() => setViewDisputeOpen(true)}
+              onResolveDispute={() => setResolveOpen(true)}
+            />
+          )}
 
-        {preview && (
-          <PartiesBlock
-            parties={[
-              {
-                role: 'Client',
-                name: previewClientName(preview),
-              },
-            ]}
-          />
-        )}
+          {milestones.length > 0 && (
+            <section className="flex flex-col gap-3 text-left">
+              <SectionLabel>Progress</SectionLabel>
+              <MilestoneStepper
+                milestones={milestones.map((m) => ({
+                  id: m.id ?? String(m.orderIndex),
+                  title: m.title,
+                  status: m.status,
+                }))}
+              />
+            </section>
+          )}
 
-        <p className="font-mono text-[28px] font-medium leading-[34px] text-ink-900">
-          {budget} {currency}
-        </p>
-
-        {canInvite && id && (
-          <Button
-            className="w-full md:w-auto"
-            onClick={() => setInviteOpen(true)}
-          >
-            Invite freelancer
-          </Button>
-        )}
-
-        {isInvitedFreelancer && (
-          <Button
-            className="w-full md:w-auto"
-            loading={actionLoading}
-            onClick={() => void handleAccept()}
-          >
-            Accept invite
-          </Button>
-        )}
-
-        {mode === 'preview' && !user && (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button onClick={() => navigate(ROUTES.register)}>
-              Sign up to apply
-            </Button>
-            <Button variant="secondary" onClick={() => navigate(ROUTES.login)}>
-              Log in
-            </Button>
-          </div>
-        )}
-
-        {mode === 'preview' && preview && (
-          <p className="text-sm text-ink-500">
-            Posted by{' '}
-            <Link
-              to={ROUTES.profile(preview.client.id)}
-              className="font-medium text-brand-600 hover:underline"
-            >
-              {previewClientName(preview)}
-            </Link>
-          </p>
-        )}
-      </div>
-
-      <div className="mt-6 flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-ink-900">Milestones</h2>
-        {milestones.map((milestone) => (
-          <MilestoneCard
-            key={milestone.id ?? milestone.orderIndex}
-            title={milestone.title}
-            description={milestone.description}
-            amount={milestone.amount}
-            deadline={formatDeadline(
-              typeof milestone.deadline === 'string'
-                ? milestone.deadline
-                : new Date(milestone.deadline).toISOString(),
+          <section className="flex flex-col gap-3 text-left">
+            <SectionLabel>Milestones</SectionLabel>
+            {milestones.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {milestones.map((milestone) => (
+                  <MilestoneCard
+                    key={milestone.id ?? milestone.orderIndex}
+                    title={milestone.title}
+                    description={milestone.description}
+                    amount={milestone.amount}
+                    deadline={formatDeadline(
+                      typeof milestone.deadline === 'string'
+                        ? milestone.deadline
+                        : new Date(milestone.deadline).toISOString(),
+                    )}
+                    status={mapMilestoneStatus(milestone.status)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyPanel
+                icon={ListChecks}
+                title="No milestones yet"
+                message="Milestones define scope, deadlines, and escrow releases for this project."
+              />
             )}
-            status={mapMilestoneStatus(milestone.status)}
-          />
-        ))}
-        {milestones.length === 0 && (
-          <p className="text-sm text-ink-500">No milestones defined.</p>
-        )}
-      </div>
+          </section>
 
-      {mode === 'full' && project && canFund && (
-        <div className="mt-4">
-          <Button
-            className="w-full md:w-auto"
-            loading={actionLoading}
-            onClick={() => void handleFund()}
-          >
-            Fund project
-          </Button>
+          {mode === 'full' && (
+            <section className="flex flex-col gap-3 text-left">
+              <SectionLabel>Activity</SectionLabel>
+              <div className="rounded-xl border border-ink-200 bg-white p-5 shadow-sm">
+                <ActivityTimeline items={activity} />
+              </div>
+            </section>
+          )}
         </div>
-      )}
 
-      {id && (
-        <InviteFreelancerModal
-          open={inviteOpen}
-          projectId={id}
-          onClose={closeInviteModal}
-          onSuccess={() => void reloadProject()}
-        />
+        {id && (
+          <InviteFreelancerModal
+            open={inviteOpen}
+            projectId={id}
+            onClose={closeInviteModal}
+            onSuccess={() => void reloadProject()}
+          />
+        )}
+
+        <Modal
+          open={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+          title="Delete project?"
+          footer={
+            <ModalActions
+              onCancel={() => setDeleteOpen(false)}
+              onConfirm={() => void handleDelete()}
+              confirmLabel="Delete"
+              confirmVariant="danger"
+              loading={actionLoading}
+            />
+          }
+        >
+          <p className="text-base leading-6 text-ink-900">
+            This permanently removes the project and all milestones. This can&apos;t
+            be undone.
+          </p>
+        </Modal>
+
+        {disputeCta?.action === 'open' && (
+          <DisputeDialog
+            open={disputeOpen}
+            onClose={() => setDisputeOpen(false)}
+            onConfirm={(reason) => void handleOpenDispute(reason)}
+            loading={actionLoading}
+            milestoneTitle={disputeCta.milestoneTitle}
+            hint={disputeCta.hint}
+          />
+        )}
+
+        {project?.openDispute && (
+          <>
+            <Modal
+              open={viewDisputeOpen}
+              onClose={() => setViewDisputeOpen(false)}
+              title="Dispute details"
+              footer={
+                <Button variant="ghost" onClick={() => setViewDisputeOpen(false)}>
+                  Close
+                </Button>
+              }
+            >
+              <DisputePanel dispute={project.openDispute} />
+            </Modal>
+            <ResolveDisputeDialog
+              open={resolveOpen}
+              onClose={() => setResolveOpen(false)}
+              onConfirm={(outcome, resolution) =>
+                void handleResolveDispute(outcome, resolution)
+              }
+              loading={actionLoading}
+              dispute={project.openDispute}
+            />
+          </>
+        )}
+      </AppSection>
+      {hasMobileActions && (
+        <StickyActionBar>{workflowActions}</StickyActionBar>
       )}
-    </AppSection>
+    </>
   )
 }

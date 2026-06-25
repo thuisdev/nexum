@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Briefcase, FileEdit, Rocket } from 'lucide-react'
 import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import { DashboardGridSkeleton } from '@/components/ui/Skeleton'
 import {
+  DashboardSummary,
   EmptyState,
   EmptyStateButton,
   InviteFreelancerModal,
@@ -60,8 +63,16 @@ export default function ClientDashboard() {
     }
   }, [])
 
+  const summary = useMemo(() => {
+    const drafts = projects.filter((p) => p.status === 'DRAFT').length
+    const active = projects.filter(
+      (p) => p.status !== 'DRAFT' && p.status !== 'COMPLETED' && p.status !== 'CANCELLED',
+    ).length
+    return { total: projects.length, drafts, active }
+  }, [projects])
+
   return (
-    <AppSection>
+    <AppSection className="!py-8 md:!py-12">
       <PageHeader
         title="Your projects"
         action={
@@ -71,12 +82,39 @@ export default function ClientDashboard() {
         }
       />
 
+      {!loading && projects.length > 0 && (
+        <DashboardSummary
+          stats={[
+            {
+              id: 'total',
+              label: 'Total projects',
+              value: summary.total,
+              icon: Briefcase,
+            },
+            {
+              id: 'drafts',
+              label: 'Drafts',
+              value: summary.drafts,
+              icon: FileEdit,
+              highlight: summary.drafts > 0,
+            },
+            {
+              id: 'active',
+              label: 'In progress',
+              value: summary.active,
+              icon: Rocket,
+              highlight: summary.active > 0,
+            },
+          ]}
+        />
+      )}
+
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
       {loading ? (
-        <p className="text-sm text-ink-500">Loading projects…</p>
+        <DashboardGridSkeleton count={3} />
       ) : projects.length > 0 ? (
-        <div className="flex flex-wrap gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => {
             const card = projectToClientCardProps(project)
             const canInvite =
@@ -99,7 +137,7 @@ export default function ClientDashboard() {
       ) : (
         <EmptyState
           title="No projects yet"
-          description="Create your first project and invite a freelancer."
+          description="Create your first project, define milestones, and invite a freelancer."
           action={
             <EmptyStateButton
               label="New project"

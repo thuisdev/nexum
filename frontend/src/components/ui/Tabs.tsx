@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 export type TabItem = {
   id: string
   label: string
+  badge?: number
 }
 
 export type TabsProps = {
@@ -31,13 +32,25 @@ export function Tabs({ tabs, activeId, onChange, className }: TabsProps) {
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
             className={cn(
-              'shrink-0 border-b-2 pb-3 text-base font-medium leading-6 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2',
+              'flex shrink-0 items-center gap-2 border-b-2 pb-3 text-base font-medium leading-6 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2',
               isActive
                 ? 'border-brand-500 text-ink-900'
                 : 'border-transparent text-ink-500 hover:text-ink-700',
             )}
           >
             {tab.label}
+            {tab.badge !== undefined && tab.badge > 0 && (
+              <span
+                className={cn(
+                  'inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium leading-4',
+                  isActive
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'bg-ink-100 text-ink-600',
+                )}
+              >
+                {tab.badge}
+              </span>
+            )}
           </button>
         )
       })}

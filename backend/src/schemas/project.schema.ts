@@ -80,18 +80,50 @@ export const createProjectSchema = z
   })
   .superRefine(milestonesRefinement);
 
-/** Body for PATCH /api/projects/:id — only DRAFT fields, milestones not editable here */
-export const updateProjectSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required').optional(),
-  description: z
-    .string()
-    .trim()
-    .min(1, 'Description is required')
-    .optional(),
+/** Body for PATCH /api/projects/:id — full edit while DRAFT and no freelancer */
+export const updateProjectSchema = z
+  .object({
+    title: z.string().trim().min(1, 'Title is required').optional(),
+    description: z
+      .string()
+      .trim()
+      .min(1, 'Description is required')
+      .optional(),
+    totalBudget: moneySchema.optional(),
+    currency: z.string().trim().min(1).optional(),
+    isPublic: z.boolean().optional(),
+    skills: z.array(z.enum(PROJECT_SKILLS)).min(1).optional(),
+    milestones: z.array(milestoneInputSchema).min(1).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.totalBudget !== undefined && data.milestones !== undefined) {
+      milestonesRefinement(
+        {
+          totalBudget: data.totalBudget,
+          milestones: data.milestones,
+        },
+        ctx,
+      );
+    }
+  });
+
+const appendMilestoneSchema = z.object({
+  title: z.string().trim().min(1, 'Milestone title is required'),
+  description: z.string().trim().min(1, 'Milestone description is required'),
+  amount: moneySchema,
+  deadline: z.coerce.date({ error: 'Invalid deadline date' }),
+});
+
+/** Body for POST /api/projects/:id/milestones — append after freelancer accepted */
+export const appendMilestonesSchema = z.object({
+  milestones: z
+    .array(appendMilestoneSchema)
+    .min(1, 'At least one milestone is required'),
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+export type AppendMilestonesInput = z.infer<typeof appendMilestonesSchema>;
 
 /** Body for POST /api/projects/:id/invite */
 export const inviteFreelancerSchema = z.object({

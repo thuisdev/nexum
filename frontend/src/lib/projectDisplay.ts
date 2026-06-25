@@ -52,6 +52,10 @@ export function resolveClientCardStatus(project: Project): {
   status: StatusBadgeStatus
   label?: string
 } {
+  if (project.openDispute) {
+    return { status: 'DISPUTED', label: 'Under review' }
+  }
+
   if (project.status !== 'DRAFT') {
     return { status: mapProjectStatus(project.status) }
   }
@@ -71,6 +75,10 @@ export function resolveFreelancerCardStatus(
   project: Project,
   userId: string,
 ): { status: StatusBadgeStatus; label?: string } {
+  if (project.openDispute) {
+    return { status: 'DISPUTED', label: 'Under review' }
+  }
+
   if (project.invitedFreelancerId === userId && !project.freelancerId) {
     return { status: 'INVITED' }
   }
@@ -104,6 +112,8 @@ export function mapMilestoneStatus(status: string): StatusBadgeStatus {
       return 'PAID'
     case 'REVISION':
       return 'REVISION'
+    case 'DISPUTED':
+      return 'DISPUTED'
     default:
       return 'PENDING'
   }
@@ -182,4 +192,95 @@ export function projectToFreelancerCardProps(
 
 export function previewClientName(preview: ProjectPreview) {
   return displayName(preview.client)
+}
+
+export function canFullEditProject(project: Project, userId: string) {
+  return (
+    project.clientId === userId &&
+    project.status === 'DRAFT' &&
+    project.escrowStatus === 'NOT_FUNDED' &&
+    !project.freelancerId
+  )
+}
+
+export function canEditProject(project: Project, userId: string) {
+  return canFullEditProject(project, userId)
+}
+
+export function canDeleteProject(project: Project, userId: string) {
+  return canFullEditProject(project, userId)
+}
+
+const DISPUTABLE_MILESTONE_STATUSES = ['IN_PROGRESS', 'SUBMITTED'] as const
+
+export function findDisputableMilestone(project: Project, userId: string) {
+  const isParty =
+    userId === project.clientId || userId === project.freelancerId
+
+  if (!isParty) return null
+
+  return (
+    project.milestones.find((m) => m.status === 'SUBMITTED') ??
+    project.milestones.find((m) => m.status === 'IN_PROGRESS') ??
+    project.milestones.find((m) =>
+      DISPUTABLE_MILESTONE_STATUSES.includes(
+        m.status as (typeof DISPUTABLE_MILESTONE_STATUSES)[number],
+      ),
+    ) ??
+    null
+  )
+}
+
+export function canRequestDispute(project: Project, userId: string) {
+  if (project.openDispute) return false
+  if (project.status !== 'IN_PROGRESS' && project.status !== 'FUNDED') {
+    return false
+  }
+  return Boolean(findDisputableMilestone(project, userId))
+}
+
+export type DisputeCta =
+  | {
+      action: 'open'
+      milestoneId: string
+      milestoneTitle: string
+      label: string
+      hint: string
+    }
+  | { action: 'view'; label: string }
+  | { action: 'arbiter'; label: string }
+
+export function resolveDisputeCta(
+  project: Project,
+  userId: string,
+  userRole: string,
+): DisputeCta | null {
+  if (project.openDispute) {
+    if (userRole === 'ARBITER' || userRole === 'ADMIN') {
+      return { action: 'arbiter', label: 'Resolve dispute' }
+    }
+    if (userId === project.clientId || userId === project.freelancerId) {
+      return { action: 'view', label: 'View dispute' }
+    }
+    return null
+  }
+
+  if (project.status !== 'IN_PROGRESS' && project.status !== 'FUNDED') {
+    return null
+  }
+
+  const milestone = findDisputableMilestone(project, userId)
+  if (!milestone) return null
+
+  const isClient = userId === project.clientId
+
+  return {
+    action: 'open',
+    milestoneId: milestone.id,
+    milestoneTitle: milestone.title,
+    label: 'Request arbiter review',
+    hint: isClient
+      ? 'Describe what does not match the agreed scope or delivery expectations.'
+      : 'Describe the blocker — scope changes, deadlines, communication, or payment timing.',
+  }
 }
