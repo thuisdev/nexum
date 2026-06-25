@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AppSection } from '@/components/layout/AppSection'
@@ -30,15 +31,15 @@ function formatRole(role: string) {
 }
 
 function SettingsForm({ user }: { user: User }) {
+  const navigate = useNavigate()
   const { update } = useAuth()
-  const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
     reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<SettingsFormInput>({
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
@@ -51,7 +52,6 @@ function SettingsForm({ user }: { user: User }) {
 
   const onSubmit = async (data: SettingsFormInput) => {
     setError(null)
-    setMessage(null)
     try {
       const skills = (data.skillsText ?? '')
         .split(',')
@@ -65,13 +65,7 @@ function SettingsForm({ user }: { user: User }) {
         skills,
       })
 
-      reset({
-        name: data.name?.trim() ?? '',
-        displayName: data.displayName?.trim() ?? '',
-        bio: data.bio?.trim() ?? '',
-        skillsText: skills.join(', '),
-      })
-      setMessage('Profile saved')
+      navigate(ROUTES.profile(user.id))
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not save profile'))
     }
@@ -79,7 +73,6 @@ function SettingsForm({ user }: { user: User }) {
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-ink-200 bg-white p-6 shadow-sm">
-      {message && <InlineAlert variant="success">{message}</InlineAlert>}
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
       <div className="flex flex-col gap-4 border-b border-ink-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -168,7 +161,28 @@ function SettingsForm({ user }: { user: User }) {
         </FormField>
 
         <div className="flex flex-col gap-2 md:flex-row md:justify-end md:gap-2">
-          <Button type="submit" loading={isSubmitting} fullWidth className="md:w-auto">
+          {isDirty && (
+            <Button
+              type="button"
+              variant="ghost"
+              fullWidth
+              className="md:w-auto"
+              disabled={isSubmitting}
+              onClick={() => {
+                reset()
+                setError(null)
+              }}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            disabled={!isDirty || isSubmitting}
+            fullWidth
+            className="md:w-auto"
+          >
             Save changes
           </Button>
         </div>

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
 import { Tabs } from '@/components/ui/Tabs'
 import { EmptyState, EmptyStateButton, ProjectCard } from '@/components/features'
@@ -96,11 +95,6 @@ export default function FreelancerDashboard() {
     <AppSection>
       <PageHeader
         title="Your work"
-        action={
-          <Button variant="ghost" onClick={() => navigate(ROUTES.jobs)}>
-            Browse jobs
-          </Button>
-        }
       />
 
       {error && <InlineAlert variant="error">{error}</InlineAlert>}

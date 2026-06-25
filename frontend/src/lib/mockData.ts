@@ -175,7 +175,7 @@ export const MOCK_MILESTONES: {
     amount: '300',
     deadline: 'Mar 15',
     status: 'SUBMITTED',
-    actionLabel: 'Approve & release',
+    actionLabel: 'Approve',
     actionVariant: 'approve',
   },
   {

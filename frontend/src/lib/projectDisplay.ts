@@ -40,7 +40,9 @@ export function mapProjectStatus(status: string): StatusBadgeStatus {
     case 'COMPLETED':
       return 'COMPLETED'
     case 'CANCELLED':
-      return 'REJECTED'
+      return 'CANCELLED'
+    case 'SUBMITTED':
+      return 'SUBMITTED'
     default:
       return 'DRAFT'
   }
@@ -100,6 +102,8 @@ export function mapMilestoneStatus(status: string): StatusBadgeStatus {
       return 'APPROVED'
     case 'PAID':
       return 'PAID'
+    case 'REVISION':
+      return 'REVISION'
     default:
       return 'PENDING'
   }

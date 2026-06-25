@@ -14,9 +14,9 @@ import {
 import { ROUTES } from '@/router/routes'
 
 const HERO_MILESTONES = [
-  { id: '1', title: 'Wireframes', amount: '200', status: 'paid' as const },
-  { id: '2', title: 'Visual design', amount: '300', status: 'approve' as const },
-  { id: '3', title: 'Final delivery', amount: '300', status: 'in_progress' as const },
+  { id: '1', title: 'Wireframes', amount: '200', status: 'pending' as const },
+  { id: '2', title: 'Visual design', amount: '300', status: 'in_progress' as const },
+  { id: '3', title: 'Final delivery', amount: '300', status: 'approve' as const },
 ]
 
 const TRUST_STATS = [

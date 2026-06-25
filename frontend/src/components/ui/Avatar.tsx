@@ -6,6 +6,7 @@ const sizeClasses = {
   md: 'size-10 text-sm',
   settings: 'size-16 text-lg',
   hero: 'size-24 text-2xl',
+  profile: 'size-32 text-3xl',
 } as const
 
 export type AvatarSize = keyof typeof sizeClasses
