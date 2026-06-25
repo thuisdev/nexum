@@ -201,6 +201,38 @@
       "name": "Users",
       "item": [
         {
+          "name": "Update Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"client.eth\",\n  \"name\": \"Ada Client\",\n  \"bio\": \"I hire for web3 products.\",\n  \"skills\": [\"Product\", \"DeFi\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "me"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Update User",
           "request": {
             "auth": {

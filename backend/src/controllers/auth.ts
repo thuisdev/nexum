@@ -47,6 +47,8 @@ export const registerHandler = async (
         name: true,
         displayName: true,
         role: true,
+        bio: true,
+        skills: true,
         createdAt: true,
       },
     });

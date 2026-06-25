@@ -9,10 +9,14 @@ import { Button } from '@/components/ui/Button'
 import { FormField } from '@/components/ui/FormField'
 import { InlineAlert } from '@/components/ui/InlineAlert'
 import { Input } from '@/components/ui/Input'
+import { Link } from '@/components/ui/Link'
+import { RolePill } from '@/components/ui/RolePill'
 import { Textarea } from '@/components/ui/Textarea'
 import { useAuth } from '@/hooks/useAuth'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { displayName } from '@/lib/projectDisplay'
 import { updateProfileSchema } from '@/lib/validation'
+import { ROUTES } from '@/router/routes'
 import type { User } from '@/types/user'
 
 const settingsFormSchema = updateProfileSchema.extend({
@@ -20,6 +24,10 @@ const settingsFormSchema = updateProfileSchema.extend({
 })
 
 type SettingsFormInput = z.infer<typeof settingsFormSchema>
+
+function formatRole(role: string) {
+  return role.charAt(0) + role.slice(1).toLowerCase()
+}
 
 function SettingsForm({ user }: { user: User }) {
   const { update } = useAuth()
@@ -53,7 +61,7 @@ function SettingsForm({ user }: { user: User }) {
       await update({
         ...(data.name?.trim() && { name: data.name.trim() }),
         ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
-        ...(data.bio !== undefined && { bio: data.bio.trim() }),
+        bio: data.bio?.trim() ?? '',
         skills,
       })
 
@@ -74,11 +82,22 @@ function SettingsForm({ user }: { user: User }) {
       {message && <InlineAlert variant="success">{message}</InlineAlert>}
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
-      <div className="flex items-center gap-3">
-        <Avatar name={user.displayName ?? user.name} size="settings" />
-        <Button variant="secondary" size="sm" type="button" disabled>
-          Change photo (soon)
-        </Button>
+      <div className="flex flex-col gap-4 border-b border-ink-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Avatar name={user.displayName ?? user.name} size="settings" />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-ink-900">
+              {displayName(user)}
+            </p>
+            <RolePill role={formatRole(user.role)} />
+          </div>
+        </div>
+        <Link
+          to={ROUTES.profile(user.id)}
+          className="text-sm font-medium text-brand-600 hover:underline"
+        >
+          View public profile →
+        </Link>
       </div>
 
       <form
@@ -86,33 +105,64 @@ function SettingsForm({ user }: { user: User }) {
         noValidate
         className="flex flex-col gap-4"
       >
+        <FormField label="Email" htmlFor="email">
+          <Input id="email" value={user.email} disabled readOnly />
+        </FormField>
+
         <FormField
           label="Display name"
           htmlFor="displayName"
+          helper="Public — shown on your profile and project cards"
           error={errors.displayName?.message}
         >
           <Input
             id="displayName"
+            placeholder="e.g. bob.eth"
             error={!!errors.displayName}
             {...register('displayName')}
           />
         </FormField>
 
-        <FormField label="Name" htmlFor="name" error={errors.name?.message}>
-          <Input id="name" error={!!errors.name} {...register('name')} />
+        <FormField
+          label="Legal name"
+          htmlFor="name"
+          helper="Optional — not shown on your public profile"
+          error={errors.name?.message}
+        >
+          <Input
+            id="name"
+            placeholder="Your real name"
+            error={!!errors.name}
+            {...register('name')}
+          />
         </FormField>
 
-        <FormField label="Bio" htmlFor="bio">
+        <FormField
+          label="Bio"
+          htmlFor="bio"
+          helper={
+            user.role === 'FREELANCER'
+              ? 'Describe your experience and how you work'
+              : 'Tell freelancers what kind of projects you run'
+          }
+        >
           <Textarea
             id="bio"
-            placeholder="Tell clients and freelancers about yourself…"
+            placeholder="Short intro for your public profile…"
             {...register('bio')}
           />
         </FormField>
 
-        <FormField label="Skills" helper="Separate with commas">
+        <FormField
+          label="Skills"
+          htmlFor="skillsText"
+          helper="Comma-separated — e.g. Solidity, React, Foundry"
+          error={errors.skillsText?.message}
+        >
           <Input
+            id="skillsText"
             placeholder="Solidity, React, Foundry"
+            error={!!errors.skillsText}
             {...register('skillsText')}
           />
         </FormField>
