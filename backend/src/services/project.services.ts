@@ -271,6 +271,61 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
   return serializeProject(updated);
 };
 
+/** Client funds escrow (simulated) — activates first milestone. */
+export const fundProject = async (projectId: string, clientId: string) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.status !== 'DRAFT') {
+    return 'not_draft' as const;
+  }
+
+  if (!project.freelancerId) {
+    return 'no_freelancer' as const;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.project.update({
+      where: { id: projectId },
+      data: {
+        status: 'IN_PROGRESS',
+        escrowStatus: 'FUNDED',
+        fundedAt: new Date(),
+      },
+    });
+
+    await tx.milestone.updateMany({
+      where: { projectId, orderIndex: 0, status: 'PENDING' },
+      data: { status: 'IN_PROGRESS' },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'PROJECT_FUNDED',
+        metadata: { totalBudget: project.totalBudget.toString() },
+      },
+    });
+
+    // Phase 2: real escrow via smart contract (SC)
+
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
+  });
+
+  return serializeProject(updated);
+};
+
 const clientPublicSelect = {
   id: true,
   displayName: true,

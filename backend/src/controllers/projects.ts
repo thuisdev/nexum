@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import {
   acceptInvite,
   createProject,
+  fundProject,
   getProjectById,
   getProjectPreview,
   inviteFreelancer,
@@ -262,6 +263,46 @@ export const handleAcceptInvite = async (
 
     if (project === 'already_accepted') {
       res.status(409).json({ error: 'Invite already accepted' });
+      return;
+    }
+
+    res.json(project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/projects/:id/fund — client funds escrow (simulated). */
+export const handleFundProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = String(req.params.id);
+    const project = await fundProject(projectId, req.userId!);
+
+    if (project === null) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (project === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (project === 'not_draft') {
+      res.status(409).json({
+        error: 'Project can only be funded while status is DRAFT',
+      });
+      return;
+    }
+
+    if (project === 'no_freelancer') {
+      res.status(409).json({
+        error: 'Project must have an accepted freelancer before funding',
+      });
       return;
     }
 
