@@ -305,7 +305,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Public DeFi Dashboard\",\n  \"description\": \"Build a React dashboard with wallet connect.\",\n  \"totalBudget\": \"2000.00\",\n  \"currency\": \"USDC\",\n  \"isPublic\": true,\n  \"milestones\": [\n    {\n      \"orderIndex\": 0,\n      \"title\": \"Design\",\n      \"description\": \"Figma mockups\",\n      \"amount\": \"1000.00\",\n      \"deadline\": \"2026-08-01\"\n    },\n    {\n      \"orderIndex\": 1,\n      \"title\": \"Build\",\n      \"description\": \"React implementation\",\n      \"amount\": \"1000.00\",\n      \"deadline\": \"2026-09-01\"\n    }\n  ]\n}",
+              "raw": "{\n  \"title\": \"Public DeFi Dashboard\",\n  \"description\": \"Build a React dashboard with wallet connect.\",\n  \"totalBudget\": \"2000.00\",\n  \"currency\": \"USDC\",\n  \"isPublic\": true,\n  \"skills\": [\"Frontend\", \"Solidity\"],\n  \"milestones\": [\n    {\n      \"orderIndex\": 0,\n      \"title\": \"Design\",\n      \"description\": \"Figma mockups\",\n      \"amount\": \"1000.00\",\n      \"deadline\": \"2026-08-01\"\n    },\n    {\n      \"orderIndex\": 1,\n      \"title\": \"Build\",\n      \"description\": \"React implementation\",\n      \"amount\": \"1000.00\",\n      \"deadline\": \"2026-09-01\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -344,7 +344,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Private API Integration\",\n  \"description\": \"Invite-only backend work.\",\n  \"totalBudget\": \"1500.00\",\n  \"currency\": \"USDC\",\n  \"isPublic\": false,\n  \"milestones\": [\n    {\n      \"orderIndex\": 0,\n      \"title\": \"API design\",\n      \"description\": \"OpenAPI spec\",\n      \"amount\": \"750.00\",\n      \"deadline\": \"2026-08-15\"\n    },\n    {\n      \"orderIndex\": 1,\n      \"title\": \"Implementation\",\n      \"description\": \"Express routes\",\n      \"amount\": \"750.00\",\n      \"deadline\": \"2026-09-15\"\n    }\n  ]\n}",
+              "raw": "{\n  \"title\": \"Private API Integration\",\n  \"description\": \"Invite-only backend work.\",\n  \"totalBudget\": \"1500.00\",\n  \"currency\": \"USDC\",\n  \"isPublic\": false,\n  \"skills\": [\"Solidity\"],\n  \"milestones\": [\n    {\n      \"orderIndex\": 0,\n      \"title\": \"API design\",\n      \"description\": \"OpenAPI spec\",\n      \"amount\": \"750.00\",\n      \"deadline\": \"2026-08-15\"\n    },\n    {\n      \"orderIndex\": 1,\n      \"title\": \"Implementation\",\n      \"description\": \"Express routes\",\n      \"amount\": \"750.00\",\n      \"deadline\": \"2026-09-15\"\n    }\n  ]\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -591,7 +591,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Fund without accept test\",\n  \"description\": \"Invite only, no accept before fund.\",\n  \"totalBudget\": \"500.00\",\n  \"currency\": \"USDC\",\n  \"isPublic\": false,\n  \"milestones\": [\n    {\n      \"orderIndex\": 0,\n      \"title\": \"Only milestone\",\n      \"description\": \"Test milestone\",\n      \"amount\": \"500.00\",\n      \"deadline\": \"2026-08-01\"\n    }\n  ]\n}",
+              "raw": "{\n  \"title\": \"Fund without accept test\",\n  \"description\": \"Invite only, no accept before fund.\",\n  \"totalBudget\": \"500.00\",\n  \"currency\": \"USDC\",\n  \"isPublic\": false,\n  \"skills\": [\"Solidity\"],\n  \"milestones\": [\n    {\n      \"orderIndex\": 0,\n      \"title\": \"Only milestone\",\n      \"description\": \"Test milestone\",\n      \"amount\": \"500.00\",\n      \"deadline\": \"2026-08-01\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

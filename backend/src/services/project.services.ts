@@ -49,6 +49,7 @@ export const createProject = async (
         totalBudget: new Prisma.Decimal(input.totalBudget),
         currency: input.currency,
         isPublic: input.isPublic,
+        skills: input.skills,
         clientId,
         milestones: {
           create: input.milestones.map((milestone) => ({
@@ -349,6 +350,7 @@ const serializePreview = (project: ProjectWithClient) => ({
   currency: project.currency,
   status: project.status,
   isPublic: project.isPublic,
+  skills: project.skills,
   createdAt: project.createdAt.toISOString(),
   client: project.client,
   milestones: project.milestones
@@ -368,6 +370,7 @@ const serializeJobListing = (project: ProjectWithClient) => ({
   totalBudget: project.totalBudget.toString(),
   currency: project.currency,
   status: project.status,
+  skills: project.skills,
   milestoneCount: project.milestones.length,
   client: project.client,
   createdAt: project.createdAt.toISOString(),

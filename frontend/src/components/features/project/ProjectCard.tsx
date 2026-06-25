@@ -22,6 +22,7 @@ export type ProjectCardProps = {
   amount: string
   currency?: string
   status?: StatusBadgeStatus
+  statusLabel?: string
   /** Client on jobboard / counterparty on dashboards */
   partyName?: string
   partyAvatarUrl?: string | null
@@ -29,6 +30,7 @@ export type ProjectCardProps = {
   timeAgo?: string
   deadline?: string
   tags?: string[]
+  escrowLabel?: string
   milestoneCount?: number
   applicantCount?: number
   /** Structured progress (cards-build) */
@@ -60,12 +62,14 @@ export function ProjectCard({
   amount,
   currency = 'USDC',
   status,
+  statusLabel,
   partyName,
   partyAvatarUrl,
   verified = false,
   timeAgo,
   deadline,
   tags = [],
+  escrowLabel,
   milestoneCount,
   applicantCount,
   milestonesDone,
@@ -147,7 +151,7 @@ export function ProjectCard({
         {isJobboard && timeAgo ? (
           <span className="shrink-0 text-xs leading-4 text-ink-400">{timeAgo}</span>
         ) : status ? (
-          <StatusBadge status={status} />
+          <StatusBadge status={status} label={statusLabel} />
         ) : null}
       </div>
 
@@ -171,14 +175,24 @@ export function ProjectCard({
               ))}
             </div>
           )}
-          <EscrowPill milestoneCount={milestoneCount} />
+          <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
         </div>
       )}
 
       {variant === 'client' && (
         <div className="flex flex-col gap-2">
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <Tag key={tag}>{tag}</Tag>
+              ))}
+            </div>
+          )}
           {clientState === 'draft' && draftMeta && (
             <p className="text-sm leading-5 text-ink-500">{draftMeta}</p>
+          )}
+          {(clientState === 'draft' || clientState === 'in_progress') && (
+            <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
           )}
           {showProgress &&
             milestonesDone !== undefined &&
@@ -198,8 +212,15 @@ export function ProjectCard({
 
       {variant === 'freelancer' && (
         <div className="flex flex-col gap-2">
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <Tag key={tag}>{tag}</Tag>
+              ))}
+            </div>
+          )}
           {freelancerState === 'invited' ? (
-            <EscrowPill milestoneCount={milestoneCount} />
+            <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
           ) : showProgress &&
             milestonesDone !== undefined &&
             milestonesTotal !== undefined &&

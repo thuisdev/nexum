@@ -21,6 +21,7 @@ export function mapCreateProjectPayload(
     totalBudget: form.budget,
     currency: form.currency,
     isPublic: form.visibility === 'public',
+    skills: form.skills,
     milestones: form.milestones.map((milestone, index) => ({
       orderIndex: index,
       title: milestone.title,
@@ -68,5 +69,10 @@ export const inviteFreelancer = async (
 
 export const acceptInvite = async (projectId: string) => {
   const res = await api.post<Project>(`/projects/${projectId}/accept`)
+  return res.data
+}
+
+export const fundProject = async (projectId: string) => {
+  const res = await api.post<Project>(`/projects/${projectId}/fund`)
   return res.data
 }

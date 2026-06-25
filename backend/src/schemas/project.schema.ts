@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { PROJECT_SKILLS } from '../constants/projectSkills.js';
+
 /** Money as string ("1000.00") or number — stored as decimal string after parse. */
 const moneySchema = z
   .union([z.string().trim(), z.number()])
@@ -69,6 +71,9 @@ export const createProjectSchema = z
     totalBudget: moneySchema,
     currency: z.string().trim().min(1).default('USDC'),
     isPublic: z.boolean().default(false),
+    skills: z
+      .array(z.enum(PROJECT_SKILLS))
+      .min(1, 'At least one skill is required'),
     milestones: z
       .array(milestoneInputSchema)
       .min(1, 'At least one milestone is required'),

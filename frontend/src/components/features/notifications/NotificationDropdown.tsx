@@ -1,34 +1,31 @@
-import { createPortal } from 'react-dom'
 import { NotificationItem } from '@/components/features/notifications/NotificationItem'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
 
-const PLACEHOLDER_NOTIFICATIONS = [
-  {
-    id: '1',
-    message: 'You were invited to a new project',
-    time: '2h ago',
-    unread: true,
-  },
-  {
-    id: '2',
-    message: 'Milestone approved — payment released',
-    time: '1d ago',
-    unread: false,
-  },
-]
+export type NotificationDropdownItem = {
+  id: string
+  message: string
+  time: string
+  unread?: boolean
+  onClick?: () => void
+}
 
 export type NotificationDropdownProps = {
   mobile?: boolean
   onClose?: () => void
   className?: string
+  items?: NotificationDropdownItem[]
+  loading?: boolean
 }
 
 export function NotificationDropdown({
   mobile = false,
+  onClose,
   className,
+  items = [],
+  loading = false,
 }: NotificationDropdownProps) {
-  const hasItems = PLACEHOLDER_NOTIFICATIONS.length > 0
+  const hasItems = items.length > 0
 
   const panel = (
     <div
@@ -44,13 +41,16 @@ export function NotificationDropdown({
         <p className="text-sm font-medium text-ink-900">Notifications</p>
       </div>
       <div className="overflow-y-auto">
-        {hasItems ? (
-          PLACEHOLDER_NOTIFICATIONS.map((item) => (
+        {loading ? (
+          <p className="px-4 py-6 text-sm text-ink-500">Loading…</p>
+        ) : hasItems ? (
+          items.map((item) => (
             <NotificationItem
               key={item.id}
               message={item.message}
               time={item.time}
               unread={item.unread}
+              onClick={item.onClick}
             />
           ))
         ) : (
@@ -65,16 +65,16 @@ export function NotificationDropdown({
   )
 
   if (mobile) {
-    return createPortal(
+    return (
       <>
         <button
           type="button"
           className="fixed inset-0 z-40 bg-ink-950/60 lg:hidden"
           aria-label="Close notifications"
+          onClick={onClose}
         />
         {panel}
-      </>,
-      document.body,
+      </>
     )
   }
 

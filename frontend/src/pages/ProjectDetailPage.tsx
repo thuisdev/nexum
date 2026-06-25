@@ -11,9 +11,12 @@ import {
   PartiesBlock,
 } from '@/components/features'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { Tag } from '@/components/ui/Tag'
+import { EscrowPill } from '@/components/ui/EscrowPill'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import {
   acceptInvite,
+  fundProject,
   getProject,
   getProjectPreview,
 } from '@/lib/projects.api'
@@ -22,6 +25,9 @@ import {
   mapMilestoneStatus,
   mapProjectStatus,
   previewClientName,
+  projectEscrowLabel,
+  resolveClientCardStatus,
+  resolveFreelancerCardStatus,
 } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
@@ -163,6 +169,20 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const handleFund = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      const updated = await fundProject(id)
+      setProject(updated)
+      setMode('full')
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not fund project'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const isClientOwner =
     mode === 'full' &&
     project &&
@@ -177,13 +197,27 @@ export default function ProjectDetailPage() {
     !project.freelancerId
 
   const canInvite =
-    isClientOwner && project?.status === 'DRAFT' && !project.freelancerId
+    isClientOwner && project?.status === 'DRAFT' && !project.freelancerId && !project.invitedFreelancerId
+
+  const canFund =
+    isClientOwner &&
+    project?.status === 'DRAFT' &&
+    !!project.freelancerId
 
   const title = project?.title ?? preview?.title ?? 'Project'
   const description = project?.description ?? preview?.description
   const budget = project?.totalBudget ?? preview?.totalBudget
   const currency = project?.currency ?? preview?.currency ?? 'USDC'
-  const status = mapProjectStatus(project?.status ?? preview?.status ?? 'DRAFT')
+  const skills = project?.skills ?? preview?.skills ?? []
+
+  const statusInfo =
+    mode === 'full' && project && user
+      ? user.id === project.clientId
+        ? resolveClientCardStatus(project)
+        : resolveFreelancerCardStatus(project, user.id)
+      : {
+          status: mapProjectStatus(preview?.status ?? 'DRAFT'),
+        }
 
   const milestones: Array<{
     id?: string
@@ -253,8 +287,25 @@ export default function ProjectDetailPage() {
           <h1 className="font-display text-2xl font-bold leading-8 text-ink-900 md:text-[36px] md:leading-10">
             {title}
           </h1>
-          <StatusBadge status={status} />
+          <StatusBadge status={statusInfo.status} label={statusInfo.label} />
         </div>
+
+        {skills.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {skills.map((skill) => (
+              <Tag key={skill}>{skill}</Tag>
+            ))}
+          </div>
+        )}
+
+        {(project || preview) && (
+          <EscrowPill
+            label={project ? projectEscrowLabel(project) : 'Escrow-backed'}
+            milestoneCount={
+              project?.milestones.length ?? preview?.milestones.length
+            }
+          />
+        )}
 
         {description && (
           <p className="max-w-3xl text-base leading-6 text-ink-600">
@@ -341,10 +392,14 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
-      {mode === 'full' && project && isClientOwner && project.status === 'DRAFT' && project.freelancerId && (
+      {mode === 'full' && project && canFund && (
         <div className="mt-4">
-          <Button className="w-full md:w-auto" disabled>
-            Fund project (coming soon)
+          <Button
+            className="w-full md:w-auto"
+            loading={actionLoading}
+            onClick={() => void handleFund()}
+          >
+            Fund project
           </Button>
         </div>
       )}

@@ -46,6 +46,48 @@ export function mapProjectStatus(status: string): StatusBadgeStatus {
   }
 }
 
+export function resolveClientCardStatus(project: Project): {
+  status: StatusBadgeStatus
+  label?: string
+} {
+  if (project.status !== 'DRAFT') {
+    return { status: mapProjectStatus(project.status) }
+  }
+
+  if (project.invitedFreelancerId && !project.freelancerId) {
+    return { status: 'INVITED', label: 'Invite sent' }
+  }
+
+  if (project.freelancerId) {
+    return { status: 'PENDING', label: 'Awaiting funding' }
+  }
+
+  return { status: 'DRAFT' }
+}
+
+export function resolveFreelancerCardStatus(
+  project: Project,
+  userId: string,
+): { status: StatusBadgeStatus; label?: string } {
+  if (project.invitedFreelancerId === userId && !project.freelancerId) {
+    return { status: 'INVITED' }
+  }
+
+  if (project.freelancerId === userId && project.status === 'DRAFT') {
+    return { status: 'PENDING', label: 'Awaiting funding' }
+  }
+
+  return { status: mapProjectStatus(project.status) }
+}
+
+export function projectEscrowLabel(project: Project) {
+  if (project.escrowStatus === 'FUNDED' || project.status === 'IN_PROGRESS') {
+    return 'Escrow-funded'
+  }
+
+  return 'Escrow-backed'
+}
+
 export function mapMilestoneStatus(status: string): StatusBadgeStatus {
   switch (status) {
     case 'PENDING':
@@ -77,28 +119,36 @@ export function projectDraftMeta(project: Project) {
 }
 
 export function jobToCardProps(job: JobBoardProject) {
+  const lastMilestone = job.milestoneCount
   return {
     id: job.id,
     title: job.title,
     amount: job.totalBudget,
     currency: job.currency,
     partyName: displayName(job.client),
-    milestoneCount: job.milestoneCount,
+    tags: job.skills,
+    milestoneCount: lastMilestone,
+    escrowLabel: 'Escrow-backed',
     timeAgo: formatRelativeTime(job.createdAt),
   }
 }
 
 export function projectToClientCardProps(project: Project) {
+  const cardStatus = resolveClientCardStatus(project)
+
   return {
     id: project.id,
     title: project.title,
     amount: project.totalBudget,
     currency: project.currency,
-    status: mapProjectStatus(project.status),
+    status: cardStatus.status,
+    statusLabel: cardStatus.label,
+    tags: project.skills,
     clientState:
       project.status === 'DRAFT' ? ('draft' as const) : ('in_progress' as const),
     draftMeta: projectDraftMeta(project),
     milestoneCount: project.milestones.length,
+    escrowLabel: projectEscrowLabel(project),
   }
 }
 
@@ -108,17 +158,21 @@ export function projectToFreelancerCardProps(
 ) {
   const isInvited =
     project.invitedFreelancerId === userId && !project.freelancerId
+  const cardStatus = resolveFreelancerCardStatus(project, userId)
 
   return {
     id: project.id,
     title: project.title,
     amount: project.totalBudget,
     currency: project.currency,
-    status: mapProjectStatus(project.status),
+    status: cardStatus.status,
+    statusLabel: cardStatus.label,
+    tags: project.skills,
     freelancerState: isInvited
       ? ('invited' as const)
       : ('in_progress' as const),
     milestoneCount: project.milestones.length,
+    escrowLabel: projectEscrowLabel(project),
   }
 }
 

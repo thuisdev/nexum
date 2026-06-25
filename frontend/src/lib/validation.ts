@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PROJECT_SKILLS } from './projectSkills'
 
 const positiveAmount = (label: string) =>
   z
@@ -69,6 +70,9 @@ export const createProjectFormSchema = z
     budget: positiveAmount('Budget'),
     currency: z.string().min(1, 'Currency is required'),
     visibility: z.enum(['public', 'private']),
+    skills: z
+      .array(z.enum(PROJECT_SKILLS))
+      .min(1, 'Select at least one skill'),
     milestones: z
       .array(milestoneFormSchema)
       .min(1, 'At least one milestone is required'),

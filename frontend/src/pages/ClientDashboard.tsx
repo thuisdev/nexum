@@ -80,7 +80,9 @@ export default function ClientDashboard() {
           {projects.map((project) => {
             const card = projectToClientCardProps(project)
             const canInvite =
-              project.status === 'DRAFT' && !project.freelancerId
+              project.status === 'DRAFT' &&
+              !project.freelancerId &&
+              !project.invitedFreelancerId
 
             return (
               <ProjectCard

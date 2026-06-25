@@ -17,6 +17,7 @@ export interface Project {
   status: string
   escrowStatus: string
   isPublic: boolean
+  skills: string[]
   clientId: string
   freelancerId: string | null
   invitedFreelancerId: string | null
@@ -32,6 +33,7 @@ export interface ProjectPreview {
   currency: string
   status: string
   isPublic: boolean
+  skills: string[]
   createdAt: string
   client: {
     id: string
@@ -53,6 +55,7 @@ export interface JobBoardProject {
   totalBudget: string
   currency: string
   status: string
+  skills: string[]
   milestoneCount: number
   createdAt: string
   client: {
@@ -68,6 +71,7 @@ export interface CreateProjectPayload {
   totalBudget: string
   currency: string
   isPublic: boolean
+  skills: string[]
   milestones: Array<{
     orderIndex: number
     title: string

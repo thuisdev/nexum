@@ -15,7 +15,7 @@ import { jobToCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import type { JobBoardProject } from '@/types/project'
 
-const FILTER_CHIPS = ['All', 'Solidity', 'Design', 'Frontend', 'Writing', 'Audit']
+import { JOB_BOARD_FILTER_CHIPS } from '@/lib/projectSkills'
 
 export default function JobBoardPage() {
   const navigate = useNavigate()
@@ -56,8 +56,10 @@ export default function JobBoardPage() {
       const matchesSearch =
         !q ||
         card.title.toLowerCase().includes(q) ||
-        card.partyName?.toLowerCase().includes(q)
-      const matchesChip = activeChip === 'All'
+        card.partyName?.toLowerCase().includes(q) ||
+        job.skills.some((skill) => skill.toLowerCase().includes(q))
+      const matchesChip =
+        activeChip === 'All' || job.skills.includes(activeChip)
       return matchesSearch && matchesChip
     })
   }, [jobs, search, activeChip])
@@ -68,7 +70,7 @@ export default function JobBoardPage() {
       <JobBoardFilters
         searchValue={search}
         onSearchChange={setSearch}
-        chips={FILTER_CHIPS}
+        chips={[...JOB_BOARD_FILTER_CHIPS]}
         activeChip={activeChip}
         onChipChange={setActiveChip}
       />
