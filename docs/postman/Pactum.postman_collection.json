@@ -487,6 +487,7 @@
                   "pm.test('Milestone 0 IN_PROGRESS', () => {",
                   "  const m0 = body.milestones.find(m => m.orderIndex === 0);",
                   "  pm.expect(m0.status).to.eql('IN_PROGRESS');",
+                  "  pm.collectionVariables.set('milestoneId', m0.id);",
                   "});"
                 ]
               }
@@ -734,6 +735,171 @@
           "response": []
         },
         {
+          "name": "Submit Milestone (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const m0 = body.milestones.find(m => m.id === pm.collectionVariables.get('milestoneId'));",
+                  "pm.test('Milestone SUBMITTED', () => pm.expect(m0.status).to.eql('SUBMITTED'));",
+                  "pm.test('Submission saved', () => pm.expect(m0.latestSubmission).to.be.an('object'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{freelancerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "content",
+                  "value": "Here is my completed deliverable for this milestone. It includes the full implementation, documentation, and test results as agreed in the project scope.",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/milestones/{{milestoneId}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "milestones", "{{milestoneId}}", "submit"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit as Client (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "content",
+                  "value": "This should fail because only the assigned freelancer may submit milestone work for review.",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/milestones/{{milestoneId}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "milestones", "{{milestoneId}}", "submit"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Milestone (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const m0 = body.milestones.find(m => m.id === pm.collectionVariables.get('milestoneId'));",
+                  "pm.test('Milestone PAID', () => pm.expect(m0.status).to.eql('PAID'));",
+                  "pm.test('paidAt set', () => pm.expect(m0.paidAt).to.be.a('string'));",
+                  "pm.test('Simulated payout ref', () => pm.expect(body.payoutTxRef).to.match(/^SIM-/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/milestones/{{milestoneId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "milestones", "{{milestoneId}}", "approve"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Approve as Freelancer (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{freelancerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/milestones/{{milestoneId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "milestones", "{{milestoneId}}", "approve"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Public Profile",
           "request": {
             "method": "GET",
@@ -832,6 +998,10 @@
     },
     {
       "key": "unfundedProjectId",
+      "value": ""
+    },
+    {
+      "key": "milestoneId",
       "value": ""
     }
   ]

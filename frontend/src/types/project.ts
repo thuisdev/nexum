@@ -1,3 +1,11 @@
+export interface MilestoneSubmission {
+  id: string
+  content: string
+  fileUrl: string | null
+  version: number
+  submittedAt: string
+}
+
 export interface Milestone {
   id: string
   orderIndex: number
@@ -6,6 +14,9 @@ export interface Milestone {
   amount: string
   deadline: string
   status: string
+  paidAt?: string | null
+  completedAt?: string | null
+  latestSubmission?: MilestoneSubmission | null
 }
 
 export interface Project {

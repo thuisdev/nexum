@@ -1,7 +1,9 @@
 import { FormField } from '@/components/ui/FormField'
 import { FileUpload } from '@/components/ui/FileUpload'
-import { Input } from '@/components/ui/Input'
 import { Modal, ModalActions } from '@/components/ui/Modal'
+import { Textarea } from '@/components/ui/Textarea'
+
+const MIN_CONTENT_LENGTH = 50
 
 export type SubmitWorkDialogProps = {
   open: boolean
@@ -26,6 +28,9 @@ export function SubmitWorkDialog({
   file,
   onFileChange,
 }: SubmitWorkDialogProps) {
+  const charCount = note.trim().length
+  const canSubmit = charCount >= MIN_CONTENT_LENGTH
+
   return (
     <Modal
       open={open}
@@ -37,17 +42,24 @@ export function SubmitWorkDialog({
           onConfirm={onSubmit}
           confirmLabel="Submit"
           loading={loading}
+          confirmDisabled={!canSubmit}
         />
       }
     >
-      <FormField label="Link or note">
-        <Input
-          placeholder="Paste a link or add a note"
+      <FormField
+        label="Delivery notes"
+        helper={`${charCount}/${MIN_CONTENT_LENGTH} characters minimum`}
+      >
+        <Textarea
+          placeholder="Describe what you delivered, include links, or paste your handoff notes…"
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
+          rows={5}
         />
       </FormField>
-      <FileUpload file={file} onFileChange={onFileChange} />
+      <FormField label="Attachment (optional)">
+        <FileUpload file={file} onFileChange={onFileChange} />
+      </FormField>
     </Modal>
   )
 }

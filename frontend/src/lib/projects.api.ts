@@ -107,6 +107,29 @@ export const getProjectActivity = async (projectId: string) => {
   return res.data
 }
 
+export const approveMilestone = async (milestoneId: string) => {
+  const res = await api.post<Project & { payoutTxRef?: string }>(
+    `/milestones/${milestoneId}/approve`,
+  )
+  return res.data
+}
+
+export const submitMilestone = async (
+  milestoneId: string,
+  content: string,
+  file?: File | null,
+) => {
+  const form = new FormData()
+  form.append('content', content)
+  if (file) {
+    form.append('file', file)
+  }
+  const res = await api.post<Project>(`/milestones/${milestoneId}/submit`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
 export const deleteProject = async (projectId: string) => {
   const res = await api.delete<{ id: string }>(`/projects/${projectId}`)
   return res.data

@@ -21,12 +21,12 @@ export function ApproveDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title="Approve"
+      title="Approve & release"
       footer={
         <ModalActions
           onCancel={onClose}
           onConfirm={onConfirm}
-          confirmLabel="Approve"
+          confirmLabel="Approve & release"
           confirmVariant="approve"
           loading={loading}
         />

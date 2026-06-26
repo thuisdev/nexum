@@ -13,15 +13,54 @@ type ProjectWithMilestones = Prisma.ProjectGetPayload<{
   include: { milestones: true };
 }>;
 
+type MilestoneWithLatestSubmission = Prisma.MilestoneGetPayload<{
+  include: {
+    submissions: {
+      orderBy: { version: 'desc' };
+      take: 1;
+    };
+  };
+}>;
+
+const serializeMilestone = (
+  milestone: ProjectWithMilestones['milestones'][number] | MilestoneWithLatestSubmission,
+) => {
+  const submissions =
+    'submissions' in milestone ? milestone.submissions : undefined;
+  const latest = submissions?.[0];
+
+  return {
+    id: milestone.id,
+    orderIndex: milestone.orderIndex,
+    title: milestone.title,
+    description: milestone.description,
+    amount: milestone.amount.toString(),
+    deadline: milestone.deadline.toISOString(),
+    status: milestone.status,
+    createdAt: milestone.createdAt.toISOString(),
+    completedAt: milestone.completedAt?.toISOString() ?? null,
+    paidAt: milestone.paidAt?.toISOString() ?? null,
+    latestSubmission: latest
+      ? {
+          id: latest.id,
+          content: latest.content,
+          fileUrl: latest.fileUrl,
+          version: latest.version,
+          submittedAt: latest.submittedAt.toISOString(),
+        }
+      : null,
+  };
+};
+
 const serializeProject = (project: ProjectWithMilestones) => ({
   ...project,
   totalBudget: project.totalBudget.toString(),
+  fundedAt: project.fundedAt?.toISOString() ?? null,
+  completedAt: project.completedAt?.toISOString() ?? null,
+  createdAt: project.createdAt.toISOString(),
   milestones: project.milestones
     .sort((a, b) => a.orderIndex - b.orderIndex)
-    .map((milestone) => ({
-      ...milestone,
-      amount: milestone.amount.toString(),
-    })),
+    .map(serializeMilestone),
 });
 
 const canAccessProject = (
@@ -147,7 +186,14 @@ export const getProjectById = async (
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
-      milestones: true,
+      milestones: {
+        include: {
+          submissions: {
+            orderBy: { version: 'desc' },
+            take: 1,
+          },
+        },
+      },
       client: { select: clientPublicSelect },
       freelancer: { select: clientPublicSelect },
     },
