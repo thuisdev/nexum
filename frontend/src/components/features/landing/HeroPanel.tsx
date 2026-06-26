@@ -7,7 +7,7 @@ export type HeroMilestone = {
   id: string
   title: string
   amount: string
-  status: 'paid' | 'in_progress' | 'approve'
+  status: 'pending' | 'in_progress' | 'approve'
 }
 
 export type HeroPanelProps = {
@@ -45,15 +45,11 @@ export function HeroPanel({
             <p className="text-sm font-medium leading-5 text-ink-900">{ms.title}</p>
             <p className="font-mono text-xs leading-4 text-ink-400">{ms.amount} USDC</p>
           </div>
-          {ms.status === 'paid' && <StatusBadge status="PAID" label="Paid" />}
-          {ms.status === 'in_progress' && (
-            <span className="rounded-full bg-ink-100 px-2.5 py-0.5 text-xs font-medium text-ink-500">
-              In progress
-            </span>
-          )}
+          {ms.status === 'pending' && <StatusBadge status="PENDING" />}
+          {ms.status === 'in_progress' && <StatusBadge status="IN_PROGRESS" />}
           {ms.status === 'approve' && (
-            <Button size="sm" variant="approve" className="shrink-0">
-              Approve & release
+            <Button size="sm" variant="primary" className="shrink-0">
+              Approve
             </Button>
           )}
         </div>

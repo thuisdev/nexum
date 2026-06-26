@@ -1,10 +1,19 @@
 import { Router } from 'express';
 
 import {
+  handleListArbiterDisputes,
+  handleListProjectDisputes,
+  handleOpenDispute,
+  handleResolveDispute,
+} from '../controllers/disputes.js';
+import {
   handleAcceptInvite,
+  handleAppendMilestones,
   handleCreateProject,
+  handleDeleteProject,
   handleFundProject,
   handleGetProject,
+  handleGetProjectActivity,
   handleGetProjectPreview,
   handleInviteProject,
   handleListProjects,
@@ -16,11 +25,18 @@ const router = Router();
 
 router.post('/', checkAuth, requireRole('CLIENT'), handleCreateProject);
 router.get('/', checkAuth, handleListProjects);
+router.get('/disputes/assigned', checkAuth, requireRole('ARBITER', 'ADMIN'), handleListArbiterDisputes);
 router.get('/:id/preview', handleGetProjectPreview);
 router.post('/:id/invite', checkAuth, requireRole('CLIENT'), handleInviteProject);
 router.post('/:id/accept', checkAuth, requireRole('FREELANCER'), handleAcceptInvite);
 router.post('/:id/fund', checkAuth, requireRole('CLIENT'), handleFundProject);
+router.post('/:id/milestones', checkAuth, requireRole('CLIENT'), handleAppendMilestones);
+router.get('/:id/activity', checkAuth, handleGetProjectActivity);
+router.get('/:id/disputes', checkAuth, handleListProjectDisputes);
+router.post('/:id/disputes', checkAuth, handleOpenDispute);
+router.post('/disputes/:disputeId/resolve', checkAuth, requireRole('ARBITER', 'ADMIN'), handleResolveDispute);
 router.get('/:id', checkAuth, handleGetProject);
 router.patch('/:id', checkAuth, requireRole('CLIENT'), handleUpdateProject);
+router.delete('/:id', checkAuth, requireRole('CLIENT'), handleDeleteProject);
 
 export default router;

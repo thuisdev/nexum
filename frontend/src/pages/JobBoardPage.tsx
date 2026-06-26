@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import { DashboardGridSkeleton } from '@/components/ui/Skeleton'
 import {
   EmptyState,
   JobBoardFilters,
@@ -15,7 +16,7 @@ import { jobToCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import type { JobBoardProject } from '@/types/project'
 
-const FILTER_CHIPS = ['All', 'Solidity', 'Design', 'Frontend', 'Writing', 'Audit']
+import { JOB_BOARD_FILTER_CHIPS } from '@/lib/projectSkills'
 
 export default function JobBoardPage() {
   const navigate = useNavigate()
@@ -56,19 +57,21 @@ export default function JobBoardPage() {
       const matchesSearch =
         !q ||
         card.title.toLowerCase().includes(q) ||
-        card.partyName?.toLowerCase().includes(q)
-      const matchesChip = activeChip === 'All'
+        card.partyName?.toLowerCase().includes(q) ||
+        job.skills.some((skill) => skill.toLowerCase().includes(q))
+      const matchesChip =
+        activeChip === 'All' || job.skills.includes(activeChip)
       return matchesSearch && matchesChip
     })
   }, [jobs, search, activeChip])
 
   return (
-    <AppSection>
+    <AppSection className="!py-8 md:!py-12">
       <JobBoardHeader />
       <JobBoardFilters
         searchValue={search}
         onSearchChange={setSearch}
-        chips={FILTER_CHIPS}
+        chips={[...JOB_BOARD_FILTER_CHIPS]}
         activeChip={activeChip}
         onChipChange={setActiveChip}
       />
@@ -76,9 +79,9 @@ export default function JobBoardPage() {
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
       {loading ? (
-        <p className="text-sm text-ink-500">Loading open projects…</p>
+        <DashboardGridSkeleton count={6} />
       ) : filtered.length > 0 ? (
-        <div className="flex flex-wrap gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((job) => (
             <ProjectCard
               key={job.id}

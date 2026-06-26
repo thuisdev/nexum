@@ -13,6 +13,8 @@ import {
   type MilestoneRowData,
   type MilestoneRowErrors,
 } from '@/components/features/project/MilestoneRow'
+import { SkillPicker } from '@/components/features/project/SkillPicker'
+import { type ProjectSkill } from '@/lib/projectSkills'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { createProject } from '@/lib/projects.api'
 import {
@@ -34,6 +36,7 @@ type FormErrors = {
   title?: string
   description?: string
   budget?: string
+  skills?: string
   milestones?: string
   milestoneRows?: MilestoneRowErrors[]
 }
@@ -54,6 +57,8 @@ function validateForm(data: CreateProjectFormInput): FormErrors {
       milestoneRows[index] = row
     } else if (root === 'milestones' && field === undefined) {
       errors.milestones = issue.message
+    } else if (root === 'skills') {
+      errors.skills = issue.message
     } else if (typeof root === 'string' && index === undefined) {
       errors[root as keyof Omit<FormErrors, 'milestones' | 'milestoneRows'>] =
         issue.message
@@ -74,6 +79,7 @@ export default function CreateProjectPage() {
   const [budget, setBudget] = useState('')
   const [currency, setCurrency] = useState('USDC')
   const [visibility, setVisibility] = useState('public')
+  const [skills, setSkills] = useState<ProjectSkill[]>([])
   const [milestones, setMilestones] = useState<MilestoneRowData[]>([
     emptyMilestone(),
   ])
@@ -96,6 +102,7 @@ export default function CreateProjectPage() {
       budget,
       currency,
       visibility: visibility as 'public' | 'private',
+      skills,
       milestones: milestones.map(({ title, amount, deadline }) => ({
         title,
         amount,
@@ -121,6 +128,7 @@ export default function CreateProjectPage() {
         totalBudget: formData.budget,
         currency: formData.currency,
         isPublic,
+        skills: formData.skills,
         milestones: formData.milestones.map((milestone, index) => ({
           orderIndex: index,
           title: milestone.title,
@@ -193,6 +201,10 @@ export default function CreateProjectPage() {
             <option value="public">Public on job board</option>
             <option value="private">Private (invite only)</option>
           </Select>
+        </FormField>
+
+        <FormField label="Skills" helper="Select at least one — used on the job board">
+          <SkillPicker value={skills} onChange={setSkills} error={errors.skills} />
         </FormField>
 
         <div className="flex flex-col gap-2">

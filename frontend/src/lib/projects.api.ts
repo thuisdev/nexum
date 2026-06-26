@@ -21,6 +21,7 @@ export function mapCreateProjectPayload(
     totalBudget: form.budget,
     currency: form.currency,
     isPublic: form.visibility === 'public',
+    skills: form.skills,
     milestones: form.milestones.map((milestone, index) => ({
       orderIndex: index,
       title: milestone.title,
@@ -68,5 +69,87 @@ export const inviteFreelancer = async (
 
 export const acceptInvite = async (projectId: string) => {
   const res = await api.post<Project>(`/projects/${projectId}/accept`)
+  return res.data
+}
+
+export const fundProject = async (projectId: string) => {
+  const res = await api.post<Project>(`/projects/${projectId}/fund`)
+  return res.data
+}
+
+export const updateProject = async (
+  projectId: string,
+  payload: import('@/types/project').UpdateProjectPayload,
+) => {
+  const res = await api.patch<Project>(`/projects/${projectId}`, payload)
+  return res.data
+}
+
+export const appendMilestones = async (
+  projectId: string,
+  milestones: Array<{
+    title: string
+    description: string
+    amount: string
+    deadline: string
+  }>,
+) => {
+  const res = await api.post<Project>(`/projects/${projectId}/milestones`, {
+    milestones,
+  })
+  return res.data
+}
+
+export const getProjectActivity = async (projectId: string) => {
+  const res = await api.get<import('@/types/project').ProjectActivity[]>(
+    `/projects/${projectId}/activity`,
+  )
+  return res.data
+}
+
+export const deleteProject = async (projectId: string) => {
+  const res = await api.delete<{ id: string }>(`/projects/${projectId}`)
+  return res.data
+}
+
+export const openDispute = async (
+  projectId: string,
+  payload: { milestoneId: string; reason: string },
+) => {
+  const res = await api.post<import('@/types/project').ProjectOpenDispute>(
+    `/projects/${projectId}/disputes`,
+    payload,
+  )
+  return res.data
+}
+
+export const resolveDispute = async (
+  disputeId: string,
+  payload: { outcome: string; resolution: string },
+) => {
+  const res = await api.post<import('@/types/project').ProjectOpenDispute>(
+    `/projects/disputes/${disputeId}/resolve`,
+    payload,
+  )
+  return res.data
+}
+
+export const listArbiterDisputes = async () => {
+  const res = await api.get<
+    Array<
+      import('@/types/project').ProjectOpenDispute & {
+        project: {
+          id: string
+          title: string
+          client: { id: string; displayName: string | null; name: string | null }
+          freelancer: {
+            id: string
+            displayName: string | null
+            name: string | null
+          } | null
+        }
+      }
+    >
+  >('/projects/disputes/assigned')
   return res.data
 }

@@ -2,8 +2,11 @@ import type { NextFunction, Request, Response } from 'express';
 
 import {
   acceptInvite,
+  appendMilestones,
   createProject,
+  deleteProject,
   fundProject,
+  getProjectActivity,
   getProjectById,
   getProjectPreview,
   inviteFreelancer,
@@ -12,6 +15,7 @@ import {
   updateProject,
 } from '../services/project.services.js';
 import {
+  appendMilestonesSchema,
   createProjectSchema,
   inviteFreelancerSchema,
   updateProjectSchema,
@@ -135,10 +139,7 @@ export const handleUpdateProject = async (
       return;
     }
 
-    if (
-      result.data.title === undefined &&
-      result.data.description === undefined
-    ) {
+    if (Object.keys(result.data).length === 0) {
       res.status(400).json({ error: 'No fields to update' });
       return;
     }
@@ -162,12 +163,109 @@ export const handleUpdateProject = async (
 
     if (project === 'not_editable') {
       res.status(409).json({
-        error: 'Project can only be edited while status is DRAFT',
+        error: 'Project can only be edited while DRAFT and not funded',
+      });
+      return;
+    }
+
+    if (project === 'freelancer_assigned') {
+      res.status(409).json({
+        error: 'Project can only be edited before a freelancer is assigned',
       });
       return;
     }
 
     res.json(project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/projects/:id/milestones — append milestones (freelancer assigned). */
+export const handleAppendMilestones = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = appendMilestonesSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: result.error.flatten(),
+      });
+      return;
+    }
+
+    const projectId = String(req.params.id);
+    const project = await appendMilestones(
+      projectId,
+      req.userId!,
+      result.data,
+    );
+
+    if (project === null) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (project === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (project === 'not_editable') {
+      res.status(409).json({
+        error: 'Milestones can only be added while DRAFT and not funded',
+      });
+      return;
+    }
+
+    if (project === 'no_freelancer') {
+      res.status(409).json({
+        error: 'Assign a freelancer before adding milestones this way',
+      });
+      return;
+    }
+
+    if (project === 'milestones_in_progress') {
+      res.status(409).json({
+        error: 'Cannot add milestones after work has started',
+      });
+      return;
+    }
+
+    res.json(project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/projects/:id/activity — project activity log. */
+export const handleGetProjectActivity = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = String(req.params.id);
+    const result = await getProjectActivity(
+      projectId,
+      req.userId!,
+      req.userRole!,
+    );
+
+    if (result === null) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (result === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -299,14 +397,47 @@ export const handleFundProject = async (
       return;
     }
 
-    if (project === 'no_freelancer') {
+    res.json(project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** DELETE /api/projects/:id — remove DRAFT project (no freelancer assigned). */
+export const handleDeleteProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = String(req.params.id);
+    const result = await deleteProject(projectId, req.userId!);
+
+    if (result === null) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (result === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (result === 'not_deletable') {
       res.status(409).json({
-        error: 'Project must have an accepted freelancer before funding',
+        error: 'Project can only be deleted while DRAFT and not funded',
       });
       return;
     }
 
-    res.json(project);
+    if (result === 'freelancer_assigned') {
+      res.status(409).json({
+        error: 'Project can only be deleted before a freelancer is assigned',
+      });
+      return;
+    }
+
+    res.json(result);
   } catch (error) {
     next(error);
   }

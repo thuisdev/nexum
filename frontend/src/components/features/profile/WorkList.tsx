@@ -1,4 +1,4 @@
-import { CompletedBadge } from '@/components/ui/Tag'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { cn } from '@/lib/utils'
 
 export type WorkListItem = {
@@ -37,7 +37,7 @@ export function WorkList({ items, className }: WorkListProps) {
             <span className="font-mono text-sm font-medium leading-5 text-ink-900">
               {item.amount} USDC
             </span>
-            <CompletedBadge />
+            <StatusBadge status="COMPLETED" />
           </div>
         </div>
       ))}

@@ -112,6 +112,7 @@ model Project {
   status       ProjectStatus @default(DRAFT)
   escrowStatus EscrowStatus  @default(NOT_FUNDED)
   isPublic     Boolean       @default(false)
+  skills       String[]      @default([])
 
   clientId            String
   freelancerId        String?

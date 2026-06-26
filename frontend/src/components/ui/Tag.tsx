@@ -1,3 +1,4 @@
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { cn } from '@/lib/utils'
 
 export type TagProps = {
@@ -24,20 +25,17 @@ export type CompletedBadgeProps = {
   className?: string
 }
 
-/** Profile work list — emerald-100 / emerald-700, pad 3×9 */
+/** Profile work list — delegates to StatusBadge COMPLETED */
 export function CompletedBadge({
-  children = 'Completed',
+  children,
   className,
 }: CompletedBadgeProps) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-sm bg-emerald-100 px-[9px] py-[3px] text-xs font-medium leading-4 text-emerald-700',
-        className,
-      )}
-    >
-      {children}
-    </span>
+    <StatusBadge
+      status="COMPLETED"
+      label={children}
+      className={className}
+    />
   )
 }
 

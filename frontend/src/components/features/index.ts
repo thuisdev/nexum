@@ -1,4 +1,4 @@
-export { ActivityTimelineItem, type ActivityTimelineItemProps } from './activity/ActivityTimelineItem'
+export { DashboardSummary, type DashboardStat, type DashboardSummaryProps } from './dashboard/DashboardSummary'
 export { ApplicationCard, type ApplicationCardProps } from './applications/ApplicationCard'
 export { ApproveDialog, type ApproveDialogProps } from './dialogs/ApproveDialog'
 export { SubmitWorkDialog, type SubmitWorkDialogProps } from './dialogs/SubmitWorkDialog'
@@ -17,7 +17,12 @@ export { ProfileIdentity, type ProfileIdentityProps } from './profile/ProfileIde
 export { ProfileReviewCard, type ProfileReviewCardProps } from './profile/ProfileReviewCard'
 export { WorkList, type WorkListItem, type WorkListProps } from './profile/WorkList'
 export { MilestoneCard, type MilestoneCardProps } from './project/MilestoneCard'
-export { MilestoneRow, type MilestoneRowData, type MilestoneRowProps } from './project/MilestoneRow'
+export {
+  MilestoneRow,
+  type MilestoneRowData,
+  type MilestoneRowErrors,
+  type MilestoneRowProps,
+} from './project/MilestoneRow'
 export { PartiesBlock, type PartiesBlockProps, type PartyInfo } from './project/PartiesBlock'
 export {
   ProjectCard,
@@ -30,3 +35,17 @@ export {
   InviteFreelancerModal,
   type InviteFreelancerModalProps,
 } from './project/InviteFreelancerModal'
+export {
+  ProjectDetailHero,
+  type ProjectDetailHeroProps,
+  type ProjectDetailParty,
+} from './project/ProjectDetailHero'
+export { MilestoneStepper, type MilestoneStepperProps } from './project/MilestoneStepper'
+export { ProjectEscrowSection, type ProjectEscrowSectionProps } from './project/ProjectEscrowSection'
+export {
+  ProjectOverflowMenu,
+  type ProjectOverflowItem,
+  type ProjectOverflowMenuProps,
+} from './project/ProjectOverflowMenu'
+export { ActivityTimelineItem, type ActivityTimelineItemProps } from './activity/ActivityTimelineItem'
+export { ActivityTimeline, type ActivityTimelineProps } from './activity/ActivityTimeline'

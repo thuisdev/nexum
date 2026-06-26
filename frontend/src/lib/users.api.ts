@@ -17,3 +17,22 @@ export const getPublicProfile = async (userId: string) => {
   const res = await publicApi.get<PublicUserProfile>(`/users/${userId}/public`)
   return res.data
 }
+
+export type PublicReview = {
+  id: string
+  rating: number
+  comment: string | null
+  createdAt: string
+  author: {
+    id: string
+    displayName: string | null
+    name: string | null
+    avatarUrl: string | null
+  }
+  project: { id: string; title: string }
+}
+
+export const getUserReviews = async (userId: string) => {
+  const res = await publicApi.get<PublicReview[]>(`/users/${userId}/reviews`)
+  return res.data
+}

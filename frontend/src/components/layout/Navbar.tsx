@@ -8,14 +8,16 @@ import { NotificationDropdown } from '@/components/features/notifications/Notifi
 import { UserMenu, UserMenuTrigger } from '@/components/layout/UserMenu'
 import { ROUTES } from '@/router/routes'
 import { cn } from '@/lib/utils'
+import { useNotifications } from '@/hooks/useNotifications'
 
 export type NavbarProps = {
   landing?: boolean
-  unreadCount?: number
 }
 
-export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps) {
+export default function Navbar({ landing = false }: NavbarProps) {
   const { isLoggedIn, user, logout } = useAuth()
+  const { items: notificationItems, unreadCount, loading: notificationsLoading, refresh: refreshNotifications } =
+    useNotifications(isLoggedIn)
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -56,8 +58,15 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
     navigate(ROUTES.home)
   }
 
-  const navLinkClass =
-    'text-sm font-medium text-ink-500 transition-colors hover:text-ink-900 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2'
+  const navLinkClass = (path: string) =>
+    cn(
+      'text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2',
+      location.pathname === path ||
+        (path === ROUTES.dashboard &&
+          location.pathname.startsWith('/dashboard'))
+        ? 'text-ink-900'
+        : 'text-ink-500 hover:text-ink-900',
+    )
 
   const isLanding = location.pathname === ROUTES.home
 
@@ -78,19 +87,25 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
           </Link>
 
           <div className="hidden items-center gap-[18px] lg:flex">
-            <Link to={ROUTES.jobs} className={navLinkClass}>
+            <Link to={ROUTES.jobs} className={navLinkClass(ROUTES.jobs)}>
               Jobs
             </Link>
 
             {isLoggedIn ? (
               <>
-                <Link to={ROUTES.dashboard} className={navLinkClass}>
+                <Link to={ROUTES.dashboard} className={navLinkClass(ROUTES.dashboard)}>
                   Dashboard
                 </Link>
                 <div ref={bellRef} className="relative">
                   <button
                     type="button"
-                    onClick={() => setNotificationsOpen((v) => !v)}
+                    onClick={() => {
+                      setNotificationsOpen((open) => {
+                        const next = !open
+                        if (next && isLoggedIn) void refreshNotifications()
+                        return next
+                      })
+                    }}
                     className="relative rounded p-1 text-brand-500 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40"
                     aria-label="Notifications"
                   >
@@ -101,7 +116,10 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
                   </button>
                   {notificationsOpen && (
                     <div className="absolute right-0 top-full mt-2">
-                      <NotificationDropdown />
+                      <NotificationDropdown
+                        items={isLoggedIn ? notificationItems : []}
+                        loading={isLoggedIn && notificationsLoading}
+                      />
                     </div>
                   )}
                 </div>
@@ -122,7 +140,7 @@ export default function Navbar({ landing = false, unreadCount = 0 }: NavbarProps
               </>
             ) : (
               <>
-                <Link to={ROUTES.login} className={navLinkClass}>
+                <Link to={ROUTES.login} className={navLinkClass(ROUTES.login)}>
                   Login
                 </Link>
                 <Button onClick={() => navigate(ROUTES.register)}>

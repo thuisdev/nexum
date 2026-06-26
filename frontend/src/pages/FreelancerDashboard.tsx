@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Briefcase, Mail, Send } from 'lucide-react'
 import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import { DashboardGridSkeleton } from '@/components/ui/Skeleton'
 import { Tabs } from '@/components/ui/Tabs'
-import { EmptyState, EmptyStateButton, ProjectCard } from '@/components/features'
+import {
+  DashboardSummary,
+  EmptyState,
+  EmptyStateButton,
+  ProjectCard,
+} from '@/components/features'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { acceptInvite, listProjects } from '@/lib/projects.api'
 import { projectToFreelancerCardProps } from '@/lib/projectDisplay'
@@ -13,20 +19,43 @@ import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
 
-const TABS = [
-  { id: 'active', label: 'Active' },
-  { id: 'applied', label: 'Applied' },
-  { id: 'invitations', label: 'Invitations' },
-]
-
 export default function FreelancerDashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState('invitations')
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
+
+  const counts = useMemo(() => {
+    if (!user) return { active: 0, invitations: 0, applied: 0 }
+
+    const invitations = projects.filter(
+      (p) => p.invitedFreelancerId === user.id && !p.freelancerId,
+    ).length
+    const active = projects.filter((p) => p.freelancerId === user.id).length
+
+    return { active, invitations, applied: 0 }
+  }, [projects, user])
+
+  const [activeTab, setActiveTab] = useState('active')
+  const [tabInitialized, setTabInitialized] = useState(false)
+
+  useEffect(() => {
+    if (!loading && !tabInitialized) {
+      setActiveTab(counts.invitations > 0 ? 'invitations' : 'active')
+      setTabInitialized(true)
+    }
+  }, [loading, counts.invitations, tabInitialized])
+
+  const tabs = useMemo(
+    () => [
+      { id: 'active', label: 'Active', badge: counts.active },
+      { id: 'applied', label: 'Applied', badge: counts.applied },
+      { id: 'invitations', label: 'Invitations', badge: counts.invitations },
+    ],
+    [counts],
+  )
 
   const refreshProjects = useCallback(async () => {
     setLoading(true)
@@ -93,24 +122,44 @@ export default function FreelancerDashboard() {
   }
 
   return (
-    <AppSection>
-      <PageHeader
-        title="Your work"
-        action={
-          <Button variant="ghost" onClick={() => navigate(ROUTES.jobs)}>
-            Browse jobs
-          </Button>
-        }
-      />
+    <AppSection className="!py-8 md:!py-12">
+      <PageHeader title="Your work" />
+
+      {!loading && (
+        <DashboardSummary
+          stats={[
+            {
+              id: 'active',
+              label: 'Active projects',
+              value: counts.active,
+              icon: Briefcase,
+              highlight: counts.active > 0,
+            },
+            {
+              id: 'invitations',
+              label: 'Pending invites',
+              value: counts.invitations,
+              icon: Mail,
+              highlight: counts.invitations > 0,
+            },
+            {
+              id: 'applied',
+              label: 'Applications sent',
+              value: counts.applied,
+              icon: Send,
+            },
+          ]}
+        />
+      )}
 
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
-      <Tabs tabs={TABS} activeId={activeTab} onChange={setActiveTab} />
+      <Tabs tabs={tabs} activeId={activeTab} onChange={setActiveTab} />
 
       {loading ? (
-        <p className="text-sm text-ink-500">Loading projects…</p>
+        <DashboardGridSkeleton count={2} />
       ) : filtered.length > 0 && user ? (
-        <div className="flex flex-wrap gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((project) => {
             const card = projectToFreelancerCardProps(project, user.id)
             return (
@@ -136,10 +185,14 @@ export default function FreelancerDashboard() {
                 ? 'No pending invitations'
                 : 'No active projects'
           }
-          description="Browse open work on the job board."
+          description={
+            activeTab === 'applied'
+              ? 'Apply to open jobs on the board — your pending applications will show up here.'
+              : 'Browse open work on the job board or accept a client invite.'
+          }
           action={
             <EmptyStateButton
-              label="Browse jobs"
+              label={activeTab === 'invitations' ? 'Browse jobs' : 'Browse jobs'}
               onClick={() => navigate(ROUTES.jobs)}
             />
           }
