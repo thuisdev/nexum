@@ -1,65 +1,26 @@
 # Pactum
 
-> Open job board with milestone-based escrow for Web3 freelance work.
-
-**Status:** In development — auth backend live, Figma design complete, frontend implementation in progress
+Freelance marketplace with milestone-based escrow for Web3-oriented work. Clients fund projects in stages; freelancers deliver per milestone; payment releases only after client approval.
 
 **Author:** Adrian — [@thuisdev](https://github.com/thuisdev)
 
----
-
-## What is Pactum?
-
-Pactum is a freelance marketplace where clients and freelancers collaborate with **milestone-based escrow**:
-
-- **Clients** post projects, fund work (simulated in Phase 1), and approve milestones before payment is released.
-- **Freelancers** accept work, submit deliverables, and get paid per approved milestone.
-- A **public job board** surfaces open projects; reviews after completion build pseudonymous reputation.
-- **Arbiters** resolve disputes when client and freelancer disagree.
-
-Phase 1 (this repo) is a **Web2 application** with database-simulated escrow.  
-Phase 2 replaces simulated escrow with a **self-authored smart contract** on an Ethereum L2 testnet.
+Phase 1 is a full-stack Web2 application with simulated escrow in PostgreSQL. Phase 2 will replace the payout layer with a self-authored escrow contract on an Ethereum L2 testnet.
 
 ---
 
-## Design (Figma)
+## Features
 
-All MVP screens and UI components are designed in Figma **before** implementation — no UI invention in code during build weeks.
-
-| Resource | Description |
-|----------|-------------|
-| **[Figma — Pactum](https://www.figma.com/design/)** | Design system, components, and all MVP screens *(replace with your share link)* |
-| [`docs/DESIGN_SPRINT.md`](docs/DESIGN_SPRINT.md) | Sprint checklist, component inventory, screen list |
-| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Roadmap, mental model, daily workflow |
-
-**Figma file structure**
-
-| Page | Contents |
-|------|----------|
-| 01 — Foundations | Color tokens, typography, spacing |
-| 02 — Patterns | Buttons, inputs, cards, badges, nav |
-| 03 — Public | Landing, job board |
-| 04 — Auth | Login, register |
-| 05 — Client | Dashboard, create project, project detail |
-| 06 — Freelancer | Dashboard, submit work |
-| 07 — Shared | Settings, profile, notifications |
-| 08–10 | Empty states, mobile, prototypes |
-
-**Design → code mapping:** Figma components map to React paths, e.g. `ProjectCard` → `frontend/src/components/features/project/ProjectCard.tsx`.
-
----
-
-## Current progress
-
-| Area | Status |
-|------|--------|
-| Database schema (Prisma) | Done |
-| Auth API (register, login, JWT, `/me`, profile) | Done |
-| Role-based routes (Client, Freelancer, Admin, Arbiter) | Done |
-| Figma design system + MVP screens | Done |
-| Frontend routing + auth guards | Done |
-| Project & milestone flows | Next |
-| Job board + deploy | Planned (Week 5) |
+| Area | Description |
+|------|-------------|
+| **Auth** | Email/password registration, JWT sessions, role-based access (`CLIENT`, `FREELANCER`, `ARBITER`, `ADMIN`) |
+| **Projects** | Create, edit, and delete draft projects with ordered milestones |
+| **Collaboration** | Client invites freelancer by email; freelancer accepts before funding |
+| **Escrow (simulated)** | Client funds project; first milestone becomes active |
+| **Milestones** | Freelancer submits work (text + optional file); client approves and triggers simulated payout |
+| **Activity** | Per-project timeline of actions with actor attribution |
+| **Notifications** | In-app bell for invites, submissions, approvals, and disputes |
+| **Job board** | Public listing of open projects (`isPublic` + `DRAFT`) |
+| **Disputes** | Parties can open disputes; arbiters resolve assigned cases |
 
 ---
 
@@ -67,70 +28,134 @@ All MVP screens and UI components are designed in Figma **before** implementatio
 
 | Layer | Stack |
 |-------|-------|
-| **Backend** | Node.js, Express, Prisma, PostgreSQL, JWT, Zod |
-| **Frontend** | React 19, Vite, Tailwind CSS v4, React Router v7, React Hook Form |
-| **Infra** | Docker (local Postgres), GitHub Actions (CI), Railway (planned) |
+| Backend | Node.js 22, Express 5, Prisma 7, PostgreSQL, JWT, Zod, Multer |
+| Frontend | React 19, Vite 8, Tailwind CSS v4, React Router v7, React Hook Form, Axios |
+| Tooling | Docker Compose (local DB), GitHub Actions, Postman collection |
 
 ---
 
-## Project structure
+## Repository layout
 
 ```
 pactum/
-├── backend/          # Express + Prisma API
-│   ├── prisma/       # Schema & migrations
-│   └── src/          # Routes, controllers, services, middleware
-├── frontend/         # React + Vite SPA
+├── backend/
+│   ├── prisma/              Schema and migrations
 │   └── src/
-│       ├── components/   # ui/, layout/, features/
-│       ├── pages/        # Route-level pages
-│       ├── router/       # AppRoutes, guards, lazy pages
-│       ├── context/      # Auth provider
-│       ├── hooks/        # useAuth, useApi, …
-│       └── lib/          # API client, validation, constants
-└── docs/             # Design sprint, lifecycle, Postman collection
+│       ├── routes/          HTTP route definitions
+│       ├── controllers/     Request parsing and response mapping
+│       ├── services/        Business logic and transactions
+│       ├── middleware/      Auth, error handling
+│       └── schemas/         Zod validation
+├── frontend/
+│   └── src/
+│       ├── pages/           Route-level views
+│       ├── components/      ui/, layout/, features/
+│       ├── lib/             API client, display helpers, validation
+│       └── router/          Routes and access guards
+└── docs/
+    ├── project-lifecycle.md Status transitions and action matrix
+    ├── postman/             API test collection
+    └── DESIGN_SPRINT.md     Figma component and screen inventory
 ```
+
+Request flow on the backend: **route → middleware → controller → service → Prisma**.
 
 ---
 
-## Local development
+## Getting started
 
-### Prerequisites
+### Requirements
 
-- Node.js 20+ (frontend) / 22+ (backend)
-- Docker Desktop (for Postgres)
+- Node.js 22 (backend), Node.js 20+ (frontend)
+- Docker Desktop
 
-### 1. Database
+### Database
 
 ```bash
 cd backend
-cp .env.example .env        # edit JWT_SECRET and passwords
+cp .env.example .env
 docker compose up -d
 npx prisma migrate dev
 ```
 
-### 2. Backend
+Set `JWT_SECRET` in `.env` before running the API. Default Postgres port is **5433** (see `DATABASE_URL` in `.env.example`).
+
+### Backend
 
 ```bash
 cd backend
 npm install
-npm run dev                 # http://localhost:4000
+npm run dev
 ```
 
-Health check: `GET http://localhost:4000/api/health`
+API base: `http://localhost:4000`  
+Health: `GET /api/health`
 
-### 3. Frontend
+Uploaded files are stored in `backend/uploads/` and served at `/uploads/*`.
+
+### Frontend
 
 ```bash
 cd frontend
-cp example.env .env         # VITE_API_URL=http://localhost:4000/api
+cp example.env .env
 npm install
-npm run dev                 # http://localhost:5173
+npm run dev
 ```
 
-### API testing
+App: `http://localhost:5173` — `VITE_API_URL` must point to `http://localhost:4000/api`.
 
-Import [`docs/postman/Pactum.postman_collection.json`](docs/postman/Pactum.postman_collection.json) into Postman or Bruno.
+### API tests
+
+Import [`docs/postman/Pactum.postman_collection.json`](docs/postman/Pactum.postman_collection.json). The collection covers auth, project lifecycle, milestone submit/approve, and error cases.
+
+---
+
+## API overview
+
+### Auth
+
+| Method | Path | Access |
+|--------|------|--------|
+| `POST` | `/api/auth/register` | Public |
+| `POST` | `/api/auth/login` | Public |
+| `GET` | `/api/auth/me` | Authenticated |
+
+### Projects
+
+| Method | Path | Access |
+|--------|------|--------|
+| `POST` | `/api/projects` | Client |
+| `GET` | `/api/projects` | Authenticated |
+| `GET` | `/api/projects/:id` | Project participant |
+| `GET` | `/api/projects/:id/preview` | Public (if `isPublic`) |
+| `PATCH` | `/api/projects/:id` | Client (draft only) |
+| `DELETE` | `/api/projects/:id` | Client (draft only) |
+| `POST` | `/api/projects/:id/invite` | Client |
+| `POST` | `/api/projects/:id/accept` | Freelancer |
+| `POST` | `/api/projects/:id/fund` | Client |
+| `POST` | `/api/projects/:id/milestones` | Client |
+| `GET` | `/api/projects/:id/activity` | Project participant |
+| `POST` | `/api/projects/:id/disputes` | Client or freelancer |
+
+### Milestones
+
+| Method | Path | Access |
+|--------|------|--------|
+| `POST` | `/api/milestones/:id/submit` | Freelancer (`multipart/form-data`: `content`, optional `file`) |
+| `POST` | `/api/milestones/:id/approve` | Client |
+
+Submit requires at least 50 characters in `content`. Approve sets the milestone to `PAID`, records a simulated `payoutTxRef` (`SIM-…`), activates the next milestone, and marks the project `COMPLETED` when all milestones are paid.
+
+### Other
+
+| Method | Path | Access |
+|--------|------|--------|
+| `GET` | `/api/jobs` | Public |
+| `GET` | `/api/notifications` | Authenticated |
+| `PATCH` | `/api/notifications/:id/read` | Authenticated |
+| `GET` | `/api/users/:id/public` | Public |
+
+Status transitions and role rules are documented in [`docs/project-lifecycle.md`](docs/project-lifecycle.md).
 
 ---
 
@@ -139,43 +164,65 @@ Import [`docs/postman/Pactum.postman_collection.json`](docs/postman/Pactum.postm
 | Path | Page | Access |
 |------|------|--------|
 | `/` | Landing | Public |
-| `/login`, `/register` | Auth | Guest only |
+| `/login`, `/register` | Auth | Guest |
 | `/jobs` | Job board | Public |
 | `/dashboard` | Role redirect | Authenticated |
 | `/dashboard/client` | Client dashboard | Client, Admin |
 | `/dashboard/freelancer` | Freelancer dashboard | Freelancer, Admin |
-| `/dashboard/admin` | Admin dashboard | Admin |
 | `/dashboard/arbiter` | Arbiter dashboard | Arbiter |
 | `/projects/new` | Create project | Client, Admin |
+| `/projects/:id/edit` | Edit project | Client (draft) |
 | `/projects/:id` | Project detail | Authenticated |
 | `/users/:id` | User profile | Authenticated |
 | `/settings` | Settings | Authenticated |
 
 ---
 
-## Roadmap
+## Milestone lifecycle
 
-| Week | Focus | Deliverable |
-|------|-------|-------------|
-| 1 | Planning, repo setup | Prisma schema, project structure |
-| 2 | Auth | Register, login, JWT, role routes |
-| 2.5 | Design sprint | Figma: tokens, components, all MVP screens |
-| 3 | Projects | Create, invite, fund, accept |
-| 4 | Milestones | Submit, approve, timeline, notifications |
-| 5 | Ship | Job board, Railway deploy, demo video |
-| Phase 2 | Web3 | Smart contract escrow on L2 testnet |
+```
+PENDING → IN_PROGRESS → SUBMITTED → PAID
+              ↑                          │
+              └──── next milestone ──────┘
+```
+
+Project status moves from `DRAFT` to `IN_PROGRESS` on fund and to `COMPLETED` when every milestone is `PAID`. Escrow is simulated in the database; `Approval.payoutTxRef` holds a placeholder reference until on-chain release is implemented.
+
+---
+
+## Design
+
+UI is built against a Figma design system (tokens, components, screen specs). Component inventory and screen checklist: [`docs/DESIGN_SPRINT.md`](docs/DESIGN_SPRINT.md).
+
+Figma components map to `frontend/src/components/features/` (e.g. `ProjectCard`, `MilestoneCard`, `SubmitWorkDialog`).
 
 ---
 
 ## CI
 
-GitHub Actions runs on every push/PR to `main` and `dev`:
+On push and pull requests to `main` and `dev`:
 
-- **Backend:** ESLint, TypeScript, Prisma validate
+- **Backend:** ESLint, TypeScript, `prisma validate`
 - **Frontend:** ESLint, TypeScript
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+---
+
+## Roadmap
+
+| Milestone | Status |
+|-----------|--------|
+| Auth, schema, project CRUD | Done |
+| Invite, accept, fund | Done |
+| Submit, approve, file uploads | Done |
+| Activity timeline, notifications | Done |
+| Dispute flow, arbiter dashboard | Done |
+| Production deploy, demo | Planned |
+| On-chain escrow (L2 testnet) | Phase 2 |
 
 ---
 
 ## License
 
-Private project — capstone / portfolio work.
+Private — capstone / portfolio project.
