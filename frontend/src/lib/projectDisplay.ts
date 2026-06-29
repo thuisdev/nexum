@@ -64,6 +64,10 @@ export function resolveClientCardStatus(project: Project): {
     return { status: 'INVITED', label: 'Invite sent' }
   }
 
+  if (project.isPublic && !project.freelancerId) {
+    return { status: 'PENDING', label: 'Review applications' }
+  }
+
   if (project.freelancerId) {
     return { status: 'PENDING', label: 'Awaiting funding' }
   }
@@ -121,7 +125,10 @@ export function mapMilestoneStatus(status: string): StatusBadgeStatus {
 
 export function projectDraftMeta(project: Project) {
   if (project.isPublic) {
-    return 'Not funded yet · public on job board'
+    if (!project.freelancerId) {
+      return 'Public · open for applications on job board'
+    }
+    return 'Public · freelancer selected'
   }
   if (project.invitedFreelancerId && !project.freelancerId) {
     return 'Private · invite sent · waiting for acceptance'

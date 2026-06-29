@@ -397,6 +397,13 @@ export const handleFundProject = async (
       return;
     }
 
+    if (project === 'no_freelancer') {
+      res.status(409).json({
+        error: 'Assign a freelancer before funding the project',
+      });
+      return;
+    }
+
     res.json(project);
   } catch (error) {
     next(error);

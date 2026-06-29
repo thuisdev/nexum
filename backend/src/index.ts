@@ -10,6 +10,7 @@ import projectsRouter from './routes/projects.routes.js';
 import milestonesRouter from './routes/milestones.routes.js';
 import jobsRouter from './routes/jobs.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import applicationsRouter from './routes/applications.routes.js';
 import { uploadDirPath } from './lib/upload.js';
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/milestones', milestonesRouter);
 app.use('/api/jobs', jobsRouter);
+app.use('/api/applications', applicationsRouter);
 app.use('/api/notifications', notificationsRouter);
 
 app.use(errorHandler);

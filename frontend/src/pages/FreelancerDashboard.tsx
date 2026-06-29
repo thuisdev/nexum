@@ -13,16 +13,19 @@ import {
   ProjectCard,
 } from '@/components/features'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { listMyApplications } from '@/lib/applications.api'
 import { acceptInvite, listProjects } from '@/lib/projects.api'
-import { projectToFreelancerCardProps } from '@/lib/projectDisplay'
+import { displayName, formatRelativeTime, projectToFreelancerCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
+import type { FreelancerApplication } from '@/types/application'
 
 export default function FreelancerDashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
+  const [applications, setApplications] = useState<FreelancerApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
@@ -34,9 +37,10 @@ export default function FreelancerDashboard() {
       (p) => p.invitedFreelancerId === user.id && !p.freelancerId,
     ).length
     const active = projects.filter((p) => p.freelancerId === user.id).length
+    const applied = applications.filter((a) => a.status === 'PENDING').length
 
-    return { active, invitations, applied: 0 }
-  }, [projects, user])
+    return { active, invitations, applied }
+  }, [projects, applications, user])
 
   const [activeTab, setActiveTab] = useState('active')
   const [tabInitialized, setTabInitialized] = useState(false)
@@ -57,6 +61,15 @@ export default function FreelancerDashboard() {
     [counts],
   )
 
+  const refreshApplications = useCallback(async () => {
+    try {
+      const data = await listMyApplications()
+      setApplications(data)
+    } catch {
+      setApplications([])
+    }
+  }, [])
+
   const refreshProjects = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -73,10 +86,11 @@ export default function FreelancerDashboard() {
   useEffect(() => {
     let cancelled = false
 
-    listProjects()
-      .then((data) => {
+    Promise.all([listProjects(), listMyApplications()])
+      .then(([projectData, applicationData]) => {
         if (!cancelled) {
-          setProjects(data)
+          setProjects(projectData)
+          setApplications(applicationData)
           setError(null)
         }
       })
@@ -94,8 +108,8 @@ export default function FreelancerDashboard() {
     }
   }, [])
 
-  const filtered = useMemo(() => {
-    if (!user) return []
+  const filteredProjects = useMemo(() => {
+    if (!user || activeTab === 'applied') return []
 
     return projects.filter((project) => {
       const isInvited =
@@ -108,11 +122,16 @@ export default function FreelancerDashboard() {
     })
   }, [projects, activeTab, user])
 
+  const pendingApplications = useMemo(
+    () => applications.filter((application) => application.status === 'PENDING'),
+    [applications],
+  )
+
   const handleAccept = async (projectId: string) => {
     setAcceptingId(projectId)
     try {
       await acceptInvite(projectId)
-      await refreshProjects()
+      await Promise.all([refreshProjects(), refreshApplications()])
       navigate(ROUTES.project(projectId))
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))
@@ -158,9 +177,31 @@ export default function FreelancerDashboard() {
 
       {loading ? (
         <DashboardGridSkeleton count={2} />
-      ) : filtered.length > 0 && user ? (
+      ) : activeTab === 'applied' && pendingApplications.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((project) => {
+          {pendingApplications.map((application) => (
+            <ProjectCard
+              key={application.id}
+              variant="freelancer"
+              id={application.project.id}
+              title={application.project.title}
+              amount={application.project.totalBudget}
+              currency={application.project.currency}
+              status="PENDING"
+              statusLabel="Application sent"
+              partyName={displayName(application.project.client)}
+              tags={application.project.skills}
+              timeAgo={formatRelativeTime(application.createdAt)}
+              milestoneCount={application.project.milestoneCount}
+              escrowLabel="Escrow-backed"
+              freelancerState="in_progress"
+              onCardClick={() => navigate(ROUTES.project(application.project.id))}
+            />
+          ))}
+        </div>
+      ) : filteredProjects.length > 0 && user ? (
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredProjects.map((project) => {
             const card = projectToFreelancerCardProps(project, user.id)
             return (
               <ProjectCard
