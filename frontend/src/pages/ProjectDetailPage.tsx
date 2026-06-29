@@ -8,6 +8,8 @@ import { Modal, ModalActions } from '@/components/ui/Modal'
 import { StickyActionBar } from '@/components/ui/StickyActionBar'
 import {
   ActivityTimeline,
+  ApplicationCard,
+  ApplyDialog,
   ApproveDialog,
   InviteFreelancerModal,
   MilestoneCard,
@@ -41,12 +43,20 @@ import {
   submitMilestone,
 } from '@/lib/projects.api'
 import {
+  acceptApplication,
+  applyToProject,
+  getMyApplication,
+  listProjectApplications,
+  rejectApplication,
+} from '@/lib/applications.api'
+import {
   canApproveMilestone,
   canDeleteProject,
   canEditProject,
   canSubmitMilestone,
   displayName,
   formatDeadline,
+  formatRelativeTime,
   mapMilestoneStatus,
   mapProjectStatus,
   previewClientName,
@@ -58,6 +68,7 @@ import {
 } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
+import type { Application } from '@/types/application'
 import type { Milestone, Project, ProjectActivity, ProjectPreview } from '@/types/project'
 import axios from 'axios'
 
@@ -118,6 +129,10 @@ export default function ProjectDetailPage() {
   const [submitNote, setSubmitNote] = useState('')
   const [submitFile, setSubmitFile] = useState<File | null>(null)
   const [approveMilestoneId, setApproveMilestoneId] = useState<string | null>(null)
+  const [applications, setApplications] = useState<Application[]>([])
+  const [myApplication, setMyApplication] = useState<Application | null>(null)
+  const [applyOpen, setApplyOpen] = useState(false)
+  const [applyPitch, setApplyPitch] = useState('')
   const reloadProject = useCallback(async () => {
     if (!id) return
 
@@ -136,6 +151,17 @@ export default function ProjectDetailPage() {
         } catch {
           setActivity([])
         }
+        if (full.clientId === user.id && full.isPublic && !full.freelancerId) {
+          try {
+            const apps = await listProjectApplications(id)
+            setApplications(apps)
+          } catch {
+            setApplications([])
+          }
+        } else {
+          setApplications([])
+        }
+        setMyApplication(null)
         setLoading(false)
         return
       } catch (err) {
@@ -156,6 +182,17 @@ export default function ProjectDetailPage() {
       setPreview(data)
       setProject(null)
       setActivity([])
+      setApplications([])
+      if (user?.role === 'FREELANCER') {
+        try {
+          const app = await getMyApplication(id)
+          setMyApplication(app)
+        } catch {
+          setMyApplication(null)
+        }
+      } else {
+        setMyApplication(null)
+      }
       setMode('preview')
     } catch {
       setError(
@@ -215,6 +252,51 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const handleApply = async () => {
+    if (!id || applyPitch.trim().length < 10) return
+    setActionLoading(true)
+    try {
+      const app = await applyToProject(id, applyPitch.trim())
+      setMyApplication(app)
+      setApplyOpen(false)
+      setApplyPitch('')
+      setError(null)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not send application'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleAcceptApplication = async (applicationId: string) => {
+    setActionLoading(true)
+    try {
+      await acceptApplication(applicationId)
+      await reloadProject()
+      setError(null)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not accept application'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRejectApplication = async (applicationId: string) => {
+    setActionLoading(true)
+    try {
+      await rejectApplication(applicationId)
+      if (id) {
+        const apps = await listProjectApplications(id)
+        setApplications(apps)
+      }
+      setError(null)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not reject application'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const isClientOwner =
     mode === 'full' &&
     project &&
@@ -245,6 +327,32 @@ export default function ProjectDetailPage() {
     isClientOwner &&
     project?.status === 'DRAFT' &&
     !!project.freelancerId
+
+  const isPublicProject = project?.isPublic ?? preview?.isPublic ?? false
+  const isDraftOpen =
+    (project?.status ?? preview?.status) === 'DRAFT' &&
+    !project?.freelancerId
+  const isFreelancerUser =
+    user?.role === 'FREELANCER' || user?.role === 'ADMIN'
+
+  const canApply = Boolean(
+    user &&
+      isFreelancerUser &&
+      isPublicProject &&
+      isDraftOpen &&
+      !isInvitedFreelancer &&
+      user.id !== (project?.clientId ?? preview?.client.id) &&
+      (!myApplication || myApplication.status === 'REJECTED'),
+  )
+
+  const applicationPending = myApplication?.status === 'PENDING'
+
+  const canShowApplications = Boolean(
+    isClientOwner &&
+      project?.isPublic &&
+      project.status === 'DRAFT' &&
+      !project.freelancerId,
+  )
 
   const title = project?.title ?? preview?.title ?? 'Project'
   const description = project?.description ?? preview?.description
@@ -471,6 +579,16 @@ export default function ProjectDetailPage() {
           </Button>
         </>
       )}
+      {canApply && (
+        <Button className="w-full sm:w-auto" onClick={() => setApplyOpen(true)}>
+          Apply to project
+        </Button>
+      )}
+      {applicationPending && (
+        <Button className="w-full sm:w-auto" variant="secondary" disabled>
+          Application pending
+        </Button>
+      )}
     </>
   )
 
@@ -478,6 +596,8 @@ export default function ProjectDetailPage() {
     canInvite ||
       isInvitedFreelancer ||
       canFund ||
+      canApply ||
+      applicationPending ||
       (mode === 'preview' && !user),
   )
 
@@ -508,8 +628,16 @@ export default function ProjectDetailPage() {
 
           {mode === 'preview' && (
             <InlineAlert variant="info">
-              Public preview — milestones and scope only. Apply or accept requires an
-              account.
+              {user
+                ? 'Public preview — milestones and scope only. Apply below if you want to work on this project.'
+                : 'Public preview — milestones and scope only. Sign up or log in to apply.'}
+            </InlineAlert>
+          )}
+
+          {myApplication?.status === 'REJECTED' && (
+            <InlineAlert variant="info">
+              Your previous application was not selected. You can apply again with a
+              new pitch.
             </InlineAlert>
           )}
 
@@ -584,6 +712,38 @@ export default function ProjectDetailPage() {
               />
             )}
           </section>
+
+          {canShowApplications && (
+            <section className="flex flex-col gap-3 text-left">
+              <SectionLabel>
+                {applications.length > 0
+                  ? `Applications (${applications.length})`
+                  : 'Applications'}
+              </SectionLabel>
+              {applications.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {applications.map((application) => (
+                    <ApplicationCard
+                      key={application.id}
+                      freelancerName={displayName(application.freelancer)}
+                      avatarUrl={application.freelancer?.avatarUrl}
+                      verified={application.freelancer?.isVerified}
+                      timeAgo={formatRelativeTime(application.createdAt)}
+                      pitch={application.pitch}
+                      onAccept={() => void handleAcceptApplication(application.id)}
+                      onReject={() => void handleRejectApplication(application.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyPanel
+                  icon={ListChecks}
+                  title="No applications yet"
+                  message="Freelancers can apply from the public job board while this project is open."
+                />
+              )}
+            </section>
+          )}
 
           {mode === 'full' && (
             <section className="flex flex-col gap-3 text-left">
@@ -685,6 +845,18 @@ export default function ProjectDetailPage() {
             recipient={displayName(project.freelancer)}
           />
         )}
+
+        <ApplyDialog
+          open={applyOpen}
+          onClose={() => {
+            setApplyOpen(false)
+            setApplyPitch('')
+          }}
+          onSubmit={() => void handleApply()}
+          loading={actionLoading}
+          pitch={applyPitch}
+          onPitchChange={setApplyPitch}
+        />
       </AppSection>
       {hasMobileActions && (
         <StickyActionBar>{workflowActions}</StickyActionBar>

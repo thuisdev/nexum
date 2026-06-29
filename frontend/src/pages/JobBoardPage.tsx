@@ -13,6 +13,7 @@ import {
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { listJobs } from '@/lib/projects.api'
 import { jobToCardProps } from '@/lib/projectDisplay'
+import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/router/routes'
 import type { JobBoardProject } from '@/types/project'
 
@@ -20,6 +21,7 @@ import { JOB_BOARD_FILTER_CHIPS } from '@/lib/projectSkills'
 
 export default function JobBoardPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [activeChip, setActiveChip] = useState('All')
   const [jobs, setJobs] = useState<JobBoardProject[]>([])
@@ -88,7 +90,13 @@ export default function JobBoardPage() {
               variant="jobboard"
               {...jobToCardProps(job)}
               onCardClick={() => navigate(ROUTES.project(job.id))}
-              onApply={() => navigate(ROUTES.register)}
+              onApply={() => {
+                if (!user) {
+                  navigate(ROUTES.register)
+                  return
+                }
+                navigate(ROUTES.project(job.id))
+              }}
             />
           ))}
         </div>

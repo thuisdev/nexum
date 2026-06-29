@@ -52,7 +52,7 @@ const serializeMilestone = (
   };
 };
 
-const serializeProject = (project: ProjectWithMilestones) => ({
+export const serializeProject = (project: ProjectWithMilestones) => ({
   ...project,
   totalBudget: project.totalBudget.toString(),
   fundedAt: project.fundedAt?.toISOString() ?? null,

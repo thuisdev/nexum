@@ -19,6 +19,11 @@ import {
   handleListProjects,
   handleUpdateProject,
 } from '../controllers/projects.js';
+import {
+  handleApplyToProject,
+  handleGetMyApplication,
+  handleListProjectApplications,
+} from '../controllers/applications.js';
 import { checkAuth, requireRole } from '../middleware/auth.middleware.js';
 
 const router = Router();
@@ -29,6 +34,19 @@ router.get('/disputes/assigned', checkAuth, requireRole('ARBITER', 'ADMIN'), han
 router.get('/:id/preview', handleGetProjectPreview);
 router.post('/:id/invite', checkAuth, requireRole('CLIENT'), handleInviteProject);
 router.post('/:id/accept', checkAuth, requireRole('FREELANCER'), handleAcceptInvite);
+router.post('/:id/apply', checkAuth, requireRole('FREELANCER'), handleApplyToProject);
+router.get(
+  '/:id/applications',
+  checkAuth,
+  requireRole('CLIENT', 'ADMIN'),
+  handleListProjectApplications,
+);
+router.get(
+  '/:id/my-application',
+  checkAuth,
+  requireRole('FREELANCER'),
+  handleGetMyApplication,
+);
 router.post('/:id/fund', checkAuth, requireRole('CLIENT'), handleFundProject);
 router.post('/:id/milestones', checkAuth, requireRole('CLIENT'), handleAppendMilestones);
 router.get('/:id/activity', checkAuth, handleGetProjectActivity);

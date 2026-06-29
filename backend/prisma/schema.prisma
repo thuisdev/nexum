@@ -49,11 +49,20 @@ enum DisputeStatus {
 
 enum NotificationType {
   PROJECT_INVITED
+  APPLICATION_RECEIVED
+  APPLICATION_ACCEPTED
+  APPLICATION_REJECTED
   MILESTONE_SUBMITTED
   MILESTONE_APPROVED
   MILESTONE_DISPUTED
   DISPUTE_RESOLVED
   PAYMENT_RELEASED
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 enum VerificationMethod {
@@ -99,6 +108,7 @@ model User {
   raisedDisputes     Dispute[]      @relation("RaisedDisputes")
   notifications      Notification[]
   activityLogs       ActivityLog[]
+  applications       Application[]
   reviewsWritten     Review[]       @relation("ReviewsWritten")
   reviewsReceived    Review[]       @relation("ReviewsReceived")
 }
@@ -129,6 +139,7 @@ model Project {
   arbiter           User? @relation("ArbiterProjects", fields: [arbiterId], references: [id])
 
   milestones    Milestone[]
+  applications  Application[]
   notifications Notification[]
   activityLogs  ActivityLog[]
   reviews       Review[]
@@ -250,4 +261,22 @@ model Review {
   subject User    @relation("ReviewsReceived", fields: [subjectId], references: [id])
 
   @@unique([projectId, authorId])
+}
+
+model Application {
+  id           String            @id @default(uuid())
+  projectId    String
+  freelancerId String
+  pitch        String
+  status       ApplicationStatus @default(PENDING)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  freelancer User    @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, freelancerId])
+  @@index([projectId])
+  @@index([freelancerId])
+  @@index([status])
 }
