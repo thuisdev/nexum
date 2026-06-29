@@ -8,12 +8,14 @@ import { Modal, ModalActions } from '@/components/ui/Modal'
 import { StickyActionBar } from '@/components/ui/StickyActionBar'
 import {
   ActivityTimeline,
+  ApproveDialog,
   InviteFreelancerModal,
   MilestoneCard,
   MilestoneStepper,
   ProjectDetailHero,
   ProjectEscrowSection,
   ProjectOverflowMenu,
+  SubmitWorkDialog,
   type ProjectDetailParty,
   type ProjectOverflowItem,
 } from '@/components/features'
@@ -28,6 +30,7 @@ import { ProjectDetailSkeleton } from '@/components/ui/Skeleton'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import {
   acceptInvite,
+  approveMilestone,
   deleteProject,
   fundProject,
   getProject,
@@ -35,10 +38,13 @@ import {
   getProjectPreview,
   openDispute,
   resolveDispute,
+  submitMilestone,
 } from '@/lib/projects.api'
 import {
+  canApproveMilestone,
   canDeleteProject,
   canEditProject,
+  canSubmitMilestone,
   displayName,
   formatDeadline,
   mapMilestoneStatus,
@@ -48,10 +54,11 @@ import {
   resolveClientCardStatus,
   resolveDisputeCta,
   resolveFreelancerCardStatus,
+  uploadFileUrl,
 } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
-import type { Project, ProjectActivity, ProjectPreview } from '@/types/project'
+import type { Milestone, Project, ProjectActivity, ProjectPreview } from '@/types/project'
 import axios from 'axios'
 
 function resolveParties(
@@ -107,6 +114,10 @@ export default function ProjectDetailPage() {
   const [disputeOpen, setDisputeOpen] = useState(false)
   const [resolveOpen, setResolveOpen] = useState(false)
   const [viewDisputeOpen, setViewDisputeOpen] = useState(false)
+  const [submitMilestoneId, setSubmitMilestoneId] = useState<string | null>(null)
+  const [submitNote, setSubmitNote] = useState('')
+  const [submitFile, setSubmitFile] = useState<File | null>(null)
+  const [approveMilestoneId, setApproveMilestoneId] = useState<string | null>(null)
   const reloadProject = useCallback(async () => {
     if (!id) return
 
@@ -251,21 +262,18 @@ export default function ProjectDetailPage() {
           status: mapProjectStatus(preview?.status ?? 'DRAFT'),
         }
 
-  const milestones: Array<{
-    id?: string
-    orderIndex: number
-    title: string
-    description: string
-    amount: string
-    deadline: string | Date
-    status: string
-  }> =
+  const milestones: Milestone[] =
     mode === 'full'
       ? (project?.milestones ?? [])
       : (preview?.milestones ?? []).map((milestone, index) => ({
           id: String(index),
-          ...milestone,
+          orderIndex: milestone.orderIndex,
+          title: milestone.title,
+          description: milestone.description,
+          amount: milestone.amount,
+          deadline: milestone.deadline,
           status: 'PENDING',
+          latestSubmission: null,
         }))
 
   const milestoneStats = useMemo(() => {
@@ -321,6 +329,86 @@ export default function ProjectDetailPage() {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  const closeSubmitDialog = () => {
+    setSubmitMilestoneId(null)
+    setSubmitNote('')
+    setSubmitFile(null)
+  }
+
+  const closeApproveDialog = () => {
+    setApproveMilestoneId(null)
+  }
+
+  const handleSubmitWork = async () => {
+    if (!submitMilestoneId || submitNote.trim().length < 50) return
+    setActionLoading(true)
+    try {
+      const full = await submitMilestone(
+        submitMilestoneId,
+        submitNote.trim(),
+        submitFile,
+      )
+      setProject(full)
+      if (id) {
+        const logs = await getProjectActivity(id)
+        setActivity(logs)
+      }
+      closeSubmitDialog()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not submit work'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleApproveWork = async () => {
+    if (!approveMilestoneId) return
+    setActionLoading(true)
+    try {
+      const full = await approveMilestone(approveMilestoneId)
+      setProject(full)
+      if (id) {
+        const logs = await getProjectActivity(id)
+        setActivity(logs)
+      }
+      closeApproveDialog()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not approve milestone'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const submitTarget = submitMilestoneId
+    ? project?.milestones.find((m) => m.id === submitMilestoneId)
+    : null
+
+  const approveTarget = approveMilestoneId
+    ? project?.milestones.find((m) => m.id === approveMilestoneId)
+    : null
+
+  const resolveMilestoneCardAction = (milestone: Milestone) => {
+    if (!project || !user) return {}
+
+    if (canSubmitMilestone(project, milestone, user.id)) {
+      return {
+        actionLabel: 'Submit work',
+        actionVariant: 'primary' as const,
+        onAction: () => setSubmitMilestoneId(milestone.id),
+      }
+    }
+
+    if (canApproveMilestone(project, milestone, user.id)) {
+      return {
+        actionLabel: 'Review & approve',
+        actionVariant: 'approve' as const,
+        onAction: () => setApproveMilestoneId(milestone.id),
+      }
+    }
+
+    return {}
   }
 
   const overflowItems = useMemo((): ProjectOverflowItem[] => {
@@ -469,20 +557,24 @@ export default function ProjectDetailPage() {
             <SectionLabel>Milestones</SectionLabel>
             {milestones.length > 0 ? (
               <div className="flex flex-col gap-3">
-                {milestones.map((milestone) => (
-                  <MilestoneCard
-                    key={milestone.id ?? milestone.orderIndex}
-                    title={milestone.title}
-                    description={milestone.description}
-                    amount={milestone.amount}
-                    deadline={formatDeadline(
-                      typeof milestone.deadline === 'string'
-                        ? milestone.deadline
-                        : new Date(milestone.deadline).toISOString(),
-                    )}
-                    status={mapMilestoneStatus(milestone.status)}
-                  />
-                ))}
+                {milestones.map((milestone) => {
+                  const cardAction = resolveMilestoneCardAction(milestone)
+
+                  return (
+                    <MilestoneCard
+                      key={milestone.id ?? milestone.orderIndex}
+                      title={milestone.title}
+                      description={milestone.description}
+                      amount={milestone.amount}
+                      deadline={formatDeadline(milestone.deadline)}
+                      status={mapMilestoneStatus(milestone.status)}
+                      submission={milestone.latestSubmission}
+                      fileDownloadUrl={uploadFileUrl(milestone.latestSubmission?.fileUrl)}
+                      paidAt={milestone.paidAt}
+                      {...cardAction}
+                    />
+                  )
+                })}
               </div>
             ) : (
               <EmptyPanel
@@ -567,6 +659,31 @@ export default function ProjectDetailPage() {
               dispute={project.openDispute}
             />
           </>
+        )}
+
+        {submitTarget && (
+          <SubmitWorkDialog
+            open={Boolean(submitMilestoneId)}
+            onClose={closeSubmitDialog}
+            onSubmit={() => void handleSubmitWork()}
+            loading={actionLoading}
+            milestoneTitle={submitTarget.title}
+            note={submitNote}
+            onNoteChange={setSubmitNote}
+            file={submitFile}
+            onFileChange={setSubmitFile}
+          />
+        )}
+
+        {approveTarget && project?.freelancer && (
+          <ApproveDialog
+            open={Boolean(approveMilestoneId)}
+            onClose={closeApproveDialog}
+            onConfirm={() => void handleApproveWork()}
+            loading={actionLoading}
+            amount={approveTarget.amount}
+            recipient={displayName(project.freelancer)}
+          />
         )}
       </AppSection>
       {hasMobileActions && (

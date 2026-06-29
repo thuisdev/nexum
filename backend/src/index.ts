@@ -7,8 +7,10 @@ import authRouter from './routes/auth.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import usersRouter from './routes/users.routes.js';
 import projectsRouter from './routes/projects.routes.js';
+import milestonesRouter from './routes/milestones.routes.js';
 import jobsRouter from './routes/jobs.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import { uploadDirPath } from './lib/upload.js';
 
 const app = express();
 
@@ -21,9 +23,12 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+app.use('/uploads', express.static(uploadDirPath));
+
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/projects', projectsRouter);
+app.use('/api/milestones', milestonesRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/notifications', notificationsRouter);
 

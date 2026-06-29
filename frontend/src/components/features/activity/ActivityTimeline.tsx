@@ -11,6 +11,10 @@ const actionLabels: Record<string, string> = {
   FREELANCER_ACCEPTED: 'accepted the invite',
   PROJECT_FUNDED: 'funded the escrow',
   MILESTONES_ADDED: 'added milestones',
+  MILESTONE_SUBMITTED: 'submitted work',
+  MILESTONE_APPROVED: 'approved a milestone',
+  MILESTONE_PAID: 'released payment',
+  PROJECT_COMPLETED: 'completed the project',
 }
 
 export type ActivityTimelineProps = {

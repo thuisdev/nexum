@@ -87,6 +87,7 @@ export type ModalActionsProps = {
   confirmLabel: string
   confirmVariant?: 'primary' | 'approve' | 'danger'
   loading?: boolean
+  confirmDisabled?: boolean
 }
 
 export function ModalActions({
@@ -96,6 +97,7 @@ export function ModalActions({
   confirmLabel,
   confirmVariant = 'primary',
   loading = false,
+  confirmDisabled = false,
 }: ModalActionsProps) {
   return (
     <>
@@ -106,6 +108,7 @@ export function ModalActions({
         variant={confirmVariant}
         onClick={onConfirm}
         loading={loading}
+        disabled={confirmDisabled || loading}
       >
         {confirmLabel}
       </Button>

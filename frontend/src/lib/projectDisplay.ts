@@ -1,4 +1,4 @@
-import type { Project, ProjectPreview, JobBoardProject } from '@/types/project'
+import type { Milestone, Project, ProjectPreview, JobBoardProject } from '@/types/project'
 import type { PublicUserProfile } from '@/types/user'
 import type { StatusBadgeStatus } from '@/components/ui/StatusBadge'
 
@@ -212,6 +212,38 @@ export function canDeleteProject(project: Project, userId: string) {
 }
 
 const DISPUTABLE_MILESTONE_STATUSES = ['IN_PROGRESS', 'SUBMITTED'] as const
+
+export function canApproveMilestone(
+  project: Project,
+  milestone: Milestone,
+  userId: string,
+) {
+  return (
+    project.clientId === userId &&
+    project.status === 'IN_PROGRESS' &&
+    milestone.status === 'SUBMITTED'
+  )
+}
+
+export function canSubmitMilestone(
+  project: Project,
+  milestone: Milestone,
+  userId: string,
+) {
+  return (
+    project.freelancerId === userId &&
+    project.status === 'IN_PROGRESS' &&
+    milestone.status === 'IN_PROGRESS'
+  )
+}
+
+/** Base URL for uploaded files (strip trailing /api from VITE_API_URL). */
+export function uploadFileUrl(fileUrl: string | null | undefined) {
+  if (!fileUrl) return null
+  const apiBase = import.meta.env.VITE_API_URL ?? ''
+  const origin = apiBase.replace(/\/api\/?$/, '')
+  return `${origin}${fileUrl}`
+}
 
 export function findDisputableMilestone(project: Project, userId: string) {
   const isParty =
