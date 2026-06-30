@@ -206,5 +206,5 @@ stateDiagram-v2
 ## Related docs
 
 - [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) — roadmap & endpoints
-- [DESIGN_SPRINT.md](./DESIGN_SPRINT.md) — Figma screens per status (DS-D09 … DS-D17)
+- [project-lifecycle.md](./project-lifecycle.md) — status transitions and action matrix
 - `backend/prisma/schema.prisma` — enum definitions

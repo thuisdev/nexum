@@ -119,6 +119,23 @@ async function main() {
     include: { milestones: true },
   });
 
+  await prisma.application.deleteMany({ where: { projectId: publicProject.id } });
+  await prisma.milestone.updateMany({
+    where: { projectId: publicProject.id },
+    data: { status: 'PENDING', paidAt: null, completedAt: null },
+  });
+  await prisma.project.update({
+    where: { id: publicProject.id },
+    data: {
+      freelancerId: null,
+      invitedFreelancerId: null,
+      status: 'DRAFT',
+      escrowStatus: 'NOT_FUNDED',
+      fundedAt: null,
+      completedAt: null,
+    },
+  });
+
   await prisma.project.upsert({
     where: { id: '00000000-0000-4000-8000-000000000002' },
     update: {

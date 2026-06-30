@@ -28,7 +28,7 @@ Phase 1 is a full-stack Web2 MVP with simulated escrow in PostgreSQL. Phase 2 wi
 | Demo seed data | Done |
 | Postman collection | Done |
 | Railway deploy config | Done |
-| Automated E2E tests | Not in scope for MVP |
+| Unit + integration + E2E tests | Done |
 
 ---
 
@@ -81,25 +81,21 @@ Public job board project ID (stable after seed): `00000000-0000-4000-8000-000000
 
 ```
 pactum/
+├── package.json          Root scripts (dev both, test all)
+├── playwright.config.ts  E2E tests
+├── e2e/                  Playwright specs
 ├── backend/
 │   ├── prisma/           Schema, migrations, seed.ts
 │   ├── src/
-│   │   ├── routes/       HTTP routes
-│   │   ├── controllers/  Request/response mapping
-│   │   ├── services/     Business logic
-│   │   ├── middleware/   Auth, errors
-│   │   └── schemas/      Zod validation
 │   ├── Dockerfile        Production image
-│   └── railway.toml
+│   └── railway.toml      Railway deploy hints (optional)
 ├── frontend/
-│   ├── src/pages/        Route-level views
-│   ├── src/components/   ui/, layout/, features/
-│   ├── Dockerfile        Nginx static image
+│   ├── src/
+│   ├── Dockerfile
 │   └── railway.toml
 └── docs/
     ├── project-lifecycle.md
-    ├── postman/          API test collection
-    └── DESIGN_SPRINT.md
+    └── postman/
 ```
 
 Backend request flow: **route → middleware → controller → service → Prisma**.
@@ -112,6 +108,22 @@ Backend request flow: **route → middleware → controller → service → Pris
 
 - Node.js 22 (backend), Node.js 20+ (frontend)
 - Docker Desktop
+
+### Run the app
+
+From the **repo root** (recommended):
+
+```bash
+npm install                  # installs root dev tools (concurrently, playwright)
+npm install --prefix backend
+npm install --prefix frontend
+
+npm run dev                  # backend + frontend together
+npm run dev:backend          # API only (port 4000)
+npm run dev:frontend         # UI only (port 5173)
+```
+
+Or run each package separately from `backend/` and `frontend/` as before.
 
 ### 1. Database
 
@@ -157,6 +169,38 @@ npm run dev
 | `npm run db:reset` | backend | Reset DB + migrate + seed |
 | `npm run build` | backend / frontend | Production build |
 | `npm run start:prod` | backend | Migrate + start (production) |
+| `npm run test` | root | Unit + integration |
+| `npm run test:e2e` | root | Playwright E2E |
+
+| `npm run test:all` | root | Unit + integration + E2E |
+
+---
+
+## Automated tests
+
+| Layer | Command | What it covers |
+|-------|---------|----------------|
+| Backend unit | `npm run test:unit --prefix backend` | Zod schemas, password hashing, health route |
+| Backend integration | `npm run test:integration --prefix backend` | Auth, apply/accept, fund errors (needs Postgres) |
+| Frontend unit | `npm run test --prefix frontend` | `projectDisplay`, validation, Apply/Application UI |
+| E2E (Playwright) | `npm run test:e2e` | Login, job board, apply flow (starts API + UI automatically) |
+| Everything | `npm run test:all` | All of the above |
+
+Integration and E2E tests need a running database. Locally:
+
+```bash
+cd backend && docker compose up -d && npx prisma migrate dev
+```
+
+E2E runs migrations + seed automatically via `e2e/global-setup.ts`.
+
+First-time E2E setup:
+
+```bash
+npm install
+npx playwright install chromium
+npm run test:e2e
+```
 
 ---
 
@@ -281,6 +325,8 @@ Project moves `DRAFT` → `IN_PROGRESS` on fund and `COMPLETED` when all milesto
 
 ## Deploy (Railway)
 
+`railway.toml` is **optional config for [Railway](https://railway.app)** — it tells Railway to build from the local `Dockerfile`, set health-check paths, and restart on failure. You do not need it for local dev; without Railway you can ignore it or delete it.
+
 Deploy as **three** Railway resources: Postgres plugin, backend service, frontend service.
 
 ### Postgres
@@ -328,8 +374,10 @@ Deploy as **three** Railway resources: Postgres plugin, backend service, fronten
 
 On push/PR to `main` and `dev`:
 
-- **Backend:** ESLint, TypeScript, `prisma validate`
-- **Frontend:** ESLint, TypeScript
+- **Backend:** lint, typecheck, Prisma validate, unit tests
+- **Backend integration:** Postgres service + API integration tests
+- **Frontend:** lint, typecheck, unit tests
+- **E2E:** Playwright against API + UI with seeded Postgres
 
 Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 
@@ -346,6 +394,7 @@ Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 | Job board, applications | Done |
 | Dispute flow, arbiter dashboard | Done |
 | Seed data, Postman, deploy config | Done |
+| Unit, integration, and E2E tests | Done |
 | Demo video / live URL | Record after deploy |
 | On-chain escrow (L2 testnet) | Phase 2 |
 

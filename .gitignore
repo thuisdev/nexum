@@ -18,6 +18,12 @@ uploads/
 
 backend/node_modules/.prisma/
 
+# Test artifacts
+
+test-results/
+playwright-report/
+playwright/.cache/
+
 # OS clutter
 
 .DS_Store
