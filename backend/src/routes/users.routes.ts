@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import {
   handleGetPublicProfile,
+  handleGetUserCompletedProjects,
   handleGetUserReviews,
   handleUpdateUser,
   handleUploadAvatar,
@@ -12,6 +13,7 @@ import { avatarUpload } from '../lib/upload.js';
 const router = Router();
 
 router.get('/:id/public', handleGetPublicProfile);
+router.get('/:id/completed-projects', handleGetUserCompletedProjects);
 router.get('/:id/reviews', handleGetUserReviews);
 router.patch('/me', checkAuth, handleUpdateUser);
 router.post(

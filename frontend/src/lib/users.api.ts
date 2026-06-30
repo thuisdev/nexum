@@ -42,6 +42,23 @@ export type PublicReview = {
   project: { id: string; title: string }
 }
 
+export type PublicCompletedProject = {
+  id: string
+  title: string
+  skills: string[]
+  totalBudget: string
+  currency: string
+  completedAt: string | null
+  isPublic: boolean
+}
+
+export const getUserCompletedProjects = async (userId: string) => {
+  const res = await publicApi.get<PublicCompletedProject[]>(
+    `/users/${userId}/completed-projects`,
+  )
+  return res.data
+}
+
 export const getUserReviews = async (userId: string) => {
   const res = await publicApi.get<PublicReview[]>(`/users/${userId}/reviews`)
   return res.data

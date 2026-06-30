@@ -6,10 +6,16 @@ import { AppSection } from '@/components/layout/AppSection'
 import { InlineAlert } from '@/components/ui/InlineAlert'
 import { EmptyPanel } from '@/components/ui/EmptyPanel'
 import { ProfilePageSkeleton } from '@/components/ui/Skeleton'
-import { SectionLabel } from '@/components/ui/Tag'
+import { SectionLabel, Tag } from '@/components/ui/Tag'
 import { displayName, formatRelativeTime } from '@/lib/projectDisplay'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
-import { getPublicProfile, getUserReviews, type PublicReview } from '@/lib/users.api'
+import {
+  getPublicProfile,
+  getUserCompletedProjects,
+  getUserReviews,
+  type PublicCompletedProject,
+  type PublicReview,
+} from '@/lib/users.api'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { PublicUserProfile } from '@/types/user'
@@ -24,6 +30,51 @@ function formatRole(role: string) {
   return role.charAt(0) + role.slice(1).toLowerCase()
 }
 
+function formatCompletedDate(iso: string | null) {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function CompletedProjectCard({
+  project,
+  onOpen,
+}: {
+  project: PublicCompletedProject
+  onOpen: () => void
+}) {
+  const completedLabel = formatCompletedDate(project.completedAt)
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full flex-col gap-3 rounded-2xl border border-ink-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50/30"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="font-display text-base font-semibold text-ink-900">
+          {project.title}
+        </p>
+        {completedLabel && (
+          <span className="text-xs font-medium text-ink-400">{completedLabel}</span>
+        )}
+      </div>
+      {project.skills.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {project.skills.map((skill) => (
+            <Tag key={skill}>{skill}</Tag>
+          ))}
+        </div>
+      )}
+      <p className="font-mono text-sm font-medium text-ink-700">
+        {Number(project.totalBudget).toLocaleString()} {project.currency}
+      </p>
+    </button>
+  )
+}
+
 export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -32,6 +83,9 @@ export default function UserProfilePage() {
 
   const [profile, setProfile] = useState<PublicUserProfile | null>(null)
   const [reviews, setReviews] = useState<PublicReview[]>([])
+  const [completedProjects, setCompletedProjects] = useState<
+    PublicCompletedProject[]
+  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,11 +94,16 @@ export default function UserProfilePage() {
 
     let cancelled = false
 
-    Promise.all([getPublicProfile(id), getUserReviews(id)])
-      .then(([profileData, reviewData]) => {
+    Promise.all([
+      getPublicProfile(id),
+      getUserReviews(id),
+      getUserCompletedProjects(id),
+    ])
+      .then(([profileData, reviewData, completedData]) => {
         if (!cancelled) {
           setProfile(profileData)
           setReviews(reviewData)
+          setCompletedProjects(completedData)
           setError(null)
         }
       })
@@ -87,9 +146,17 @@ export default function UserProfilePage() {
   const reviewCount = profile.reviewCount ?? 0
   const totalStars = profile.totalStars ?? 0
   const averageRating = profile.averageRating ?? 0
+  const completedProjectCount = profile.completedProjectCount ?? 0
+  const workSectionLabel = isClient ? 'Projects posted' : 'Recent work'
 
   const statCells = [
-    { id: 'completed', label: 'Completed projects', value: '0' },
+    {
+      id: 'completed',
+      label: 'Completed projects',
+      value: String(completedProjectCount),
+      highlight: completedProjectCount > 0,
+      tone: 'brand' as const,
+    },
     {
       id: 'reviews',
       label: 'Reviews received',
@@ -133,16 +200,28 @@ export default function UserProfilePage() {
         <StatStrip align="start" cells={statCells} />
 
         <section className="flex flex-col gap-3 text-left">
-          <SectionLabel>{isClient ? 'Projects posted' : 'Recent work'}</SectionLabel>
-          <EmptyPanel
-            icon={Briefcase}
-            title="No completed projects yet"
-            message={
-              isClient
-                ? 'Finished projects you funded will show up here once milestones are paid out.'
-                : 'Finished work will show up here once milestones are paid out.'
-            }
-          />
+          <SectionLabel>{workSectionLabel}</SectionLabel>
+          {completedProjects.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {completedProjects.map((project) => (
+                <CompletedProjectCard
+                  key={project.id}
+                  project={project}
+                  onOpen={() => navigate(ROUTES.project(project.id))}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyPanel
+              icon={Briefcase}
+              title="No completed projects yet"
+              message={
+                isClient
+                  ? 'Finished projects you funded will show up here once milestones are paid out.'
+                  : 'Finished work will show up here once milestones are paid out.'
+              }
+            />
+          )}
         </section>
 
         <section className="flex flex-col gap-3 text-left">

@@ -419,7 +419,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"freelancerEmail\": \"freelancer@example.com\"\n}",
+              "raw": "{\n  \"identifier\": \"freelancer@example.com\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -629,7 +629,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"freelancerEmail\": \"freelancer@example.com\"\n}",
+              "raw": "{\n  \"identifier\": \"freelancer@example.com\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

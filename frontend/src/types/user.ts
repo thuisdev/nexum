@@ -12,6 +12,7 @@ export interface PublicUserProfile {
   reviewCount: number
   totalStars: number
   averageRating: number
+  completedProjectCount: number
 }
 
 export interface User {

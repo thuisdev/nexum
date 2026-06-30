@@ -516,7 +516,51 @@ export const getProjectActivity = async (
   }));
 };
 
-/** Client invites a freelancer by email while project is DRAFT. */
+async function resolveFreelancerByIdentifier(identifier: string) {
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    return 'freelancer_not_found' as const;
+  }
+
+  if (trimmed.includes('@')) {
+    const freelancer = await prisma.user.findUnique({
+      where: { email: trimmed.toLowerCase() },
+    });
+
+    if (!freelancer) {
+      return 'freelancer_not_found' as const;
+    }
+
+    if (freelancer.role !== 'FREELANCER') {
+      return 'not_freelancer_role' as const;
+    }
+
+    return freelancer;
+  }
+
+  const matches = await prisma.user.findMany({
+    where: {
+      role: 'FREELANCER',
+      OR: [
+        { displayName: { equals: trimmed, mode: 'insensitive' } },
+        { name: { equals: trimmed, mode: 'insensitive' } },
+      ],
+    },
+    take: 2,
+  });
+
+  if (matches.length === 0) {
+    return 'freelancer_not_found' as const;
+  }
+
+  if (matches.length > 1) {
+    return 'freelancer_ambiguous' as const;
+  }
+
+  return matches[0]!;
+}
+
+/** Client invites a freelancer by email or display name while project is DRAFT. */
 export const inviteFreelancer = async (
   projectId: string,
   clientId: string,
@@ -540,17 +584,13 @@ export const inviteFreelancer = async (
     return 'freelancer_already_assigned' as const;
   }
 
-  const freelancer = await prisma.user.findUnique({
-    where: { email: input.freelancerEmail },
-  });
+  const resolved = await resolveFreelancerByIdentifier(input.identifier);
 
-  if (!freelancer) {
-    return 'freelancer_not_found' as const;
+  if (typeof resolved === 'string') {
+    return resolved;
   }
 
-  if (freelancer.role !== 'FREELANCER') {
-    return 'not_freelancer_role' as const;
-  }
+  const freelancer = resolved;
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.project.update({

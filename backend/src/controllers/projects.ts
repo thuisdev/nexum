@@ -273,7 +273,7 @@ export const handleGetProjectActivity = async (
   }
 };
 
-/** POST /api/projects/:id/invite — client invites freelancer by email. */
+/** POST /api/projects/:id/invite — client invites freelancer by email or display name. */
 export const handleInviteProject = async (
   req: Request,
   res: Response,
@@ -325,6 +325,13 @@ export const handleInviteProject = async (
 
     if (project === 'not_freelancer_role') {
       res.status(400).json({ error: 'User is not a freelancer' });
+      return;
+    }
+
+    if (project === 'freelancer_ambiguous') {
+      res.status(409).json({
+        error: 'Multiple freelancers match that name — use their email instead',
+      });
       return;
     }
 

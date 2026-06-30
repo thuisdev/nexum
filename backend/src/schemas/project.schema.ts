@@ -134,7 +134,10 @@ export type AppendMilestonesInput = z.infer<typeof appendMilestonesSchema>;
 
 /** Body for POST /api/projects/:id/invite */
 export const inviteFreelancerSchema = z.object({
-  freelancerEmail: z.string().trim().email('Invalid freelancer email'),
+  identifier: z
+    .string()
+    .trim()
+    .min(1, 'Enter a freelancer email or display name'),
 });
 
 export type InviteFreelancerInput = z.infer<typeof inviteFreelancerSchema>;

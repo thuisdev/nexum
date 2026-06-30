@@ -3,6 +3,10 @@ import type { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { toPublicFileUrl } from '../lib/upload.js';
 import { updateUserSchema } from '../schemas/user.schema.js';
+import {
+  countCompletedProjects,
+  listCompletedProjects,
+} from '../services/user.services.js';
 
 const publicProfileSelect = {
   id: true,
@@ -39,14 +43,18 @@ export const handleGetPublicProfile = async (
       return;
     }
 
-    const reviewStats = await prisma.review.aggregate({
-      where: { subjectId: user.id },
-      _count: { _all: true },
-      _sum: { rating: true },
-    });
+    const [reviewStats, completedProjectCount] = await Promise.all([
+      prisma.review.aggregate({
+        where: { subjectId: user.id },
+        _count: { _all: true },
+        _sum: { rating: true },
+      }),
+      countCompletedProjects(user.id, user.role),
+    ]);
 
     res.json({
       ...user,
+      completedProjectCount,
       reviewCount: reviewStats._count._all,
       totalStars: reviewStats._sum.rating ?? 0,
       averageRating:
@@ -108,6 +116,30 @@ export const handleGetUserReviews = async (
         project: review.project,
       })),
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/users/:id/completed-projects — public list of completed work. */
+export const handleGetUserCompletedProjects = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: String(req.params.id) },
+      select: { id: true, role: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const projects = await listCompletedProjects(user.id, user.role);
+    res.json(projects);
   } catch (error) {
     next(error);
   }

@@ -59,10 +59,10 @@ export const listJobs = async () => {
 
 export const inviteFreelancer = async (
   projectId: string,
-  freelancerEmail: string,
+  identifier: string,
 ) => {
   const res = await api.post<Project>(`/projects/${projectId}/invite`, {
-    freelancerEmail,
+    identifier,
   })
   return res.data
 }
