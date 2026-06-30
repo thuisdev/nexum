@@ -18,15 +18,19 @@ describe.skipIf(!hasDatabase)('applications integration', () => {
   let projectId = '';
   let applicationId = '';
   const userIds: string[] = [];
+  const projectIds: string[] = [];
 
   beforeAll(() => {
     process.env.JWT_SECRET ??= 'test-jwt-secret';
   });
 
   afterAll(async () => {
-    if (projectId) {
-      await prisma.application.deleteMany({ where: { projectId } });
-      await prisma.project.deleteMany({ where: { id: projectId } });
+    for (const id of projectIds) {
+      await prisma.activityLog.deleteMany({ where: { projectId: id } });
+      await prisma.application.deleteMany({ where: { projectId: id } });
+      await prisma.notification.deleteMany({ where: { projectId: id } });
+      await prisma.milestone.deleteMany({ where: { projectId: id } });
+      await prisma.project.deleteMany({ where: { id } });
     }
     if (userIds.length > 0) {
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -91,6 +95,7 @@ describe.skipIf(!hasDatabase)('applications integration', () => {
 
     expect(response.status).toBe(201);
     projectId = response.body.id;
+    projectIds.push(projectId);
   });
 
   it('lets a freelancer apply', async () => {
@@ -125,7 +130,7 @@ describe.skipIf(!hasDatabase)('applications integration', () => {
     expect(response.body.freelancerId).toBeTruthy();
   });
 
-  it('returns 409 when funding without a freelancer on a fresh project', async () => {
+  it('funds escrow before a freelancer is assigned on a fresh project', async () => {
     const created = await request(app)
       .post('/api/projects')
       .set('Authorization', `Bearer ${clientToken}`)
@@ -147,14 +152,17 @@ describe.skipIf(!hasDatabase)('applications integration', () => {
         ],
       });
 
-    const unfundedProjectId = created.body.id;
+    expect(created.status).toBe(201);
+    const prefundProjectId = created.body.id as string;
+    projectIds.push(prefundProjectId);
 
     const response = await request(app)
-      .post(`/api/projects/${unfundedProjectId}/fund`)
+      .post(`/api/projects/${prefundProjectId}/fund`)
       .set('Authorization', `Bearer ${clientToken}`);
 
-    expect(response.status).toBe(409);
-
-    await prisma.project.deleteMany({ where: { id: unfundedProjectId } });
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('FUNDED');
+    expect(response.body.escrowStatus).toBe('FUNDED');
+    expect(response.body.freelancerId).toBeNull();
   });
 });

@@ -37,6 +37,7 @@ export type PublicReview = {
     displayName: string | null
     name: string | null
     avatarUrl: string | null
+    avatarColor?: string | null
   }
   project: { id: string; title: string }
 }

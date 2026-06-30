@@ -13,7 +13,7 @@ test.describe('Public project apply flow', () => {
     await page.goto('/projects/00000000-0000-4000-8000-000000000001');
 
     await expect(
-      page.getByRole('button', { name: 'Application pending' }),
+      page.getByRole('button', { name: 'Withdraw application' }),
     ).toBeVisible();
   });
 
@@ -25,6 +25,7 @@ test.describe('Public project apply flow', () => {
     await expect(page).toHaveURL(/\/dashboard\/freelancer/);
 
     await page.goto('/projects/00000000-0000-4000-8000-000000000001');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
     const applyButton = page.getByRole('button', { name: 'Apply to project' });
     await expect(applyButton).toBeVisible();
@@ -36,7 +37,7 @@ test.describe('Public project apply flow', () => {
     await page.getByRole('button', { name: 'Send application' }).click();
 
     await expect(
-      page.getByRole('button', { name: 'Application pending' }),
+      page.getByRole('button', { name: 'Withdraw application' }),
     ).toBeVisible();
   });
 });

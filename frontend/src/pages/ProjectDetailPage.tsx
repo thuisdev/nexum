@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import { StarRating } from '@/components/ui/StarRating'
 import { Modal, ModalActions } from '@/components/ui/Modal'
 import { StickyActionBar } from '@/components/ui/StickyActionBar'
 import {
@@ -20,6 +21,7 @@ import {
   type ProjectOverflowItem,
 } from '@/components/features'
 import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
+import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
 import { ReviewDialog } from '@/components/features/dialogs/ReviewDialog'
 import { DisputeDialog } from '@/components/features/dialogs/DisputeDialog'
 import {
@@ -56,13 +58,14 @@ import {
   canApproveMilestone,
   canDeleteProject,
   canEditProject,
+  canOpenApplicationsReview,
   canSubmitMilestone,
   displayName,
   formatDeadline,
   mapMilestoneStatus,
   mapProjectStatus,
   previewClientName,
-  projectEscrowLabel,
+  projectEscrowFunded,
   resolveClientCardStatus,
   resolveDisputeCta,
   resolveFreelancerCardStatus,
@@ -73,6 +76,12 @@ import { useAuth } from '@/hooks/useAuth'
 import type { Milestone, Project, ProjectActivity, ProjectPreview } from '@/types/project'
 import type { Application } from '@/types/application'
 import axios from 'axios'
+
+const COMPLETED_MILESTONE_STATUSES = new Set(['PAID'])
+
+function isCompletedMilestone(status: string) {
+  return COMPLETED_MILESTONE_STATUSES.has(status)
+}
 
 function resolveParties(
   project: Project | null,
@@ -136,6 +145,8 @@ export default function ProjectDetailPage() {
   const [declineOpen, setDeclineOpen] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [applicationsOpen, setApplicationsOpen] = useState(false)
+  const [showCompletedMilestones, setShowCompletedMilestones] = useState(false)
   const [myReview, setMyReview] = useState<ProjectReview | null>(null)
   const [myApplication, setMyApplication] = useState<Application | null>(null)
   const reloadProject = useCallback(async () => {
@@ -226,8 +237,14 @@ export default function ProjectDetailPage() {
   }, [id, user])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch updates page state
     void reloadProject()
   }, [reloadProject])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when switching projects
+    setShowCompletedMilestones(false)
+  }, [id])
 
   const closeInviteModal = () => {
     setInviteOpen(false)
@@ -417,25 +434,68 @@ export default function ProjectDetailPage() {
           status: mapProjectStatus(preview?.status ?? 'DRAFT'),
         }
 
-  const milestones: Milestone[] =
-    mode === 'full'
-      ? (project?.milestones ?? [])
-      : (preview?.milestones ?? []).map((milestone, index) => ({
-          id: String(index),
-          orderIndex: milestone.orderIndex,
-          title: milestone.title,
-          description: milestone.description,
-          amount: milestone.amount,
-          deadline: milestone.deadline,
-          status: 'PENDING',
-          latestSubmission: null,
-        }))
+  const showApplicationsCta = Boolean(
+    mode === 'full' &&
+      project &&
+      user &&
+      canOpenApplicationsReview(project, user.id),
+  )
+  const applicantCount = project?.pendingApplicationCount ?? 0
+
+  const applicationsButton = showApplicationsCta ? (
+    <div className="flex items-center gap-3">
+      {applicantCount > 0 ? (
+        <span className="text-xs font-medium uppercase tracking-[0.3px] text-ink-500">
+          {applicantCount} Applicant{applicantCount === 1 ? '' : 's'}
+        </span>
+      ) : null}
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={() => setApplicationsOpen(true)}
+      >
+        Applications
+      </Button>
+    </div>
+  ) : null
+
+  const milestones: Milestone[] = useMemo(
+    () =>
+      mode === 'full'
+        ? (project?.milestones ?? [])
+        : (preview?.milestones ?? []).map((milestone, index) => ({
+            id: String(index),
+            orderIndex: milestone.orderIndex,
+            title: milestone.title,
+            description: milestone.description,
+            amount: milestone.amount,
+            deadline: milestone.deadline,
+            status: 'PENDING',
+            latestSubmission: null,
+          })),
+    [mode, project?.milestones, preview?.milestones],
+  )
 
   const milestoneStats = useMemo(() => {
     const total = milestones.length
     const paid = milestones.filter((m) => m.status === 'PAID').length
     return { total, paid }
   }, [milestones])
+
+  const completedMilestoneCount = useMemo(
+    () => milestones.filter((m) => isCompletedMilestone(m.status)).length,
+    [milestones],
+  )
+
+  const activeMilestones = useMemo(
+    () => milestones.filter((m) => !isCompletedMilestone(m.status)),
+    [milestones],
+  )
+
+  const completedMilestones = useMemo(
+    () => milestones.filter((m) => isCompletedMilestone(m.status)),
+    [milestones],
+  )
 
   const handleDelete = async () => {
     if (!id) return
@@ -557,13 +617,35 @@ export default function ProjectDetailPage() {
 
     if (canApproveMilestone(project, milestone, user.id)) {
       return {
-        actionLabel: 'Review & approve',
+        actionLabel: 'Approve',
         actionVariant: 'approve' as const,
         onAction: () => setApproveMilestoneId(milestone.id),
       }
     }
 
     return {}
+  }
+
+  const renderMilestoneCard = (milestone: Milestone) => {
+    const cardAction = resolveMilestoneCardAction(milestone)
+    const orderIndex =
+      milestones.findIndex((item) => item.id === milestone.id) + 1
+
+    return (
+      <MilestoneCard
+        key={milestone.id ?? milestone.orderIndex}
+        orderLabel={`Milestone ${orderIndex || milestone.orderIndex + 1}`}
+        title={milestone.title}
+        description={milestone.description}
+        amount={milestone.amount}
+        deadline={formatDeadline(milestone.deadline)}
+        status={mapMilestoneStatus(milestone.status)}
+        submission={milestone.latestSubmission}
+        fileDownloadUrl={uploadFileUrl(milestone.latestSubmission?.fileUrl)}
+        paidAt={milestone.paidAt}
+        {...cardAction}
+      />
+    )
   }
 
   const overflowItems = useMemo((): ProjectOverflowItem[] => {
@@ -703,9 +785,14 @@ export default function ProjectDetailPage() {
           <ProjectDetailHero
             title={title}
             status={statusInfo.status}
-            statusLabel={statusInfo.label}
+            statusLabel={showApplicationsCta ? undefined : statusInfo.label}
+            statusSlot={applicationsButton}
             skills={skills}
-            escrowLabel={project ? projectEscrowLabel(project) : undefined}
+            escrowFunded={
+              mode === 'full' && project
+                ? projectEscrowFunded(project)
+                : undefined
+            }
             milestoneCount={milestoneStats.total}
             milestonesPaid={milestoneStats.paid}
             milestonesTotal={milestoneStats.total}
@@ -719,34 +806,47 @@ export default function ProjectDetailPage() {
 
           <section className="flex flex-col gap-3 text-left">
             <SectionLabel>Milestones</SectionLabel>
-            {milestones.length > 0 ? (
+            {activeMilestones.length > 0 ? (
               <div className="flex flex-col gap-3">
-                {milestones.map((milestone, index) => {
-                  const cardAction = resolveMilestoneCardAction(milestone)
-
-                  return (
-                    <MilestoneCard
-                      key={milestone.id ?? milestone.orderIndex}
-                      orderLabel={`Milestone ${index + 1}`}
-                      title={milestone.title}
-                      description={milestone.description}
-                      amount={milestone.amount}
-                      deadline={formatDeadline(milestone.deadline)}
-                      status={mapMilestoneStatus(milestone.status)}
-                      submission={milestone.latestSubmission}
-                      fileDownloadUrl={uploadFileUrl(milestone.latestSubmission?.fileUrl)}
-                      paidAt={milestone.paidAt}
-                      {...cardAction}
-                    />
-                  )
-                })}
+                {activeMilestones.map((milestone) => renderMilestoneCard(milestone))}
               </div>
+            ) : completedMilestoneCount > 0 ? (
+              <EmptyPanel
+                icon={ListChecks}
+                title="All milestones completed"
+                message="Use “Show completed” below to view paid milestones."
+              />
             ) : (
               <EmptyPanel
                 icon={ListChecks}
                 title="No milestones yet"
                 message="Milestones define scope, deadlines, and escrow releases for this project."
               />
+            )}
+            {completedMilestoneCount > 0 && (
+              <div className="flex flex-col gap-4 pt-1">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedMilestones((prev) => !prev)}
+                    className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+                  >
+                    {showCompletedMilestones
+                      ? 'Hide completed'
+                      : `Show completed (${completedMilestoneCount})`}
+                  </button>
+                </div>
+                {showCompletedMilestones && (
+                  <div className="flex flex-col gap-3 border-t border-ink-100 pt-4">
+                    <SectionLabel>Completed</SectionLabel>
+                    <div className="flex flex-col gap-3">
+                      {completedMilestones.map((milestone) =>
+                        renderMilestoneCard(milestone),
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </section>
 
@@ -763,12 +863,7 @@ export default function ProjectDetailPage() {
             <section className="flex flex-col gap-3 text-left">
               <SectionLabel>Your review</SectionLabel>
               <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-sm">
-                <p className="text-sm text-amber-500">
-                  {'★'.repeat(myReview.rating)}
-                  <span className="text-ink-300">
-                    {'★'.repeat(Math.max(0, 5 - myReview.rating))}
-                  </span>
-                </p>
+                <StarRating rating={myReview.rating} size="md" />
                 {myReview.comment && (
                   <p className="mt-2 text-sm leading-5 text-ink-600">{myReview.comment}</p>
                 )}
@@ -901,6 +996,17 @@ export default function ProjectDetailPage() {
           reason={declineReason}
           onReasonChange={setDeclineReason}
         />
+
+        {mode === 'full' && project && (
+          <ReviewApplicationsModal
+            open={applicationsOpen}
+            projectId={project.id}
+            projectTitle={project.title}
+            onClose={() => setApplicationsOpen(false)}
+            onUpdated={() => void reloadProject()}
+            showProjectLink={false}
+          />
+        )}
 
         {reviewSubject && (
           <ReviewDialog

@@ -48,6 +48,13 @@ export interface Project {
     avatarUrl: string | null
     isVerified: boolean
   } | null
+  invitedFreelancer?: {
+    id: string
+    displayName: string | null
+    name: string | null
+    avatarUrl: string | null
+    isVerified: boolean
+  } | null
   openDispute?: ProjectOpenDispute | null
   pendingApplicationCount?: number
 }

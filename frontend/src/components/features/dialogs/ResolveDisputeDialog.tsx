@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Modal, ModalActions } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
@@ -46,21 +46,20 @@ export function ResolveDisputeDialog({
   const [outcome, setOutcome] = useState('RESOLVED_FREELANCER')
   const [resolution, setResolution] = useState('')
 
-  useEffect(() => {
-    if (!open) {
-      setOutcome('RESOLVED_FREELANCER')
-      setResolution('')
-    }
-  }, [open])
+  const handleClose = () => {
+    setOutcome('RESOLVED_FREELANCER')
+    setResolution('')
+    onClose()
+  }
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       title="Resolve dispute"
       footer={
         <ModalActions
-          onCancel={onClose}
+          onCancel={handleClose}
           onConfirm={() => onConfirm(outcome, resolution.trim())}
           confirmLabel="Resolve"
           confirmVariant="approve"

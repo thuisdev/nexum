@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 export type FilterChipProps = {
   children: string
   active?: boolean
+  disabled?: boolean
   onClick?: () => void
   className?: string
 }
@@ -10,6 +11,7 @@ export type FilterChipProps = {
 export function FilterChip({
   children,
   active = false,
+  disabled = false,
   onClick,
   className,
 }: FilterChipProps) {
@@ -17,9 +19,11 @@ export function FilterChip({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         'inline-flex h-auto items-center rounded-full px-3.5 py-2 text-sm font-medium leading-5 transition-colors',
         'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40 focus-visible:ring-offset-2',
+        disabled && 'cursor-not-allowed opacity-40',
         active
           ? 'bg-brand-500 text-white'
           : 'bg-ink-50 text-ink-500 hover:bg-ink-100',

@@ -7,6 +7,7 @@ const freelancerPublicSelect = {
   displayName: true,
   name: true,
   avatarUrl: true,
+  avatarColor: true,
   isVerified: true,
 } as const;
 

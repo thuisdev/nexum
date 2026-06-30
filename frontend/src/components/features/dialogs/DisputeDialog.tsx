@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Modal, ModalActions } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 
@@ -21,18 +21,19 @@ export function DisputeDialog({
 }: DisputeDialogProps) {
   const [reason, setReason] = useState('')
 
-  useEffect(() => {
-    if (!open) setReason('')
-  }, [open])
+  const handleClose = () => {
+    setReason('')
+    onClose()
+  }
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       title="Request arbiter review"
       footer={
         <ModalActions
-          onCancel={onClose}
+          onCancel={handleClose}
           onConfirm={() => onConfirm(reason.trim())}
           confirmLabel="Submit for review"
           confirmVariant="danger"

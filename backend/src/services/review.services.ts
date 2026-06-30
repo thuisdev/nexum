@@ -69,7 +69,22 @@ export const createProjectReview = async (
       rating: input.rating,
       comment: input.comment?.trim() || null,
     },
-    include: { author: { select: authorSelect } },
+    include: {
+      author: { select: authorSelect },
+      project: { select: { title: true } },
+    },
+  });
+
+  const authorName =
+    review.author.displayName ?? review.author.name ?? 'Someone';
+
+  await prisma.notification.create({
+    data: {
+      userId: subjectId,
+      projectId,
+      type: 'REVIEW_RECEIVED',
+      message: `${authorName} left you a ${input.rating}-star review on "${review.project.title}"`,
+    },
   });
 
   return {

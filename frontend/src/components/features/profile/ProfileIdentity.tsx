@@ -11,6 +11,7 @@ export type ProfileIdentityProps = {
   memberSince: string
   bio: string
   skills: string[]
+  tagsLabel?: string
   avatarUrl?: string | null
   verified?: boolean
   isOwner?: boolean
@@ -25,6 +26,7 @@ export function ProfileIdentity({
   memberSince,
   bio,
   skills,
+  tagsLabel = 'Skills',
   avatarUrl,
   verified = true,
   isOwner = false,
@@ -91,7 +93,7 @@ export function ProfileIdentity({
             {skills.length > 0 && (
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-medium uppercase tracking-[1.2px] text-ink-400">
-                  Skills
+                  {tagsLabel}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {skills.map((skill) => (

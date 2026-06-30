@@ -21,6 +21,7 @@ import {
   type AvatarColor,
 } from '@/lib/avatarColors'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { CLIENT_INDUSTRIES, MAX_CLIENT_INDUSTRIES } from '@/lib/clientIndustries'
 import { displayName } from '@/lib/projectDisplay'
 import { uploadAvatar } from '@/lib/users.api'
 import { updateProfileSchema, type UpdateProfileInput } from '@/lib/validation'
@@ -39,6 +40,7 @@ function formatRole(role: string) {
 function SettingsForm({ user }: { user: User }) {
   const navigate = useNavigate()
   const { update } = useAuth()
+  const isClient = user.role === 'CLIENT'
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? null)
@@ -192,53 +194,63 @@ function SettingsForm({ user }: { user: User }) {
           </FormField>
 
           <FormField
-            label="Display name"
+            label={isClient ? 'Organization name' : 'Display name'}
             htmlFor="displayName"
             helper="Public — shown on your profile and project cards"
             error={errors.displayName?.message}
           >
             <Input
               id="displayName"
-              placeholder="e.g. bob.eth"
+              placeholder={isClient ? 'e.g. Acme Labs' : 'e.g. bob.eth'}
               error={!!errors.displayName}
               {...register('displayName')}
             />
           </FormField>
 
-          <FormField
-            label="Legal name"
-            htmlFor="name"
-            helper="Optional — not shown on your public profile"
-            error={errors.name?.message}
-          >
-            <Input
-              id="name"
-              placeholder="Your real name"
-              error={!!errors.name}
-              {...register('name')}
-            />
-          </FormField>
+          {!isClient && (
+            <FormField
+              label="Legal name"
+              htmlFor="name"
+              helper="Optional — not shown on your public profile"
+              error={errors.name?.message}
+            >
+              <Input
+                id="name"
+                placeholder="Your real name"
+                error={!!errors.name}
+                {...register('name')}
+              />
+            </FormField>
+          )}
 
           <FormField
             label="Bio"
             htmlFor="bio"
             helper={
-              user.role === 'FREELANCER'
-                ? 'Describe your experience and how you work'
-                : 'Tell freelancers what kind of projects you run'
+              isClient
+                ? 'Describe your organization and the kind of work you hire for'
+                : 'Describe your experience and how you work'
             }
           >
             <Textarea
               id="bio"
-              placeholder="Short intro for your public profile…"
+              placeholder={
+                isClient
+                  ? 'What you build, team size, typical projects…'
+                  : 'Short intro for your public profile…'
+              }
               {...register('bio')}
             />
           </FormField>
 
           <FormField
-            label="Skills"
+            label={isClient ? 'Industries' : 'Skills'}
             htmlFor="skills"
-            helper="Pick presets or add your own with +"
+            helper={
+              isClient
+                ? 'Pick sectors you hire in — presets or add your own with +'
+                : 'Pick presets or add your own with +'
+            }
             error={errors.skills?.message}
           >
             <Controller
@@ -249,6 +261,9 @@ function SettingsForm({ user }: { user: User }) {
                   value={field.value ?? []}
                   onChange={field.onChange}
                   allowCustom
+                  presets={isClient ? CLIENT_INDUSTRIES : undefined}
+                  maxSkills={isClient ? MAX_CLIENT_INDUSTRIES : undefined}
+                  customPlaceholder={isClient ? 'Custom industry' : 'Custom skill'}
                   error={errors.skills?.message}
                 />
               )}

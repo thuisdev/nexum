@@ -1,5 +1,16 @@
 import { z } from 'zod'
-import { PROJECT_SKILLS } from './projectSkills'
+import { MAX_PROJECT_SKILLS } from './projectSkills'
+
+const projectSkillsSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, 'Skill cannot be empty')
+      .max(40, 'Skill is too long'),
+  )
+  .min(1, 'Select at least one skill')
+  .max(MAX_PROJECT_SKILLS, `Select up to ${MAX_PROJECT_SKILLS} skills`)
 
 const positiveAmount = (label: string) =>
   z
@@ -75,9 +86,7 @@ export const createProjectFormSchema = z
     budget: positiveAmount('Budget'),
     currency: z.string().min(1, 'Currency is required'),
     visibility: z.enum(['public', 'private']),
-    skills: z
-      .array(z.enum(PROJECT_SKILLS))
-      .min(1, 'Select at least one skill'),
+    skills: projectSkillsSchema,
     milestones: z
       .array(milestoneFormSchema)
       .min(1, 'At least one milestone is required'),

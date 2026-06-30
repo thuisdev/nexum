@@ -173,6 +173,9 @@ export const listProjects = async (userId: string, userRole: Role) => {
     where,
     include: {
       milestones: true,
+      client: { select: clientPublicSelect },
+      freelancer: { select: clientPublicSelect },
+      invitedFreelancer: { select: clientPublicSelect },
       ...(userRole === 'CLIENT'
         ? {
             _count: {
@@ -188,6 +191,9 @@ export const listProjects = async (userId: string, userRole: Role) => {
 
   return projects.map((project) => ({
     ...serializeProject(project),
+    client: project.client,
+    freelancer: project.freelancer,
+    invitedFreelancer: project.invitedFreelancer,
     ...('_count' in project && project._count
       ? { pendingApplicationCount: project._count.applications }
       : {}),
@@ -212,6 +218,15 @@ export const getProjectById = async (
       },
       client: { select: clientPublicSelect },
       freelancer: { select: clientPublicSelect },
+      ...(userRole === 'CLIENT'
+        ? {
+            _count: {
+              select: {
+                applications: { where: { status: 'PENDING' } },
+              },
+            },
+          }
+        : {}),
     },
   });
 
@@ -237,10 +252,16 @@ export const getProjectById = async (
     openDispute &&
     (openDispute.arbiterId === userId || openDispute.arbiterId === null);
 
+  const isOpenPublicJob =
+    project.isPublic &&
+    !project.freelancerId &&
+    (project.status === 'DRAFT' || project.status === 'FUNDED');
+
   if (
     !canAccessProject(project, userId, userRole) &&
     !arbiterCanAccess &&
-    userRole !== 'ADMIN'
+    userRole !== 'ADMIN' &&
+    !(userRole === 'FREELANCER' && isOpenPublicJob)
   ) {
     return 'forbidden' as const;
   }
@@ -249,6 +270,12 @@ export const getProjectById = async (
     ...serializeProject(project),
     client: project.client,
     freelancer: project.freelancer,
+    ...(userRole === 'CLIENT' &&
+    project.clientId === userId &&
+    '_count' in project &&
+    project._count
+      ? { pendingApplicationCount: project._count.applications }
+      : {}),
     openDispute: openDispute
       ? {
           id: openDispute.id,

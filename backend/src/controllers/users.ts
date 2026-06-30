@@ -89,6 +89,7 @@ export const handleGetUserReviews = async (
             displayName: true,
             name: true,
             avatarUrl: true,
+            avatarColor: true,
           },
         },
         project: { select: { id: true, title: true } },

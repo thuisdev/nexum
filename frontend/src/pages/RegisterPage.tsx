@@ -115,7 +115,7 @@ export default function RegisterPage() {
           helper={
             role === 'FREELANCER'
               ? 'Shown on your public profile and job board — e.g. bob.eth'
-              : 'Shown publicly when you post projects — optional'
+              : 'Your organization — shown when you post projects'
           }
           error={errors.displayName?.message}
         >
@@ -127,20 +127,22 @@ export default function RegisterPage() {
           />
         </FormField>
 
-        <FormField
-          label="Legal name"
-          htmlFor="name"
-          helper="Optional — not shown publicly"
-          error={errors.name?.message}
-        >
-          <Input
-            id="name"
-            placeholder="Your real name"
-            autoComplete="name"
-            error={!!errors.name}
-            {...register('name')}
-          />
-        </FormField>
+        {role === 'FREELANCER' && (
+          <FormField
+            label="Legal name"
+            htmlFor="name"
+            helper="Optional — not shown publicly"
+            error={errors.name?.message}
+          >
+            <Input
+              id="name"
+              placeholder="Your real name"
+              autoComplete="name"
+              error={!!errors.name}
+              {...register('name')}
+            />
+          </FormField>
+        )}
 
         <Button type="submit" fullWidth loading={isSubmitting}>
           Create account

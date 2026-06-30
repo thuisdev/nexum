@@ -83,6 +83,20 @@ export function resolveClientCardStatus(project: Project): {
   return { status: 'DRAFT' }
 }
 
+/** Client can review applications on an open public draft project. */
+export function canOpenApplicationsReview(
+  project: Project,
+  userId: string,
+): boolean {
+  return (
+    project.clientId === userId &&
+    project.isPublic &&
+    !project.freelancerId &&
+    project.status === 'DRAFT' &&
+    !project.invitedFreelancerId
+  )
+}
+
 export function resolveFreelancerCardStatus(
   project: Project,
   userId: string,
@@ -100,6 +114,17 @@ export function resolveFreelancerCardStatus(
   }
 
   return { status: mapProjectStatus(project.status) }
+}
+
+export function projectEscrowFunded(
+  project: Pick<Project, 'escrowStatus' | 'status'>,
+): boolean {
+  return (
+    project.escrowStatus === 'FUNDED' ||
+    project.escrowStatus === 'RELEASED' ||
+    project.status === 'IN_PROGRESS' ||
+    project.status === 'COMPLETED'
+  )
 }
 
 export function projectEscrowLabel(
@@ -155,9 +180,6 @@ export function projectDraftMeta(project: Project) {
 }
 
 export function jobToCardProps(job: JobBoardProject) {
-  const lastMilestone = job.milestoneCount
-  const escrowLabel =
-    job.escrowStatus === 'FUNDED' ? ('Escrow-backed' as const) : undefined
   return {
     id: job.id,
     title: job.title,
@@ -165,8 +187,8 @@ export function jobToCardProps(job: JobBoardProject) {
     currency: job.currency,
     partyName: displayName(job.client),
     tags: job.skills,
-    milestoneCount: lastMilestone,
-    escrowLabel,
+    milestoneCount: job.milestoneCount,
+    escrowFunded: job.escrowStatus === 'FUNDED',
     timeAgo: formatRelativeTime(job.createdAt),
   }
 }
@@ -176,6 +198,24 @@ export function projectToClientCardProps(project: Project) {
   const hasApplicants =
     project.isPublic && !project.freelancerId && project.status === 'DRAFT'
   const applicantCount = project.pendingApplicationCount ?? 0
+
+  const party = project.freelancer
+    ? {
+        partyId: project.freelancer.id,
+        partyLabel: 'Freelancer' as const,
+        partyName: displayName(project.freelancer),
+        partyAvatarUrl: project.freelancer.avatarUrl,
+        verified: project.freelancer.isVerified,
+      }
+    : project.invitedFreelancer && project.invitedFreelancerId && !project.freelancerId
+      ? {
+          partyId: project.invitedFreelancer.id,
+          partyLabel: 'Invited' as const,
+          partyName: displayName(project.invitedFreelancer),
+          partyAvatarUrl: project.invitedFreelancer.avatarUrl,
+          verified: project.invitedFreelancer.isVerified,
+        }
+      : {}
 
   return {
     id: project.id,
@@ -191,9 +231,10 @@ export function projectToClientCardProps(project: Project) {
         : ('in_progress' as const),
     draftMeta: projectDraftMeta(project),
     milestoneCount: project.milestones.length,
-    escrowLabel: projectEscrowLabel(project),
-    applicantCount: hasApplicants && applicantCount > 0 ? applicantCount : undefined,
-    showReviewApplicants: hasApplicants && applicantCount > 0,
+    escrowFunded: projectEscrowFunded(project),
+    applicantCount: hasApplicants ? applicantCount : undefined,
+    showReviewApplicants: hasApplicants,
+    ...party,
   }
 }
 
@@ -217,7 +258,16 @@ export function projectToFreelancerCardProps(
       ? ('invited' as const)
       : ('in_progress' as const),
     milestoneCount: project.milestones.length,
-    escrowLabel: projectEscrowLabel(project),
+    escrowFunded: projectEscrowFunded(project),
+    ...(project.client
+      ? {
+          partyId: project.client.id,
+          partyLabel: 'Client' as const,
+          partyName: displayName(project.client),
+          partyAvatarUrl: project.client.avatarUrl,
+          verified: project.client.isVerified,
+        }
+      : {}),
   }
 }
 

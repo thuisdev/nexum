@@ -14,8 +14,11 @@ import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { PublicUserProfile } from '@/types/user'
 
-const BIO_PLACEHOLDER =
+const BIO_PLACEHOLDER_FREELANCER =
   'No bio yet. Completed work and reviews will appear here after launch.'
+
+const BIO_PLACEHOLDER_CLIENT =
+  'No bio yet. Add a short intro about your organization in profile settings.'
 
 function formatRole(role: string) {
   return role.charAt(0) + role.slice(1).toLowerCase()
@@ -76,7 +79,10 @@ export default function UserProfilePage() {
   }
 
   const memberSince = new Date(profile.createdAt).getFullYear().toString()
-  const bio = profile.bio?.trim() || BIO_PLACEHOLDER
+  const isClient = profile.role === 'CLIENT'
+  const bio =
+    profile.bio?.trim() ||
+    (isClient ? BIO_PLACEHOLDER_CLIENT : BIO_PLACEHOLDER_FREELANCER)
   const bioPlaceholder = !profile.bio?.trim()
   const reviewCount = profile.reviewCount ?? 0
   const totalStars = profile.totalStars ?? 0
@@ -117,6 +123,7 @@ export default function UserProfilePage() {
           bio={bio}
           bioPlaceholder={bioPlaceholder}
           skills={profile.skills}
+          tagsLabel={isClient ? 'Industries' : 'Skills'}
           avatarUrl={profile.avatarUrl}
           verified={profile.isVerified}
           isOwner={isOwner}
@@ -126,11 +133,15 @@ export default function UserProfilePage() {
         <StatStrip align="start" cells={statCells} />
 
         <section className="flex flex-col gap-3 text-left">
-          <SectionLabel>Recent work</SectionLabel>
+          <SectionLabel>{isClient ? 'Projects posted' : 'Recent work'}</SectionLabel>
           <EmptyPanel
             icon={Briefcase}
             title="No completed projects yet"
-            message="Finished work will show up here once milestones are paid out."
+            message={
+              isClient
+                ? 'Finished projects you funded will show up here once milestones are paid out.'
+                : 'Finished work will show up here once milestones are paid out.'
+            }
           />
         </section>
 
@@ -142,7 +153,10 @@ export default function UserProfilePage() {
                 <ProfileReviewCard
                   key={review.id}
                   rating={review.rating}
+                  authorId={review.author.id}
                   author={displayName(review.author)}
+                  authorAvatarUrl={review.author.avatarUrl}
+                  authorAvatarColor={review.author.avatarColor}
                   timeAgo={formatRelativeTime(review.createdAt)}
                   text={
                     review.comment?.trim() ||

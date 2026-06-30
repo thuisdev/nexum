@@ -14,7 +14,7 @@ import {
   type MilestoneRowErrors,
 } from '@/components/features/project/MilestoneRow'
 import { SkillPicker } from '@/components/features/project/SkillPicker'
-import { type ProjectSkill } from '@/lib/projectSkills'
+import { type ProjectSkill, MAX_PROJECT_SKILLS } from '@/lib/projectSkills'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { createProject } from '@/lib/projects.api'
 import {
@@ -203,10 +203,15 @@ export default function CreateProjectPage() {
           </Select>
         </FormField>
 
-        <FormField label="Skills" helper="Select at least one — used on the job board">
+        <FormField
+          label="Skills"
+          helper={`Pick up to ${MAX_PROJECT_SKILLS} skills — shown on the job board`}
+        >
           <SkillPicker
             value={skills}
             onChange={(next) => setSkills(next as typeof skills)}
+            allowCustom
+            maxSkills={MAX_PROJECT_SKILLS}
             error={errors.skills}
           />
         </FormField>

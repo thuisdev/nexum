@@ -58,6 +58,7 @@ enum NotificationType {
   MILESTONE_DISPUTED
   DISPUTE_RESOLVED
   PAYMENT_RELEASED
+  REVIEW_RECEIVED
 }
 
 enum ApplicationStatus {
