@@ -13,11 +13,14 @@ import {
   InviteFreelancerModal,
   ProjectCard,
 } from '@/components/features'
+import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { listProjects } from '@/lib/projects.api'
 import { projectToClientCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import type { Project } from '@/types/project'
+
+type ClientFilter = 'all' | 'drafts' | 'active'
 
 export default function ClientDashboard() {
   const navigate = useNavigate()
@@ -25,6 +28,8 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [inviteProjectId, setInviteProjectId] = useState<string | null>(null)
+  const [reviewProject, setReviewProject] = useState<Project | null>(null)
+  const [filter, setFilter] = useState<ClientFilter>('all')
 
   const refreshProjects = useCallback(async () => {
     setLoading(true)
@@ -64,12 +69,34 @@ export default function ClientDashboard() {
   }, [])
 
   const summary = useMemo(() => {
-    const drafts = projects.filter((p) => p.status === 'DRAFT').length
+    const drafts = projects.filter(
+      (p) => p.status === 'DRAFT' || p.status === 'FUNDED',
+    ).length
     const active = projects.filter(
-      (p) => p.status !== 'DRAFT' && p.status !== 'COMPLETED' && p.status !== 'CANCELLED',
+      (p) =>
+        p.status !== 'DRAFT' &&
+        p.status !== 'FUNDED' &&
+        p.status !== 'COMPLETED' &&
+        p.status !== 'CANCELLED',
     ).length
     return { total: projects.length, drafts, active }
   }, [projects])
+
+  const filteredProjects = useMemo(() => {
+    if (filter === 'drafts') {
+      return projects.filter((p) => p.status === 'DRAFT' || p.status === 'FUNDED')
+    }
+    if (filter === 'active') {
+      return projects.filter(
+        (p) =>
+          p.status !== 'DRAFT' &&
+          p.status !== 'FUNDED' &&
+          p.status !== 'COMPLETED' &&
+          p.status !== 'CANCELLED',
+      )
+    }
+    return projects
+  }, [projects, filter])
 
   return (
     <AppSection className="!py-8 md:!py-12">
@@ -84,12 +111,15 @@ export default function ClientDashboard() {
 
       {!loading && projects.length > 0 && (
         <DashboardSummary
+          className="mb-6"
           stats={[
             {
               id: 'total',
               label: 'Total projects',
               value: summary.total,
               icon: Briefcase,
+              active: filter === 'all',
+              onClick: () => setFilter('all'),
             },
             {
               id: 'drafts',
@@ -97,6 +127,8 @@ export default function ClientDashboard() {
               value: summary.drafts,
               icon: FileEdit,
               highlight: summary.drafts > 0,
+              active: filter === 'drafts',
+              onClick: () => setFilter('drafts'),
             },
             {
               id: 'active',
@@ -104,6 +136,8 @@ export default function ClientDashboard() {
               value: summary.active,
               icon: Rocket,
               highlight: summary.active > 0,
+              active: filter === 'active',
+              onClick: () => setFilter('active'),
             },
           ]}
         />
@@ -113,12 +147,12 @@ export default function ClientDashboard() {
 
       {loading ? (
         <DashboardGridSkeleton count={3} />
-      ) : projects.length > 0 ? (
+      ) : filteredProjects.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => {
+          {filteredProjects.map((project) => {
             const card = projectToClientCardProps(project)
             const canInvite =
-              project.status === 'DRAFT' &&
+              (project.status === 'DRAFT' || project.status === 'FUNDED') &&
               !project.freelancerId &&
               !project.invitedFreelancerId
 
@@ -130,10 +164,21 @@ export default function ClientDashboard() {
                 showInvite={canInvite}
                 onCardClick={() => navigate(ROUTES.project(project.id))}
                 onInvite={() => setInviteProjectId(project.id)}
+                showReviewApplicants={card.showReviewApplicants}
+                applicantCount={card.applicantCount}
+                onReviewApplicants={() => setReviewProject(project)}
               />
             )
           })}
         </div>
+      ) : projects.length > 0 ? (
+        <EmptyState
+          title="No projects in this view"
+          description="Try another filter or create a new project."
+          action={
+            <EmptyStateButton label="Show all" onClick={() => setFilter('all')} />
+          }
+        />
       ) : (
         <EmptyState
           title="No projects yet"
@@ -155,6 +200,14 @@ export default function ClientDashboard() {
           onSuccess={() => void refreshProjects()}
         />
       )}
+
+      <ReviewApplicationsModal
+        open={!!reviewProject}
+        projectId={reviewProject?.id ?? null}
+        projectTitle={reviewProject?.title}
+        onClose={() => setReviewProject(null)}
+        onUpdated={() => void refreshProjects()}
+      />
     </AppSection>
   )
 }

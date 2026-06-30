@@ -60,8 +60,8 @@ export const applyToProject = async (
     return 'not_public' as const;
   }
 
-  if (project.status !== 'DRAFT') {
-    return 'not_draft' as const;
+  if (project.status !== 'DRAFT' && project.status !== 'FUNDED') {
+    return 'not_open' as const;
   }
 
   if (project.freelancerId) {
@@ -224,8 +224,8 @@ export const acceptApplication = async (
     return 'not_pending' as const;
   }
 
-  if (application.project.status !== 'DRAFT') {
-    return 'not_draft' as const;
+  if (application.project.status !== 'DRAFT' && application.project.status !== 'FUNDED') {
+    return 'not_open' as const;
   }
 
   if (application.project.freelancerId) {
@@ -242,14 +242,24 @@ export const acceptApplication = async (
       select: { freelancerId: true },
     });
 
+    const isPrefunded = application.project.escrowStatus === 'FUNDED';
+
     const project = await tx.project.update({
       where: { id: application.projectId },
       data: {
         freelancerId: application.freelancerId,
         invitedFreelancerId: null,
+        ...(isPrefunded ? { status: 'IN_PROGRESS' as const } : {}),
       },
       include: { milestones: true },
     });
+
+    if (isPrefunded) {
+      await tx.milestone.updateMany({
+        where: { projectId: application.projectId, orderIndex: 0, status: 'PENDING' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    }
 
     await tx.application.update({
       where: { id: applicationId },
@@ -359,4 +369,27 @@ export const rejectApplication = async (
   });
 
   return serializeApplication(updated);
+};
+
+/** Freelancer withdraws a pending application. */
+export const withdrawApplication = async (
+  projectId: string,
+  freelancerId: string,
+) => {
+  const application = await prisma.application.findUnique({
+    where: {
+      projectId_freelancerId: { projectId, freelancerId },
+    },
+  });
+
+  if (!application) {
+    return null;
+  }
+
+  if (application.status !== 'PENDING') {
+    return 'not_pending' as const;
+  }
+
+  await prisma.application.delete({ where: { id: application.id } });
+  return { id: application.id };
 };

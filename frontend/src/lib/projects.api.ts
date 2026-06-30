@@ -72,6 +72,13 @@ export const acceptInvite = async (projectId: string) => {
   return res.data
 }
 
+export const declineInvite = async (projectId: string, reason?: string) => {
+  const res = await api.post<Project>(`/projects/${projectId}/decline`, {
+    ...(reason?.trim() ? { reason: reason.trim() } : {}),
+  })
+  return res.data
+}
+
 export const fundProject = async (projectId: string) => {
   const res = await api.post<Project>(`/projects/${projectId}/fund`)
   return res.data
@@ -174,5 +181,27 @@ export const listArbiterDisputes = async () => {
       }
     >
   >('/projects/disputes/assigned')
+  return res.data
+}
+
+export type ProjectReview = {
+  id: string
+  rating: number
+  comment: string | null
+  createdAt: string
+  authorId: string
+  subjectId: string
+}
+
+export const getMyProjectReview = async (projectId: string) => {
+  const res = await api.get<ProjectReview | null>(`/projects/${projectId}/my-review`)
+  return res.data
+}
+
+export const createProjectReview = async (
+  projectId: string,
+  payload: { rating: number; comment?: string },
+) => {
+  const res = await api.post<ProjectReview>(`/projects/${projectId}/review`, payload)
   return res.data
 }

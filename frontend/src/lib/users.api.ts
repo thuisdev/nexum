@@ -13,6 +13,15 @@ export const patchMe = async (credentials: UpdateProfileInput) => {
   return res.data
 }
 
+export const uploadAvatar = async (file: File) => {
+  const form = new FormData()
+  form.append('avatar', file)
+  const res = await api.post('/users/me/avatar', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
 export const getPublicProfile = async (userId: string) => {
   const res = await publicApi.get<PublicUserProfile>(`/users/${userId}/public`)
   return res.data

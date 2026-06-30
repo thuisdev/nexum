@@ -49,6 +49,7 @@ export interface Project {
     isVerified: boolean
   } | null
   openDispute?: ProjectOpenDispute | null
+  pendingApplicationCount?: number
 }
 
 export interface ProjectOpenDispute {
@@ -128,6 +129,7 @@ export interface JobBoardProject {
   totalBudget: string
   currency: string
   status: string
+  escrowStatus?: string
   skills: string[]
   milestoneCount: number
   createdAt: string

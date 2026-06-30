@@ -131,3 +131,10 @@ export const inviteFreelancerSchema = z.object({
 });
 
 export type InviteFreelancerInput = z.infer<typeof inviteFreelancerSchema>;
+
+/** Body for POST /api/projects/:id/decline */
+export const declineInviteSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+});
+
+export type DeclineInviteInput = z.infer<typeof declineInviteSchema>;

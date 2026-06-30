@@ -7,6 +7,8 @@ export type DashboardStat = {
   value: string | number
   icon: LucideIcon
   highlight?: boolean
+  active?: boolean
+  onClick?: () => void
 }
 
 export type DashboardSummaryProps = {
@@ -24,15 +26,26 @@ export function DashboardSummary({ stats, className }: DashboardSummaryProps) {
     >
       {stats.map((stat) => {
         const Icon = stat.icon
+        const interactive = Boolean(stat.onClick)
+        const Wrapper = interactive ? 'button' : 'div'
+
         return (
-          <div
+          <Wrapper
             key={stat.id}
-            className="flex items-start gap-3 rounded-xl border border-ink-200 bg-white p-4 shadow-sm"
+            type={interactive ? 'button' : undefined}
+            onClick={stat.onClick}
+            className={cn(
+              'flex items-start gap-3 rounded-xl border bg-white p-4 text-left shadow-sm transition-[border-color,box-shadow]',
+              stat.active
+                ? 'border-brand-300 ring-1 ring-brand-100'
+                : 'border-ink-200',
+              interactive && 'hover:border-brand-200 hover:shadow-md',
+            )}
           >
             <div
               className={cn(
                 'flex size-9 shrink-0 items-center justify-center rounded-lg',
-                stat.highlight
+                stat.highlight || stat.active
                   ? 'bg-brand-50 text-brand-600'
                   : 'bg-ink-50 text-ink-500',
               )}
@@ -43,14 +56,14 @@ export function DashboardSummary({ stats, className }: DashboardSummaryProps) {
               <span
                 className={cn(
                   'font-mono text-xl font-medium leading-7',
-                  stat.highlight ? 'text-brand-700' : 'text-ink-900',
+                  stat.highlight || stat.active ? 'text-brand-700' : 'text-ink-900',
                 )}
               >
                 {stat.value}
               </span>
               <span className="text-xs leading-4 text-ink-500">{stat.label}</span>
             </div>
-          </div>
+          </Wrapper>
         )
       })}
     </div>

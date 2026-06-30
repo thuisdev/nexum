@@ -22,7 +22,7 @@ export type ProjectDetailHeroProps = {
   status: StatusBadgeStatus
   statusLabel?: string
   skills: string[]
-  escrowLabel: string
+  escrowLabel?: string
   milestoneCount?: number
   milestonesPaid?: number
   milestonesTotal?: number

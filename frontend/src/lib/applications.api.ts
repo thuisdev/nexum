@@ -35,3 +35,8 @@ export const rejectApplication = async (applicationId: string) => {
   const res = await api.post<Application>(`/applications/${applicationId}/reject`)
   return res.data
 }
+
+export const withdrawApplication = async (projectId: string) => {
+  const res = await api.delete<{ id: string }>(`/projects/${projectId}/my-application`)
+  return res.data
+}

@@ -42,6 +42,9 @@ export type ProjectCardProps = {
   draftMeta?: string
   footLinkLabel?: string
   footLinkTo?: string
+  showReviewApplicants?: boolean
+  onReviewApplicants?: () => void
+  showApply?: boolean
   clientState?: ClientCardState
   freelancerState?: FreelancerCardState
   submitLabel?: string
@@ -80,6 +83,9 @@ export function ProjectCard({
   draftMeta,
   footLinkLabel,
   footLinkTo,
+  showReviewApplicants = false,
+  onReviewApplicants,
+  showApply = true,
   clientState = 'in_progress',
   freelancerState = 'invited',
   submitLabel,
@@ -262,12 +268,17 @@ export function ProjectCard({
               Invite
             </Button>
           )}
-          {isJobboard && (
+          {isJobboard && showApply && (
             <Button size="sm" className="px-[18px]" onClick={onApply}>
               Apply
             </Button>
           )}
-          {variant === 'client' && footLinkTo && (
+          {variant === 'client' && showReviewApplicants && onReviewApplicants && (
+            <Button size="sm" variant="secondary" onClick={onReviewApplicants}>
+              Review applicants
+            </Button>
+          )}
+          {variant === 'client' && footLinkTo && !showReviewApplicants && (
             <Link to={footLinkTo} className="text-base font-medium">
               {footLinkLabel ?? 'Review →'}
             </Link>

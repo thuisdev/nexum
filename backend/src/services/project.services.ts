@@ -171,11 +171,27 @@ export const listProjects = async (userId: string, userRole: Role) => {
 
   const projects = await prisma.project.findMany({
     where,
-    include: { milestones: true },
+    include: {
+      milestones: true,
+      ...(userRole === 'CLIENT'
+        ? {
+            _count: {
+              select: {
+                applications: { where: { status: 'PENDING' } },
+              },
+            },
+          }
+        : {}),
+    },
     orderBy: { createdAt: 'desc' },
   });
 
-  return projects.map(serializeProject);
+  return projects.map((project) => ({
+    ...serializeProject(project),
+    ...('_count' in project && project._count
+      ? { pendingApplicationCount: project._count.applications }
+      : {}),
+  }));
 };
 
 export const getProjectById = async (
@@ -543,6 +559,61 @@ export const inviteFreelancer = async (
   return serializeProject(updated);
 };
 
+/** Invited freelancer declines — clears invite and optionally notifies client. */
+export const declineInvite = async (
+  projectId: string,
+  freelancerId: string,
+  reason?: string,
+) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.invitedFreelancerId !== freelancerId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'already_accepted' as const;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.project.update({
+      where: { id: projectId },
+      data: { invitedFreelancerId: null },
+      include: { milestones: true },
+    });
+
+    const reasonSnippet = reason?.trim()
+      ? `: "${reason.trim().slice(0, 120)}"`
+      : '';
+
+    await tx.notification.create({
+      data: {
+        userId: project.clientId,
+        projectId,
+        type: 'INVITE_DECLINED',
+        message: `Invitation declined for "${project.title}"${reasonSnippet}`,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: freelancerId,
+        action: 'FREELANCER_DECLINED',
+        metadata: { reason: reason?.trim() || null },
+      },
+    });
+
+    return result;
+  });
+
+  return serializeProject(updated);
+};
+
 /** Invited freelancer accepts — sets freelancerId and clears invite. */
 export const acceptInvite = async (projectId: string, freelancerId: string) => {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -555,13 +626,15 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
     return 'forbidden' as const;
   }
 
-  if (project.status !== 'DRAFT') {
-    return 'not_draft' as const;
+  if (project.status !== 'DRAFT' && project.status !== 'FUNDED') {
+    return 'not_open' as const;
   }
 
   if (project.freelancerId) {
     return 'already_accepted' as const;
   }
+
+  const isPrefunded = project.escrowStatus === 'FUNDED';
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.project.update({
@@ -569,9 +642,17 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
       data: {
         freelancerId,
         invitedFreelancerId: null,
+        ...(isPrefunded ? { status: 'IN_PROGRESS' as const } : {}),
       },
       include: { milestones: true },
     });
+
+    if (isPrefunded) {
+      await tx.milestone.updateMany({
+        where: { projectId, orderIndex: 0, status: 'PENDING' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -604,24 +685,28 @@ export const fundProject = async (projectId: string, clientId: string) => {
     return 'not_draft' as const;
   }
 
-  if (!project.freelancerId) {
-    return 'no_freelancer' as const;
+  if (project.escrowStatus === 'FUNDED') {
+    return 'already_funded' as const;
   }
+
+  const hasFreelancer = Boolean(project.freelancerId);
 
   const updated = await prisma.$transaction(async (tx) => {
     await tx.project.update({
       where: { id: projectId },
       data: {
-        status: 'IN_PROGRESS',
+        status: hasFreelancer ? 'IN_PROGRESS' : 'FUNDED',
         escrowStatus: 'FUNDED',
         fundedAt: new Date(),
       },
     });
 
-    await tx.milestone.updateMany({
-      where: { projectId, orderIndex: 0, status: 'PENDING' },
-      data: { status: 'IN_PROGRESS' },
-    });
+    if (hasFreelancer) {
+      await tx.milestone.updateMany({
+        where: { projectId, orderIndex: 0, status: 'PENDING' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -672,24 +757,25 @@ const serializePreview = (project: ProjectWithClient) => ({
     })),
 });
 
-const serializeJobListing = (project: ProjectWithClient) => ({
+const serializeJobListing = (project: ProjectWithClient & { escrowStatus?: string }) => ({
   id: project.id,
   title: project.title,
   totalBudget: project.totalBudget.toString(),
   currency: project.currency,
   status: project.status,
+  escrowStatus: project.escrowStatus,
   skills: project.skills,
   milestoneCount: project.milestones.length,
   client: project.client,
   createdAt: project.createdAt.toISOString(),
 });
 
-/** Public job board — open DRAFT projects marked isPublic. */
+/** Public job board — open public projects without an assigned freelancer. */
 export const listPublicJobs = async () => {
   const projects = await prisma.project.findMany({
     where: {
       isPublic: true,
-      status: 'DRAFT',
+      status: { in: ['DRAFT', 'FUNDED'] },
       freelancerId: null,
     },
     include: {

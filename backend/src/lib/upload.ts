@@ -26,6 +26,19 @@ export const submitUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+/** Avatar image upload — max 2 MB, images only. */
+export const avatarUpload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Only image files are allowed'));
+  },
+});
+
 export const uploadDirPath = uploadDir;
 
 /** Public URL path stored in DB (served via express.static). */

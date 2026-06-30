@@ -65,11 +65,19 @@ export function resolveClientCardStatus(project: Project): {
   }
 
   if (project.isPublic && !project.freelancerId) {
-    return { status: 'PENDING', label: 'Review applications' }
+    const count = project.pendingApplicationCount ?? 0
+    if (count > 0) {
+      return { status: 'PENDING', label: `${count} applicant${count === 1 ? '' : 's'}` }
+    }
+    return { status: 'PENDING', label: 'Open for applications' }
   }
 
-  if (project.freelancerId) {
+  if (project.freelancerId && project.escrowStatus === 'NOT_FUNDED') {
     return { status: 'PENDING', label: 'Awaiting funding' }
+  }
+
+  if (project.escrowStatus === 'FUNDED' && !project.freelancerId) {
+    return { status: 'FUNDED', label: 'Funded · pick freelancer' }
   }
 
   return { status: 'DRAFT' }
@@ -94,12 +102,19 @@ export function resolveFreelancerCardStatus(
   return { status: mapProjectStatus(project.status) }
 }
 
-export function projectEscrowLabel(project: Project) {
-  if (project.escrowStatus === 'FUNDED' || project.status === 'IN_PROGRESS') {
-    return 'Escrow-funded'
+export function projectEscrowLabel(
+  project: Pick<Project, 'escrowStatus' | 'status'>,
+): string | undefined {
+  if (
+    project.escrowStatus === 'FUNDED' ||
+    project.escrowStatus === 'RELEASED' ||
+    project.status === 'IN_PROGRESS' ||
+    project.status === 'COMPLETED'
+  ) {
+    return 'Escrow-backed'
   }
 
-  return 'Escrow-backed'
+  return undefined
 }
 
 export function mapMilestoneStatus(status: string): StatusBadgeStatus {
@@ -141,6 +156,8 @@ export function projectDraftMeta(project: Project) {
 
 export function jobToCardProps(job: JobBoardProject) {
   const lastMilestone = job.milestoneCount
+  const escrowLabel =
+    job.escrowStatus === 'FUNDED' ? ('Escrow-backed' as const) : undefined
   return {
     id: job.id,
     title: job.title,
@@ -149,13 +166,16 @@ export function jobToCardProps(job: JobBoardProject) {
     partyName: displayName(job.client),
     tags: job.skills,
     milestoneCount: lastMilestone,
-    escrowLabel: 'Escrow-backed',
+    escrowLabel,
     timeAgo: formatRelativeTime(job.createdAt),
   }
 }
 
 export function projectToClientCardProps(project: Project) {
   const cardStatus = resolveClientCardStatus(project)
+  const hasApplicants =
+    project.isPublic && !project.freelancerId && project.status === 'DRAFT'
+  const applicantCount = project.pendingApplicationCount ?? 0
 
   return {
     id: project.id,
@@ -166,10 +186,14 @@ export function projectToClientCardProps(project: Project) {
     statusLabel: cardStatus.label,
     tags: project.skills,
     clientState:
-      project.status === 'DRAFT' ? ('draft' as const) : ('in_progress' as const),
+      project.status === 'DRAFT' || project.status === 'FUNDED'
+        ? ('draft' as const)
+        : ('in_progress' as const),
     draftMeta: projectDraftMeta(project),
     milestoneCount: project.milestones.length,
     escrowLabel: projectEscrowLabel(project),
+    applicantCount: hasApplicants && applicantCount > 0 ? applicantCount : undefined,
+    showReviewApplicants: hasApplicants && applicantCount > 0,
   }
 }
 

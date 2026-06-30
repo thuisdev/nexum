@@ -204,7 +204,11 @@ export default function CreateProjectPage() {
         </FormField>
 
         <FormField label="Skills" helper="Select at least one — used on the job board">
-          <SkillPicker value={skills} onChange={setSkills} error={errors.skills} />
+          <SkillPicker
+            value={skills}
+            onChange={(next) => setSkills(next as typeof skills)}
+            error={errors.skills}
+          />
         </FormField>
 
         <div className="flex flex-col gap-2">

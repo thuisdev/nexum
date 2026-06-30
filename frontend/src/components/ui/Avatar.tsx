@@ -1,4 +1,9 @@
 import { cn } from '@/lib/utils'
+import {
+  AVATAR_COLOR_CLASSES,
+  type AvatarColor,
+} from '@/lib/avatarColors'
+import { uploadFileUrl } from '@/lib/projectDisplay'
 
 const sizeClasses = {
   sm: 'size-6 text-[10px]',
@@ -15,6 +20,7 @@ export type AvatarProps = {
   src?: string | null
   alt?: string
   name?: string | null
+  color?: string | null
   size?: AvatarSize
   className?: string
 }
@@ -30,15 +36,17 @@ export function Avatar({
   src,
   alt,
   name,
+  color,
   size = 'md',
   className,
 }: AvatarProps) {
   const label = alt ?? name ?? 'User'
+  const resolvedSrc = src?.startsWith('/uploads/') ? uploadFileUrl(src) : src
 
-  if (src) {
+  if (resolvedSrc) {
     return (
       <img
-        src={src}
+        src={resolvedSrc}
         alt={label}
         className={cn(
           'shrink-0 rounded-full object-cover bg-ink-100',
@@ -49,10 +57,16 @@ export function Avatar({
     )
   }
 
+  const colorClass =
+    color && color in AVATAR_COLOR_CLASSES
+      ? AVATAR_COLOR_CLASSES[color as AvatarColor]
+      : 'bg-ink-100 text-ink-600'
+
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full bg-ink-100 font-medium text-ink-600',
+        'inline-flex shrink-0 items-center justify-center rounded-full font-medium',
+        colorClass,
         sizeClasses[size],
         className,
       )}

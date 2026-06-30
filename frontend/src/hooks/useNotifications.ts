@@ -1,4 +1,8 @@
-import { listNotifications, markNotificationRead } from '@/lib/notifications.api'
+import {
+  deleteNotification,
+  listNotifications,
+  markNotificationRead,
+} from '@/lib/notifications.api'
 import { formatRelativeTime } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useCallback, useEffect, useState } from 'react'
@@ -54,12 +58,22 @@ export function useNotifications(enabled = true) {
     }
   }
 
+  const handleDelete = async (notificationId: string) => {
+    try {
+      await deleteNotification(notificationId)
+      setNotifications((prev) => prev.filter((item) => item.id !== notificationId))
+    } catch {
+      // ignore
+    }
+  }
+
   const items = notifications.map((notification) => ({
     id: notification.id,
     message: notification.message,
     time: formatRelativeTime(notification.createdAt),
     unread: !notification.readAt,
     onClick: () => void handleNotificationClick(notification),
+    onDelete: () => void handleDelete(notification.id),
   }))
 
   return { items, unreadCount, loading, refresh }

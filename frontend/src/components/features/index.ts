@@ -1,5 +1,9 @@
 export { DashboardSummary, type DashboardStat, type DashboardSummaryProps } from './dashboard/DashboardSummary'
 export { ApplicationCard, type ApplicationCardProps } from './applications/ApplicationCard'
+export {
+  ReviewApplicationsModal,
+  type ReviewApplicationsModalProps,
+} from './applications/ReviewApplicationsModal'
 export { ApplyDialog, type ApplyDialogProps } from './dialogs/ApplyDialog'
 export { ApproveDialog, type ApproveDialogProps } from './dialogs/ApproveDialog'
 export { SubmitWorkDialog, type SubmitWorkDialogProps } from './dialogs/SubmitWorkDialog'

@@ -9,9 +9,10 @@ export type JobBoardHeaderProps = {
 }
 
 export function JobBoardHeader({
-  statLine = '47 open projects · 312,400 USDC in escrow',
+  statLine,
   className,
 }: JobBoardHeaderProps) {
+  const line = statLine ?? 'Loading platform stats…'
   return (
     <header className={cn('flex flex-col gap-2.5', className)}>
       <Eyebrow>Open work · Public board</Eyebrow>
@@ -23,7 +24,7 @@ export function JobBoardHeader({
         <span className="font-medium text-ink-900">escrow-backed</span>. Funds are
         locked before you start — no chasing payments, no ghosting.
       </p>
-      <Trustline text={statLine} />
+      <Trustline text={line} />
     </header>
   )
 }

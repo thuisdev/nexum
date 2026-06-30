@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import type { MilestoneSubmission } from '@/types/project'
 
 export type MilestoneCardProps = {
+  orderLabel?: string
   title: string
   description?: string
   amount: string
@@ -21,6 +22,7 @@ export type MilestoneCardProps = {
 }
 
 export function MilestoneCard({
+  orderLabel,
   title,
   description,
   amount,
@@ -46,6 +48,11 @@ export function MilestoneCard({
     >
       <div className="flex flex-col gap-3 max-md:[&_button]:w-full md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 flex-col gap-0.5">
+          {orderLabel && (
+            <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
+              {orderLabel}
+            </span>
+          )}
           <p className="text-base font-medium leading-6 text-ink-900">{title}</p>
           {description && (
             <p className="text-sm leading-5 text-ink-600">{description}</p>

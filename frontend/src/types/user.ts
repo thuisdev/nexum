@@ -3,6 +3,7 @@ export interface PublicUserProfile {
   name: string | null
   displayName: string | null
   avatarUrl: string | null
+  avatarColor: string | null
   role: 'CLIENT' | 'FREELANCER' | 'ARBITER' | 'ADMIN'
   bio: string | null
   skills: string[]
@@ -20,6 +21,8 @@ export interface User {
   role: 'CLIENT' | 'FREELANCER' | 'ARBITER' | 'ADMIN'
   createdAt: string
   displayName: string | null
+  avatarUrl?: string | null
+  avatarColor?: string | null
   bio?: string | null
   skills?: string[]
 }

@@ -13,6 +13,7 @@ import {
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { listJobs } from '@/lib/projects.api'
 import { jobToCardProps } from '@/lib/projectDisplay'
+import { getPlatformStats, platformStatLine } from '@/lib/stats.api'
 import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/router/routes'
 import type { JobBoardProject } from '@/types/project'
@@ -27,6 +28,9 @@ export default function JobBoardPage() {
   const [jobs, setJobs] = useState<JobBoardProject[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [statLine, setStatLine] = useState<string | undefined>()
+
+  const canApply = user?.role === 'FREELANCER' || user?.role === 'ADMIN'
 
   useEffect(() => {
     let cancelled = false
@@ -45,6 +49,14 @@ export default function JobBoardPage() {
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
+      })
+
+    getPlatformStats()
+      .then((stats) => {
+        if (!cancelled) setStatLine(platformStatLine(stats))
+      })
+      .catch(() => {
+        if (!cancelled) setStatLine(undefined)
       })
 
     return () => {
@@ -69,7 +81,7 @@ export default function JobBoardPage() {
 
   return (
     <AppSection className="!py-8 md:!py-12">
-      <JobBoardHeader />
+      <JobBoardHeader statLine={statLine} />
       <JobBoardFilters
         searchValue={search}
         onSearchChange={setSearch}
@@ -89,6 +101,7 @@ export default function JobBoardPage() {
               key={job.id}
               variant="jobboard"
               {...jobToCardProps(job)}
+              showApply={canApply || !user}
               onCardClick={() => navigate(ROUTES.project(job.id))}
               onApply={() => {
                 if (!user) {

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../lib/prisma.js';
+import { toPublicFileUrl } from '../lib/upload.js';
 import { updateUserSchema } from '../schemas/user.schema.js';
 
 const publicProfileSelect = {
@@ -8,6 +9,7 @@ const publicProfileSelect = {
   name: true,
   displayName: true,
   avatarUrl: true,
+  avatarColor: true,
   role: true,
   bio: true,
   skills: true,
@@ -126,7 +128,7 @@ export const handleUpdateUser = async (
       return;
     }
 
-    const { name, displayName, bio, skills } = result.data;
+    const { name, displayName, bio, skills, avatarUrl, avatarColor } = result.data;
 
     const user = await prisma.user.update({
       where: { id: req.userId },
@@ -135,7 +137,36 @@ export const handleUpdateUser = async (
         ...(displayName !== undefined && { displayName }),
         ...(bio !== undefined && { bio }),
         ...(skills !== undefined && { skills }),
+        ...(avatarUrl !== undefined && { avatarUrl }),
+        ...(avatarColor !== undefined && { avatarColor }),
       },
+      select: privateProfileSelect,
+    });
+
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/users/me/avatar — upload profile image. */
+export const handleUploadAvatar = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'No image file provided' });
+      return;
+    }
+
+    const avatarUrl = toPublicFileUrl(file.filename);
+
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { avatarUrl },
       select: privateProfileSelect,
     });
 

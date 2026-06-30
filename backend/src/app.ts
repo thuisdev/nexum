@@ -9,6 +9,7 @@ import projectsRouter from './routes/projects.routes.js';
 import milestonesRouter from './routes/milestones.routes.js';
 import jobsRouter from './routes/jobs.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import statsRouter from './routes/stats.routes.js';
 import applicationsRouter from './routes/applications.routes.js';
 import { uploadDirPath } from './lib/upload.js';
 
@@ -37,6 +38,7 @@ export function createApp() {
   app.use('/api/jobs', jobsRouter);
   app.use('/api/applications', applicationsRouter);
   app.use('/api/notifications', notificationsRouter);
+  app.use('/api/stats', statsRouter);
 
   app.use(errorHandler);
 

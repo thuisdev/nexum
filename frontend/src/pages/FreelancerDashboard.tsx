@@ -14,12 +14,13 @@ import {
 } from '@/components/features'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { listMyApplications } from '@/lib/applications.api'
-import { acceptInvite, listProjects } from '@/lib/projects.api'
-import { displayName, formatRelativeTime, projectToFreelancerCardProps } from '@/lib/projectDisplay'
+import { acceptInvite, declineInvite, listProjects } from '@/lib/projects.api'
+import { displayName, formatRelativeTime, projectEscrowLabel, projectToFreelancerCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
 import type { FreelancerApplication } from '@/types/application'
+import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
 
 export default function FreelancerDashboard() {
   const navigate = useNavigate()
@@ -29,6 +30,9 @@ export default function FreelancerDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
+  const [declineProjectId, setDeclineProjectId] = useState<string | null>(null)
+  const [declineReason, setDeclineReason] = useState('')
+  const [declineLoading, setDeclineLoading] = useState(false)
 
   const counts = useMemo(() => {
     if (!user) return { active: 0, invitations: 0, applied: 0 }
@@ -140,6 +144,21 @@ export default function FreelancerDashboard() {
     }
   }
 
+  const handleDecline = async () => {
+    if (!declineProjectId) return
+    setDeclineLoading(true)
+    try {
+      await declineInvite(declineProjectId, declineReason)
+      setDeclineProjectId(null)
+      setDeclineReason('')
+      await refreshProjects()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not decline invite'))
+    } finally {
+      setDeclineLoading(false)
+    }
+  }
+
   return (
     <AppSection className="!py-8 md:!py-12">
       <PageHeader title="Your work" />
@@ -193,7 +212,10 @@ export default function FreelancerDashboard() {
               tags={application.project.skills}
               timeAgo={formatRelativeTime(application.createdAt)}
               milestoneCount={application.project.milestoneCount}
-              escrowLabel="Escrow-backed"
+              escrowLabel={projectEscrowLabel({
+                escrowStatus: 'NOT_FUNDED',
+                status: application.project.status,
+              })}
               freelancerState="in_progress"
               onCardClick={() => navigate(ROUTES.project(application.project.id))}
             />
@@ -210,7 +232,7 @@ export default function FreelancerDashboard() {
                 {...card}
                 onCardClick={() => navigate(ROUTES.project(project.id))}
                 onAccept={() => void handleAccept(project.id)}
-                onDecline={() => undefined}
+                onDecline={() => setDeclineProjectId(project.id)}
                 onSubmit={() => navigate(ROUTES.project(project.id))}
                 className={acceptingId === project.id ? 'opacity-70' : undefined}
               />
@@ -239,6 +261,18 @@ export default function FreelancerDashboard() {
           }
         />
       )}
+
+      <DeclineInviteDialog
+        open={!!declineProjectId}
+        onClose={() => {
+          setDeclineProjectId(null)
+          setDeclineReason('')
+        }}
+        onSubmit={() => void handleDecline()}
+        loading={declineLoading}
+        reason={declineReason}
+        onReasonChange={setDeclineReason}
+      />
     </AppSection>
   )
 }
