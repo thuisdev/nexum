@@ -10,7 +10,7 @@ loadEnv({ path: path.join(backendDir, '.env') });
 
 const databaseUrl =
   process.env.DATABASE_URL ??
-  'postgresql://pactum:change_me@localhost:5433/pactum_dev?schema=public';
+  'postgresql://nexum:change_me@localhost:5433/nexum_dev?schema=public';
 
 export default async function globalSetup() {
   const env = {

@@ -1,4 +1,4 @@
-# Pactum
+# Nexum
 
 Freelance marketplace with **milestone-based escrow** for Web3-oriented work. Clients fund projects in stages; freelancers deliver per milestone; payment releases only after client approval.
 
@@ -85,7 +85,7 @@ Stable seeded project IDs:
 ## Repository layout
 
 ```
-pactum/
+nexum/
 ├── package.json          Root scripts (dev both, test all)
 ├── playwright.config.ts  E2E tests
 ├── e2e/                  Playwright specs
@@ -222,7 +222,7 @@ Run through both flows once before demo or deploy sign-off.
 
 ### API smoke test (Postman)
 
-Import [`docs/postman/Pactum.postman_collection.json`](docs/postman/Pactum.postman_collection.json).
+Import [`docs/postman/Nexum.postman_collection.json`](docs/postman/Nexum.postman_collection.json).
 
 Set collection variable `baseUrl` to `http://localhost:4000`.
 

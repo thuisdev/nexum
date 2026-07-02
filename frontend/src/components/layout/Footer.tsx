@@ -50,7 +50,7 @@ export default function Footer() {
               to={ROUTES.home}
               className="font-display text-xl font-bold text-ink-900"
             >
-              Pactum
+              Nexum
             </Link>
             <p className="max-w-[260px] text-sm leading-5 text-ink-500">
               Milestone escrow for freelancers and clients. Ship work, release
@@ -66,7 +66,7 @@ export default function Footer() {
         </div>
 
         <p className="text-center text-xs leading-4 text-ink-400">
-          Copyright © 2026 Pactum. All rights reserved.
+          Copyright © 2026 Nexum. All rights reserved.
         </p>
       </div>
     </footer>

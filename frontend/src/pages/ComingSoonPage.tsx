@@ -34,7 +34,7 @@ const PAGE_COPY: Record<string, { title: string; description: string }> = {
   [ROUTES.terms]: {
     title: 'Terms of service',
     description:
-      'Legal terms for using Pactum will be published here before public launch.',
+      'Legal terms for using Nexum will be published here before public launch.',
   },
   [ROUTES.privacy]: {
     title: 'Privacy policy',
