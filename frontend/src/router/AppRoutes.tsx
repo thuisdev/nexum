@@ -18,6 +18,7 @@ import {
   UserProfilePage,
   SettingsPage,
   NotFoundPage,
+  ComingSoonPage,
   AdminDashboard,
   ArbiterDashboard,
 } from './lazyPages'
@@ -29,6 +30,13 @@ export const router = createBrowserRouter([
     children: [
       { path: ROUTES.home, element: withSuspense(LandingPage) },
       { path: ROUTES.jobs, element: withSuspense(JobBoardPage) },
+      { path: ROUTES.howItWorks, element: withSuspense(ComingSoonPage) },
+      { path: ROUTES.pricing, element: withSuspense(ComingSoonPage) },
+      { path: ROUTES.about, element: withSuspense(ComingSoonPage) },
+      { path: ROUTES.blog, element: withSuspense(ComingSoonPage) },
+      { path: ROUTES.careers, element: withSuspense(ComingSoonPage) },
+      { path: ROUTES.terms, element: withSuspense(ComingSoonPage) },
+      { path: ROUTES.privacy, element: withSuspense(ComingSoonPage) },
       { path: '/projects/:id', element: withSuspense(ProjectDetailPage) },
       { path: '/users/:id', element: withSuspense(UserProfilePage) },
       {

@@ -23,11 +23,11 @@ Phase 1 is a full-stack Web2 MVP with simulated escrow in PostgreSQL. Phase 2 wi
 | Approve milestone + payout ref | Done |
 | Activity timeline | Done |
 | In-app notifications | Done |
-| Profiles + settings (bio, skills) | Done |
+| Profiles + settings (skills / industries) | Done |
 | Disputes + arbiter dashboard | Done (stretch) |
 | Demo seed data | Done |
 | Postman collection | Done |
-| Railway deploy config | Done |
+| Vercel frontend deploy config | Done |
 | Unit + integration + E2E tests | Done |
 
 ---
@@ -63,7 +63,12 @@ After seeding (`npm run db:seed`), use password **`12345678`** for all accounts:
 | `freelancer2@example.com` | Freelancer | Pending application on public project |
 | `arbiter@example.com` | Arbiter | For dispute resolution |
 
-Public job board project ID (stable after seed): `00000000-0000-4000-8000-000000000001`
+Stable seeded project IDs:
+
+| Project | ID |
+|---------|-----|
+| Public (job board) | `00000000-0000-4000-8000-000000000001` |
+| Private (invite E2E) | `00000000-0000-4000-8000-000000000002` |
 
 ---
 
@@ -73,7 +78,7 @@ Public job board project ID (stable after seed): `00000000-0000-4000-8000-000000
 |-------|--------|
 | Backend | Node.js 22, Express 5, Prisma 7, PostgreSQL, JWT, Zod, Multer |
 | Frontend | React 19, Vite 8, Tailwind CSS v4, React Router v7, React Hook Form, Axios |
-| Tooling | Docker Compose, GitHub Actions, Postman, Railway (deploy) |
+| Tooling | Docker Compose, GitHub Actions, Postman, Vercel (frontend) |
 
 ---
 
@@ -86,13 +91,10 @@ pactum/
 ├── e2e/                  Playwright specs
 ├── backend/
 │   ├── prisma/           Schema, migrations, seed.ts
-│   ├── src/
-│   ├── Dockerfile        Production image
-│   └── railway.toml      Railway deploy hints (optional)
+│   └── src/
 ├── frontend/
 │   ├── src/
-│   ├── Dockerfile
-│   └── railway.toml
+│   └── vercel.json       SPA rewrites for client-side routing
 └── docs/
     ├── project-lifecycle.md
     └── postman/
@@ -122,8 +124,6 @@ npm run dev                  # backend + frontend together
 npm run dev:backend          # API only (port 4000)
 npm run dev:frontend         # UI only (port 5173)
 ```
-
-Or run each package separately from `backend/` and `frontend/` as before.
 
 ### 1. Database
 
@@ -171,7 +171,6 @@ npm run dev
 | `npm run start:prod` | backend | Migrate + start (production) |
 | `npm run test` | root | Unit + integration |
 | `npm run test:e2e` | root | Playwright E2E |
-
 | `npm run test:all` | root | Unit + integration + E2E |
 
 ---
@@ -181,26 +180,23 @@ npm run dev
 | Layer | Command | What it covers |
 |-------|---------|----------------|
 | Backend unit | `npm run test:unit --prefix backend` | Zod schemas, password hashing, health route |
-| Backend integration | `npm run test:integration --prefix backend` | Auth, apply/accept, fund errors (needs Postgres) |
-| Frontend unit | `npm run test --prefix frontend` | `projectDisplay`, validation, Apply/Application UI |
-| E2E (Playwright) | `npm run test:e2e` | Login, job board, apply flow (starts API + UI automatically) |
+| Backend integration | `npm run test:integration --prefix backend` | Auth, apply/accept (needs Postgres) |
+| Frontend unit | `npm run test --prefix frontend` | `projectDisplay`, validation |
+| E2E (Playwright) | `npm run test:e2e` | Auth, job board, apply, full invite lifecycle |
 | Everything | `npm run test:all` | All of the above |
 
-Integration and E2E tests need a running database. Locally:
-
-```bash
-cd backend && docker compose up -d && npx prisma migrate dev
-```
-
-E2E runs migrations + seed automatically via `e2e/global-setup.ts`.
+E2E specs: `e2e/auth.spec.ts`, `e2e/job-board.spec.ts`, `e2e/applications.spec.ts`, `e2e/lifecycle.spec.ts`.
 
 First-time E2E setup:
 
 ```bash
 npm install
 npx playwright install chromium
+cd backend && docker compose up -d && npx prisma migrate dev
 npm run test:e2e
 ```
+
+E2E runs migrations + seed automatically via `e2e/global-setup.ts`.
 
 ---
 
@@ -212,14 +208,14 @@ Run through both flows once before demo or deploy sign-off.
 
 1. Login as `client@example.com`
 2. Open private project → confirm invite pending for freelancer
-3. Login as `freelancer@example.com` → accept invite on dashboard
+3. Login as `freelancer@example.com` → accept invite (dashboard **Pending invites** card or project page)
 4. Login as client → fund project
 5. Login as freelancer → submit work (≥50 chars) on milestone 1
 6. Login as client → approve → verify milestone `PAID` and activity log
 
 ### Flow B — Apply (public)
 
-1. Login as `freelancer2@example.com` → dashboard **Applied** tab shows pending app  
+1. Login as `freelancer2@example.com` → dashboard **Applications sent** card shows pending app  
    *(or apply fresh from `/jobs` as any freelancer)*
 2. Login as `client@example.com` → open public project → accept application
 3. Fund → submit → approve (same as Flow A steps 4–6)
@@ -284,9 +280,12 @@ Run folders in order: **Authentication → Projects → Applications → Job Boa
 | Method | Path | Access |
 |--------|------|--------|
 | `GET` | `/api/jobs` | Public |
+| `GET` | `/api/stats` | Public |
 | `GET` | `/api/notifications` | Authenticated |
 | `PATCH` | `/api/notifications/:id/read` | Authenticated |
 | `GET` | `/api/users/:id/public` | Public |
+| `GET` | `/api/users/:id/completed-projects` | Public |
+| `GET` | `/api/users/:id/reviews` | Public |
 
 Status rules: [`docs/project-lifecycle.md`](docs/project-lifecycle.md)
 
@@ -299,6 +298,7 @@ Status rules: [`docs/project-lifecycle.md`](docs/project-lifecycle.md)
 | `/` | Landing | Public |
 | `/login`, `/register` | Auth | Guest |
 | `/jobs` | Job board | Public |
+| `/how-it-works`, `/pricing`, `/about`, `/blog`, `/careers`, `/terms`, `/privacy` | Coming soon | Public |
 | `/projects/:id` | Project detail | Public preview or participant |
 | `/dashboard` | Role redirect | Authenticated |
 | `/dashboard/client` | Client dashboard | Client, Admin |
@@ -323,50 +323,44 @@ Project moves `DRAFT` → `IN_PROGRESS` on fund and `COMPLETED` when all milesto
 
 ---
 
-## Deploy (Railway)
+## Deploy
 
-`railway.toml` is **optional config for [Railway](https://railway.app)** — it tells Railway to build from the local `Dockerfile`, set health-check paths, and restart on failure. You do not need it for local dev; without Railway you can ignore it or delete it.
+### Frontend (Vercel)
 
-Deploy as **three** Railway resources: Postgres plugin, backend service, frontend service.
-
-### Postgres
-
-1. Add **PostgreSQL** plugin to the project
-2. Copy `DATABASE_URL` into the backend service variables
-
-### Backend service
-
-1. New service → connect repo → set **root directory** to `backend`
-2. Railway picks up `backend/Dockerfile` and `railway.toml`
-3. Variables:
+1. Import the repo in [Vercel](https://vercel.com)
+2. Set **Root Directory** to `frontend`
+3. Framework preset: **Vite** (defaults are fine)
+4. Environment variable:
 
 | Variable | Example |
 |----------|---------|
-| `DATABASE_URL` | From Postgres plugin |
+| `VITE_API_URL` | `https://your-api.example.com/api` |
+
+5. Deploy — `frontend/vercel.json` rewrites all routes to `index.html` for React Router
+
+### Backend + database
+
+The API is a long-running Express server with file uploads. Host it on a **Node platform** (e.g. Render, Fly.io, Railway) — not Vercel serverless.
+
+1. Provision **PostgreSQL** (Neon, Supabase, or Docker)
+2. Deploy `backend/` with:
+
+| Variable | Example |
+|----------|---------|
+| `DATABASE_URL` | Postgres connection string |
 | `JWT_SECRET` | Random 32+ byte secret |
-| `CORS_ORIGIN` | `https://your-frontend.up.railway.app` |
-| `PORT` | `4000` (Railway sets automatically) |
+| `CORS_ORIGIN` | `https://your-app.vercel.app` |
+| `PORT` | `4000` |
 
-4. Deploy → runs `prisma migrate deploy` then starts API
-5. After first deploy: open shell or one-off job → `npm run db:seed`
-6. Health check: `GET /api/health`
-
-### Frontend service
-
-1. New service → connect repo → set **root directory** to `frontend`
-2. Add Docker build arg / variable:
-
-| Variable | Example |
-|----------|---------|
-| `VITE_API_URL` | `https://your-backend.up.railway.app/api` |
-
-3. Deploy → Nginx serves the Vite build
+3. Run migrations on deploy: `npx prisma migrate deploy`
+4. Seed once on empty DB: `npm run db:seed`
+5. Health check: `GET /api/health`
 
 ### Production notes
 
-- File uploads use `backend/uploads/` on the container filesystem (ephemeral on Railway). For persistent files, attach a volume or move to object storage in Phase 2.
-- Update `CORS_ORIGIN` whenever the frontend URL changes.
-- Re-run `db:seed` only on empty databases (seed uses upserts).
+- Set `CORS_ORIGIN` to your Vercel frontend URL
+- File uploads use local disk on the backend host — use persistent storage or object storage for production
+- Re-run `db:seed` only on empty databases (seed uses upserts)
 
 ---
 
@@ -393,7 +387,7 @@ Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 | Activity timeline, notifications | Done |
 | Job board, applications | Done |
 | Dispute flow, arbiter dashboard | Done |
-| Seed data, Postman, deploy config | Done |
+| Seed data, Postman, Vercel config | Done |
 | Unit, integration, and E2E tests | Done |
 | Demo video / live URL | Record after deploy |
 | On-chain escrow (L2 testnet) | Phase 2 |

@@ -15,7 +15,7 @@ import { displayName } from '@/lib/projectDisplay'
 import { listArbiterDisputes } from '@/lib/projects.api'
 import { ROUTES } from '@/router/routes'
 
-export default function ArbiterDashoard() {
+export default function ArbiterDashboard() {
   const { user } = useAuth()
   const [disputes, setDisputes] = useState<
     Awaited<ReturnType<typeof listArbiterDisputes>>

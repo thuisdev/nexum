@@ -21,6 +21,9 @@ async function loginAs(
 }
 
 test.describe('Private project lifecycle', () => {
+  // Mutates seeded project state — must not retry without re-seeding.
+  test.describe.configure({ retries: 0 });
+
   test('invite accept, fund, submit, approve through completion', async ({
     page,
   }) => {
@@ -71,6 +74,12 @@ test.describe('Private project lifecycle', () => {
     await page.getByRole('link', { name: 'View public profile →' }).click();
     await expect(page.getByText('Recent work')).toBeVisible();
     await expect(page.getByText('Private API Integration')).toBeVisible();
-    await expect(page.getByText('Completed projects')).toBeVisible();
+    await expect(page.getByText('Completed projects', { exact: true })).toBeVisible();
+    await expect(
+      page
+        .locator('div')
+        .filter({ has: page.getByText('Completed projects', { exact: true }) })
+        .getByText('1', { exact: true }),
+    ).toBeVisible();
   });
 });
