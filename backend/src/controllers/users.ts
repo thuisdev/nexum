@@ -1,13 +1,19 @@
 import type { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../lib/prisma.js';
+import { toPublicFileUrl } from '../lib/upload.js';
 import { updateUserSchema } from '../schemas/user.schema.js';
+import {
+  countCompletedProjects,
+  listCompletedProjects,
+} from '../services/user.services.js';
 
 const publicProfileSelect = {
   id: true,
   name: true,
   displayName: true,
   avatarUrl: true,
+  avatarColor: true,
   role: true,
   bio: true,
   skills: true,
@@ -37,14 +43,18 @@ export const handleGetPublicProfile = async (
       return;
     }
 
-    const reviewStats = await prisma.review.aggregate({
-      where: { subjectId: user.id },
-      _count: { _all: true },
-      _sum: { rating: true },
-    });
+    const [reviewStats, completedProjectCount] = await Promise.all([
+      prisma.review.aggregate({
+        where: { subjectId: user.id },
+        _count: { _all: true },
+        _sum: { rating: true },
+      }),
+      countCompletedProjects(user.id, user.role),
+    ]);
 
     res.json({
       ...user,
+      completedProjectCount,
       reviewCount: reviewStats._count._all,
       totalStars: reviewStats._sum.rating ?? 0,
       averageRating:
@@ -87,6 +97,7 @@ export const handleGetUserReviews = async (
             displayName: true,
             name: true,
             avatarUrl: true,
+            avatarColor: true,
           },
         },
         project: { select: { id: true, title: true } },
@@ -110,6 +121,30 @@ export const handleGetUserReviews = async (
   }
 };
 
+/** GET /api/users/:id/completed-projects — public list of completed work. */
+export const handleGetUserCompletedProjects = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: String(req.params.id) },
+      select: { id: true, role: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const projects = await listCompletedProjects(user.id, user.role);
+    res.json(projects);
+  } catch (error) {
+    next(error);
+  }
+};
+
 /** PATCH /api/users/me — update own profile fields (requires checkAuth). */
 export const handleUpdateUser = async (
   req: Request,
@@ -126,7 +161,7 @@ export const handleUpdateUser = async (
       return;
     }
 
-    const { name, displayName, bio, skills } = result.data;
+    const { name, displayName, bio, skills, avatarUrl, avatarColor } = result.data;
 
     const user = await prisma.user.update({
       where: { id: req.userId },
@@ -135,7 +170,36 @@ export const handleUpdateUser = async (
         ...(displayName !== undefined && { displayName }),
         ...(bio !== undefined && { bio }),
         ...(skills !== undefined && { skills }),
+        ...(avatarUrl !== undefined && { avatarUrl }),
+        ...(avatarColor !== undefined && { avatarColor }),
       },
+      select: privateProfileSelect,
+    });
+
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/users/me/avatar — upload profile image. */
+export const handleUploadAvatar = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'No image file provided' });
+      return;
+    }
+
+    const avatarUrl = toPublicFileUrl(file.filename);
+
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { avatarUrl },
       select: privateProfileSelect,
     });
 

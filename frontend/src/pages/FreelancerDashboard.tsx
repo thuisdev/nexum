@@ -5,7 +5,7 @@ import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { InlineAlert } from '@/components/ui/InlineAlert'
 import { DashboardGridSkeleton } from '@/components/ui/Skeleton'
-import { Tabs } from '@/components/ui/Tabs'
+import { SectionLabel } from '@/components/ui/Tag'
 import {
   DashboardSummary,
   EmptyState,
@@ -13,13 +13,16 @@ import {
   ProjectCard,
 } from '@/components/features'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
-import { listMyApplications } from '@/lib/applications.api'
-import { acceptInvite, listProjects } from '@/lib/projects.api'
+import { listMyApplications, withdrawApplication } from '@/lib/applications.api'
+import { acceptInvite, declineInvite, listProjects } from '@/lib/projects.api'
 import { displayName, formatRelativeTime, projectToFreelancerCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
 import type { FreelancerApplication } from '@/types/application'
+import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
+
+type FreelancerFilter = 'active' | 'applied' | 'invitations'
 
 export default function FreelancerDashboard() {
   const navigate = useNavigate()
@@ -29,37 +32,32 @@ export default function FreelancerDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
+  const [declineProjectId, setDeclineProjectId] = useState<string | null>(null)
+  const [declineReason, setDeclineReason] = useState('')
+  const [declineLoading, setDeclineLoading] = useState(false)
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null)
+  const [showCompletedProjects, setShowCompletedProjects] = useState(false)
+  const [filter, setFilter] = useState<FreelancerFilter>('active')
 
   const counts = useMemo(() => {
-    if (!user) return { active: 0, invitations: 0, applied: 0 }
+    if (!user) return { active: 0, invitations: 0, applied: 0, completed: 0 }
 
     const invitations = projects.filter(
       (p) => p.invitedFreelancerId === user.id && !p.freelancerId,
     ).length
-    const active = projects.filter((p) => p.freelancerId === user.id).length
+    const active = projects.filter(
+      (p) =>
+        p.freelancerId === user.id &&
+        p.status !== 'COMPLETED' &&
+        p.status !== 'CANCELLED',
+    ).length
+    const completed = projects.filter(
+      (p) => p.freelancerId === user.id && p.status === 'COMPLETED',
+    ).length
     const applied = applications.filter((a) => a.status === 'PENDING').length
 
-    return { active, invitations, applied }
+    return { active, invitations, applied, completed }
   }, [projects, applications, user])
-
-  const [activeTab, setActiveTab] = useState('active')
-  const [tabInitialized, setTabInitialized] = useState(false)
-
-  useEffect(() => {
-    if (!loading && !tabInitialized) {
-      setActiveTab(counts.invitations > 0 ? 'invitations' : 'active')
-      setTabInitialized(true)
-    }
-  }, [loading, counts.invitations, tabInitialized])
-
-  const tabs = useMemo(
-    () => [
-      { id: 'active', label: 'Active', badge: counts.active },
-      { id: 'applied', label: 'Applied', badge: counts.applied },
-      { id: 'invitations', label: 'Invitations', badge: counts.invitations },
-    ],
-    [counts],
-  )
 
   const refreshApplications = useCallback(async () => {
     try {
@@ -109,18 +107,33 @@ export default function FreelancerDashboard() {
   }, [])
 
   const filteredProjects = useMemo(() => {
-    if (!user || activeTab === 'applied') return []
+    if (!user || filter === 'applied') return []
 
     return projects.filter((project) => {
       const isInvited =
         project.invitedFreelancerId === user.id && !project.freelancerId
-      const isActive = project.freelancerId === user.id
 
-      if (activeTab === 'invitations') return isInvited
-      if (activeTab === 'active') return isActive
+      if (filter === 'invitations') return isInvited
+      if (filter === 'active') {
+        return (
+          project.freelancerId === user.id &&
+          project.status !== 'COMPLETED' &&
+          project.status !== 'CANCELLED'
+        )
+      }
       return false
     })
-  }, [projects, activeTab, user])
+  }, [projects, filter, user])
+
+  const completedProjects = useMemo(() => {
+    if (!user) return []
+    return projects.filter(
+      (project) =>
+        project.freelancerId === user.id && project.status === 'COMPLETED',
+    )
+  }, [projects, user])
+
+  const completedProjectCount = counts.completed
 
   const pendingApplications = useMemo(
     () => applications.filter((application) => application.status === 'PENDING'),
@@ -140,12 +153,41 @@ export default function FreelancerDashboard() {
     }
   }
 
+  const handleDecline = async () => {
+    if (!declineProjectId) return
+    setDeclineLoading(true)
+    try {
+      await declineInvite(declineProjectId, declineReason)
+      setDeclineProjectId(null)
+      setDeclineReason('')
+      await refreshProjects()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not decline invite'))
+    } finally {
+      setDeclineLoading(false)
+    }
+  }
+
+  const handleWithdraw = async (projectId: string) => {
+    setWithdrawingId(projectId)
+    setError(null)
+    try {
+      await withdrawApplication(projectId)
+      await refreshApplications()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not withdraw application'))
+    } finally {
+      setWithdrawingId(null)
+    }
+  }
+
   return (
     <AppSection className="!py-8 md:!py-12">
       <PageHeader title="Your work" />
 
       {!loading && (
         <DashboardSummary
+          className="mb-6"
           stats={[
             {
               id: 'active',
@@ -153,6 +195,8 @@ export default function FreelancerDashboard() {
               value: counts.active,
               icon: Briefcase,
               highlight: counts.active > 0,
+              active: filter === 'active',
+              onClick: () => setFilter('active'),
             },
             {
               id: 'invitations',
@@ -160,12 +204,17 @@ export default function FreelancerDashboard() {
               value: counts.invitations,
               icon: Mail,
               highlight: counts.invitations > 0,
+              active: filter === 'invitations',
+              onClick: () => setFilter('invitations'),
             },
             {
               id: 'applied',
               label: 'Applications sent',
               value: counts.applied,
               icon: Send,
+              highlight: counts.applied > 0,
+              active: filter === 'applied',
+              onClick: () => setFilter('applied'),
             },
           ]}
         />
@@ -173,11 +222,9 @@ export default function FreelancerDashboard() {
 
       {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
-      <Tabs tabs={tabs} activeId={activeTab} onChange={setActiveTab} />
-
       {loading ? (
         <DashboardGridSkeleton count={2} />
-      ) : activeTab === 'applied' && pendingApplications.length > 0 ? (
+      ) : filter === 'applied' && pendingApplications.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {pendingApplications.map((application) => (
             <ProjectCard
@@ -190,12 +237,19 @@ export default function FreelancerDashboard() {
               status="PENDING"
               statusLabel="Application sent"
               partyName={displayName(application.project.client)}
+              partyId={application.project.client.id}
+              partyLabel="Client"
               tags={application.project.skills}
               timeAgo={formatRelativeTime(application.createdAt)}
               milestoneCount={application.project.milestoneCount}
-              escrowLabel="Escrow-backed"
+              escrowFunded={false}
               freelancerState="in_progress"
               onCardClick={() => navigate(ROUTES.project(application.project.id))}
+              submitLabel="Withdraw"
+              onSubmit={() => void handleWithdraw(application.project.id)}
+              className={
+                withdrawingId === application.project.id ? 'opacity-70' : undefined
+              }
             />
           ))}
         </div>
@@ -210,7 +264,7 @@ export default function FreelancerDashboard() {
                 {...card}
                 onCardClick={() => navigate(ROUTES.project(project.id))}
                 onAccept={() => void handleAccept(project.id)}
-                onDecline={() => undefined}
+                onDecline={() => setDeclineProjectId(project.id)}
                 onSubmit={() => navigate(ROUTES.project(project.id))}
                 className={acceptingId === project.id ? 'opacity-70' : undefined}
               />
@@ -220,25 +274,72 @@ export default function FreelancerDashboard() {
       ) : (
         <EmptyState
           title={
-            activeTab === 'applied'
+            filter === 'applied'
               ? 'No applications yet'
-              : activeTab === 'invitations'
+              : filter === 'invitations'
                 ? 'No pending invitations'
                 : 'No active projects'
           }
           description={
-            activeTab === 'applied'
+            filter === 'applied'
               ? 'Apply to open jobs on the board — your pending applications will show up here.'
               : 'Browse open work on the job board or accept a client invite.'
           }
           action={
             <EmptyStateButton
-              label={activeTab === 'invitations' ? 'Browse jobs' : 'Browse jobs'}
+              label="Browse jobs"
               onClick={() => navigate(ROUTES.jobs)}
             />
           }
         />
       )}
+
+      {!loading && filter === 'active' && completedProjectCount > 0 && (
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowCompletedProjects((prev) => !prev)}
+              className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+            >
+              {showCompletedProjects
+                ? 'Hide completed'
+                : `Show completed (${completedProjectCount})`}
+            </button>
+          </div>
+          {showCompletedProjects && user && (
+            <div className="flex flex-col gap-3 border-t border-ink-100 pt-6">
+              <SectionLabel>Completed</SectionLabel>
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {completedProjects.map((project) => {
+                  const card = projectToFreelancerCardProps(project, user.id)
+                  return (
+                    <ProjectCard
+                      key={project.id}
+                      variant="freelancer"
+                      {...card}
+                      onCardClick={() => navigate(ROUTES.project(project.id))}
+                      onSubmit={() => navigate(ROUTES.project(project.id))}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <DeclineInviteDialog
+        open={!!declineProjectId}
+        onClose={() => {
+          setDeclineProjectId(null)
+          setDeclineReason('')
+        }}
+        onSubmit={() => void handleDecline()}
+        loading={declineLoading}
+        reason={declineReason}
+        onReasonChange={setDeclineReason}
+      />
     </AppSection>
   )
 }

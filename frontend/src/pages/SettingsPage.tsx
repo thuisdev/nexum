@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { SkillPicker } from '@/components/features/project/SkillPicker'
 import { AppSection } from '@/components/layout/AppSection'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -16,35 +15,38 @@ import { RolePill } from '@/components/ui/RolePill'
 import { SettingsPageSkeleton } from '@/components/ui/Skeleton'
 import { Textarea } from '@/components/ui/Textarea'
 import { useAuth } from '@/hooks/useAuth'
+import {
+  AVATAR_COLORS,
+  AVATAR_COLOR_CLASSES,
+  type AvatarColor,
+} from '@/lib/avatarColors'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { CLIENT_INDUSTRIES, MAX_CLIENT_INDUSTRIES } from '@/lib/clientIndustries'
 import { displayName } from '@/lib/projectDisplay'
-import { PROJECT_SKILLS, type ProjectSkill } from '@/lib/projectSkills'
-import { updateProfileSchema } from '@/lib/validation'
+import { uploadAvatar } from '@/lib/users.api'
+import { updateProfileSchema, type UpdateProfileInput } from '@/lib/validation'
 import { ROUTES } from '@/router/routes'
 import type { User } from '@/types/user'
+import { cn } from '@/lib/utils'
 
-const settingsFormSchema = updateProfileSchema.extend({
-  skills: z.array(z.enum(PROJECT_SKILLS)).optional(),
-})
-
-type SettingsFormInput = z.infer<typeof settingsFormSchema>
+type SettingsFormInput = UpdateProfileInput & {
+  skills?: string[]
+}
 
 function formatRole(role: string) {
   return role.charAt(0) + role.slice(1).toLowerCase()
 }
 
-function toProjectSkills(skills: string[] | undefined): ProjectSkill[] {
-  return (skills ?? []).filter((skill): skill is ProjectSkill =>
-    PROJECT_SKILLS.includes(skill as ProjectSkill),
-  )
-}
-
 function SettingsForm({ user }: { user: User }) {
   const navigate = useNavigate()
   const { update } = useAuth()
+  const isClient = user.role === 'CLIENT'
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const defaultSkills = toProjectSkills(user.skills)
+  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? null)
+  const [avatarColor, setAvatarColor] = useState<string | null>(user.avatarColor ?? null)
+  const [avatarDirty, setAvatarDirty] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   const {
     register,
@@ -53,12 +55,12 @@ function SettingsForm({ user }: { user: User }) {
     control,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<SettingsFormInput>({
-    resolver: zodResolver(settingsFormSchema),
+    resolver: zodResolver(updateProfileSchema.extend({ skills: updateProfileSchema.shape.skills })),
     defaultValues: {
       name: user.name ?? '',
       displayName: user.displayName ?? '',
       bio: user.bio ?? '',
-      skills: defaultSkills,
+      skills: user.skills ?? [],
     },
   })
 
@@ -70,11 +72,27 @@ function SettingsForm({ user }: { user: User }) {
         ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
         bio: data.bio?.trim() ?? '',
         skills: data.skills ?? [],
+        ...(avatarDirty ? { avatarUrl, avatarColor: avatarColor as AvatarColor | null } : {}),
       })
 
       navigate(ROUTES.profile(user.id))
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not save profile'))
+    }
+  }
+
+  const handleAvatarFile = async (file: File | undefined) => {
+    if (!file) return
+    setUploadingAvatar(true)
+    setError(null)
+    try {
+      const updated = await uploadAvatar(file)
+      setAvatarUrl(updated.avatarUrl ?? null)
+      setAvatarDirty(true)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not upload image'))
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -92,6 +110,8 @@ function SettingsForm({ user }: { user: User }) {
           <div className="flex items-center gap-4 text-left">
             <div className="rounded-full bg-gradient-to-br from-brand-100 to-brand-50 p-1 shadow-md ring-1 ring-white">
               <Avatar
+                src={avatarUrl}
+                color={avatarColor}
                 name={user.displayName ?? user.name}
                 size="settings"
                 className="ring-2 ring-white"
@@ -117,58 +137,120 @@ function SettingsForm({ user }: { user: User }) {
           noValidate
           className="flex flex-col gap-5 text-left"
         >
+          <FormField label="Profile photo" helper="Upload an image or pick an initial background">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => void handleAvatarFile(e.target.files?.[0])}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                loading={uploadingAvatar}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload image
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setAvatarUrl(null)
+                  setAvatarDirty(true)
+                }}
+              >
+                Use initials
+              </Button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {AVATAR_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`Avatar color ${color}`}
+                  onClick={() => {
+                    setAvatarColor(color)
+                    setAvatarDirty(true)
+                  }}
+                  className={cn(
+                    'size-8 rounded-full border-2 transition-[transform,border-color]',
+                    AVATAR_COLOR_CLASSES[color],
+                    avatarColor === color
+                      ? 'scale-110 border-ink-900'
+                      : 'border-transparent',
+                  )}
+                />
+              ))}
+            </div>
+          </FormField>
+
           <FormField label="Email" htmlFor="email">
             <Input id="email" value={user.email} disabled readOnly />
           </FormField>
 
           <FormField
-            label="Display name"
+            label={isClient ? 'Organization name' : 'Display name'}
             htmlFor="displayName"
             helper="Public — shown on your profile and project cards"
             error={errors.displayName?.message}
           >
             <Input
               id="displayName"
-              placeholder="e.g. bob.eth"
+              placeholder={isClient ? 'e.g. Acme Labs' : 'e.g. bob.eth'}
               error={!!errors.displayName}
               {...register('displayName')}
             />
           </FormField>
 
-          <FormField
-            label="Legal name"
-            htmlFor="name"
-            helper="Optional — not shown on your public profile"
-            error={errors.name?.message}
-          >
-            <Input
-              id="name"
-              placeholder="Your real name"
-              error={!!errors.name}
-              {...register('name')}
-            />
-          </FormField>
+          {!isClient && (
+            <FormField
+              label="Legal name"
+              htmlFor="name"
+              helper="Optional — not shown on your public profile"
+              error={errors.name?.message}
+            >
+              <Input
+                id="name"
+                placeholder="Your real name"
+                error={!!errors.name}
+                {...register('name')}
+              />
+            </FormField>
+          )}
 
           <FormField
             label="Bio"
             htmlFor="bio"
             helper={
-              user.role === 'FREELANCER'
-                ? 'Describe your experience and how you work'
-                : 'Tell freelancers what kind of projects you run'
+              isClient
+                ? 'Describe your organization and the kind of work you hire for'
+                : 'Describe your experience and how you work'
             }
           >
             <Textarea
               id="bio"
-              placeholder="Short intro for your public profile…"
+              placeholder={
+                isClient
+                  ? 'What you build, team size, typical projects…'
+                  : 'Short intro for your public profile…'
+              }
               {...register('bio')}
             />
           </FormField>
 
           <FormField
-            label="Skills"
+            label={isClient ? 'Industries' : 'Skills'}
             htmlFor="skills"
-            helper="Tap to add skills — same picker as project creation"
+            helper={
+              isClient
+                ? 'Pick sectors you hire in — presets or add your own with +'
+                : 'Pick presets or add your own with +'
+            }
             error={errors.skills?.message}
           >
             <Controller
@@ -178,6 +260,10 @@ function SettingsForm({ user }: { user: User }) {
                 <SkillPicker
                   value={field.value ?? []}
                   onChange={field.onChange}
+                  allowCustom
+                  presets={isClient ? CLIENT_INDUSTRIES : undefined}
+                  maxSkills={isClient ? MAX_CLIENT_INDUSTRIES : undefined}
+                  customPlaceholder={isClient ? 'Custom industry' : 'Custom skill'}
                   error={errors.skills?.message}
                 />
               )}
@@ -185,7 +271,7 @@ function SettingsForm({ user }: { user: User }) {
           </FormField>
 
           <div className="flex flex-col gap-2 border-t border-ink-100 pt-5 md:flex-row md:justify-end md:gap-2">
-            {isDirty && (
+            {(isDirty || avatarDirty) && (
               <Button
                 type="button"
                 variant="ghost"
@@ -197,8 +283,11 @@ function SettingsForm({ user }: { user: User }) {
                     name: user.name ?? '',
                     displayName: user.displayName ?? '',
                     bio: user.bio ?? '',
-                    skills: defaultSkills,
+                    skills: user.skills ?? [],
                   })
+                  setAvatarUrl(user.avatarUrl ?? null)
+                  setAvatarColor(user.avatarColor ?? null)
+                  setAvatarDirty(false)
                   setError(null)
                 }}
               >
@@ -208,7 +297,7 @@ function SettingsForm({ user }: { user: User }) {
             <Button
               type="submit"
               loading={isSubmitting}
-              disabled={!isDirty || isSubmitting}
+              disabled={(!isDirty && !avatarDirty) || isSubmitting}
               fullWidth
               className="md:w-auto"
             >

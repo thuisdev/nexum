@@ -13,6 +13,15 @@ export const patchMe = async (credentials: UpdateProfileInput) => {
   return res.data
 }
 
+export const uploadAvatar = async (file: File) => {
+  const form = new FormData()
+  form.append('avatar', file)
+  const res = await api.post('/users/me/avatar', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
 export const getPublicProfile = async (userId: string) => {
   const res = await publicApi.get<PublicUserProfile>(`/users/${userId}/public`)
   return res.data
@@ -28,8 +37,26 @@ export type PublicReview = {
     displayName: string | null
     name: string | null
     avatarUrl: string | null
+    avatarColor?: string | null
   }
   project: { id: string; title: string }
+}
+
+export type PublicCompletedProject = {
+  id: string
+  title: string
+  skills: string[]
+  totalBudget: string
+  currency: string
+  completedAt: string | null
+  isPublic: boolean
+}
+
+export const getUserCompletedProjects = async (userId: string) => {
+  const res = await publicApi.get<PublicCompletedProject[]>(
+    `/users/${userId}/completed-projects`,
+  )
+  return res.data
 }
 
 export const getUserReviews = async (userId: string) => {

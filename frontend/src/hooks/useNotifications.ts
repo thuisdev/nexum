@@ -1,4 +1,8 @@
-import { listNotifications, markNotificationRead } from '@/lib/notifications.api'
+import {
+  deleteNotification,
+  listNotifications,
+  markNotificationRead,
+} from '@/lib/notifications.api'
 import { formatRelativeTime } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useCallback, useEffect, useState } from 'react'
@@ -24,14 +28,13 @@ export function useNotifications(enabled = true) {
   }, [enabled])
 
   useEffect(() => {
-    if (!enabled) {
-      setNotifications([])
-      return
-    }
+    if (!enabled) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch notifications on mount
     void refresh()
   }, [refresh, enabled])
 
-  const unreadCount = notifications.filter((n) => !n.readAt).length
+  const visibleNotifications = enabled ? notifications : []
+  const unreadCount = visibleNotifications.filter((n) => !n.readAt).length
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.readAt) {
@@ -54,12 +57,22 @@ export function useNotifications(enabled = true) {
     }
   }
 
-  const items = notifications.map((notification) => ({
+  const handleDelete = async (notificationId: string) => {
+    try {
+      await deleteNotification(notificationId)
+      setNotifications((prev) => prev.filter((item) => item.id !== notificationId))
+    } catch {
+      // ignore
+    }
+  }
+
+  const items = visibleNotifications.map((notification) => ({
     id: notification.id,
     message: notification.message,
     time: formatRelativeTime(notification.createdAt),
     unread: !notification.readAt,
     onClick: () => void handleNotificationClick(notification),
+    onDelete: () => void handleDelete(notification.id),
   }))
 
   return { items, unreadCount, loading, refresh }

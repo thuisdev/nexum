@@ -4,6 +4,7 @@ import {
   acceptInvite,
   appendMilestones,
   createProject,
+  declineInvite,
   deleteProject,
   fundProject,
   getProjectActivity,
@@ -17,6 +18,7 @@ import {
 import {
   appendMilestonesSchema,
   createProjectSchema,
+  declineInviteSchema,
   inviteFreelancerSchema,
   updateProjectSchema,
 } from '../schemas/project.schema.js';
@@ -271,7 +273,7 @@ export const handleGetProjectActivity = async (
   }
 };
 
-/** POST /api/projects/:id/invite — client invites freelancer by email. */
+/** POST /api/projects/:id/invite — client invites freelancer by email or display name. */
 export const handleInviteProject = async (
   req: Request,
   res: Response,
@@ -326,6 +328,13 @@ export const handleInviteProject = async (
       return;
     }
 
+    if (project === 'freelancer_ambiguous') {
+      res.status(409).json({
+        error: 'Multiple freelancers match that name — use their email instead',
+      });
+      return;
+    }
+
     res.json(project);
   } catch (error) {
     next(error);
@@ -352,10 +361,54 @@ export const handleAcceptInvite = async (
       return;
     }
 
-    if (project === 'not_draft') {
+    if (project === 'not_open') {
       res.status(409).json({
-        error: 'Invite can only be accepted while project status is DRAFT',
+        error: 'Invite can only be accepted while project is open',
       });
+      return;
+    }
+
+    if (project === 'already_accepted') {
+      res.status(409).json({ error: 'Invite already accepted' });
+      return;
+    }
+
+    res.json(project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/projects/:id/decline — invited freelancer declines. */
+export const handleDeclineInvite = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const parsed = declineInviteSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten(),
+      });
+      return;
+    }
+
+    const projectId = String(req.params.id);
+    const project = await declineInvite(
+      projectId,
+      req.userId!,
+      parsed.data.reason,
+    );
+
+    if (project === null) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (project === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
       return;
     }
 
@@ -397,10 +450,8 @@ export const handleFundProject = async (
       return;
     }
 
-    if (project === 'no_freelancer') {
-      res.status(409).json({
-        error: 'Assign a freelancer before funding the project',
-      });
+    if (project === 'already_funded') {
+      res.status(409).json({ error: 'Project is already funded' });
       return;
     }
 

@@ -7,6 +7,7 @@ import {
   listMyApplications,
   listProjectApplications,
   rejectApplication,
+  withdrawApplication,
 } from '../services/application.services.js';
 import { applyToProjectSchema } from '../schemas/application.schema.js';
 
@@ -43,9 +44,9 @@ export const handleApplyToProject = async (
       return;
     }
 
-    if (application === 'not_draft') {
+    if (application === 'not_open') {
       res.status(409).json({
-        error: 'Applications are only allowed while project status is DRAFT',
+        error: 'Applications are only allowed while project is open',
       });
       return;
     }
@@ -160,9 +161,9 @@ export const handleAcceptApplication = async (
       return;
     }
 
-    if (project === 'not_draft') {
+    if (project === 'not_open') {
       res.status(409).json({
-        error: 'Application can only be accepted while project status is DRAFT',
+        error: 'Application can only be accepted while project is open',
       });
       return;
     }
@@ -204,6 +205,32 @@ export const handleRejectApplication = async (
     }
 
     res.json(application);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** DELETE /api/projects/:id/my-application — freelancer withdraws pending application. */
+export const handleWithdrawApplication = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = String(req.params.id);
+    const result = await withdrawApplication(projectId, req.userId!);
+
+    if (result === null) {
+      res.status(404).json({ error: 'Application not found' });
+      return;
+    }
+
+    if (result === 'not_pending') {
+      res.status(409).json({ error: 'Only pending applications can be withdrawn' });
+      return;
+    }
+
+    res.json(result);
   } catch (error) {
     next(error);
   }

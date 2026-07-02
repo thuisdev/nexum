@@ -1,21 +1,40 @@
 import { Link } from 'react-router-dom'
 import { ROUTES } from '@/router/routes'
 
-const productLinks = ['Job board', 'How it works', 'Pricing']
-const companyLinks = ['About', 'Blog', 'Careers']
-const legalLinks = ['Terms', 'Privacy']
+type FooterLink = {
+  label: string
+  to: string
+}
 
-function LinkColumn({ title, links }: { title: string; links: string[] }) {
+const productLinks: FooterLink[] = [
+  { label: 'Job board', to: ROUTES.jobs },
+  { label: 'How it works', to: ROUTES.howItWorks },
+  { label: 'Pricing', to: ROUTES.pricing },
+]
+
+const companyLinks: FooterLink[] = [
+  { label: 'About', to: ROUTES.about },
+  { label: 'Blog', to: ROUTES.blog },
+  { label: 'Careers', to: ROUTES.careers },
+]
+
+const legalLinks: FooterLink[] = [
+  { label: 'Terms', to: ROUTES.terms },
+  { label: 'Privacy', to: ROUTES.privacy },
+]
+
+function LinkColumn({ title, links }: { title: string; links: FooterLink[] }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
       <p className="text-sm font-medium leading-5 text-ink-900">{title}</p>
       {links.map((link) => (
-        <span
-          key={link}
-          className="text-sm leading-5 text-ink-500"
+        <Link
+          key={link.to}
+          to={link.to}
+          className="text-sm leading-5 text-ink-500 transition-colors hover:text-brand-600"
         >
-          {link}
-        </span>
+          {link.label}
+        </Link>
       ))}
     </div>
   )

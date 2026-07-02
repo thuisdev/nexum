@@ -3,6 +3,7 @@ export interface PublicUserProfile {
   name: string | null
   displayName: string | null
   avatarUrl: string | null
+  avatarColor: string | null
   role: 'CLIENT' | 'FREELANCER' | 'ARBITER' | 'ADMIN'
   bio: string | null
   skills: string[]
@@ -11,6 +12,7 @@ export interface PublicUserProfile {
   reviewCount: number
   totalStars: number
   averageRating: number
+  completedProjectCount: number
 }
 
 export interface User {
@@ -20,6 +22,8 @@ export interface User {
   role: 'CLIENT' | 'FREELANCER' | 'ARBITER' | 'ADMIN'
   createdAt: string
   displayName: string | null
+  avatarUrl?: string | null
+  avatarColor?: string | null
   bio?: string | null
   skills?: string[]
 }

@@ -18,13 +18,13 @@ export function InviteFreelancerModal({
   onClose,
   onSuccess,
 }: InviteFreelancerModalProps) {
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleInvite = async () => {
-    if (!email.trim()) {
-      setError('Freelancer email is required')
+    if (!identifier.trim()) {
+      setError('Email or display name is required')
       return
     }
 
@@ -32,8 +32,8 @@ export function InviteFreelancerModal({
     setError(null)
 
     try {
-      await inviteFreelancer(projectId, email.trim())
-      setEmail('')
+      await inviteFreelancer(projectId, identifier.trim())
+      setIdentifier('')
       onSuccess?.()
       onClose()
     } catch (err) {
@@ -58,14 +58,13 @@ export function InviteFreelancerModal({
       }
     >
       <p className="text-sm leading-5 text-ink-500">
-        Enter the freelancer's registered email.
+        Enter their registered email or public display name (e.g. bob.eth).
       </p>
-      <FormField label="Freelancer email" error={error ?? undefined}>
+      <FormField label="Email or display name" error={error ?? undefined}>
         <Input
-          type="email"
-          placeholder="freelancer@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          placeholder="freelancer@example.com or bob.eth"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           error={!!error}
         />
       </FormField>

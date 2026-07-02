@@ -13,11 +13,15 @@ import {
   InviteFreelancerModal,
   ProjectCard,
 } from '@/components/features'
+import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
+import { SectionLabel } from '@/components/ui/Tag'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { listProjects } from '@/lib/projects.api'
 import { projectToClientCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import type { Project } from '@/types/project'
+
+type ClientFilter = 'all' | 'drafts' | 'active'
 
 export default function ClientDashboard() {
   const navigate = useNavigate()
@@ -25,6 +29,9 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [inviteProjectId, setInviteProjectId] = useState<string | null>(null)
+  const [reviewProject, setReviewProject] = useState<Project | null>(null)
+  const [filter, setFilter] = useState<ClientFilter>('all')
+  const [showCompleted, setShowCompleted] = useState(false)
 
   const refreshProjects = useCallback(async () => {
     setLoading(true)
@@ -64,12 +71,64 @@ export default function ClientDashboard() {
   }, [])
 
   const summary = useMemo(() => {
-    const drafts = projects.filter((p) => p.status === 'DRAFT').length
-    const active = projects.filter(
-      (p) => p.status !== 'DRAFT' && p.status !== 'COMPLETED' && p.status !== 'CANCELLED',
+    const drafts = projects.filter(
+      (p) => p.status === 'DRAFT' || p.status === 'FUNDED',
     ).length
-    return { total: projects.length, drafts, active }
+    const active = projects.filter(
+      (p) =>
+        p.status !== 'DRAFT' &&
+        p.status !== 'FUNDED' &&
+        p.status !== 'COMPLETED' &&
+        p.status !== 'CANCELLED',
+    ).length
+    const completed = projects.filter((p) => p.status === 'COMPLETED').length
+    return { total: projects.length, drafts, active, completed }
   }, [projects])
+
+  const filteredProjects = useMemo(() => {
+    let list = projects.filter(
+      (p) => p.status !== 'COMPLETED' && p.status !== 'CANCELLED',
+    )
+
+    if (filter === 'drafts') {
+      list = list.filter((p) => p.status === 'DRAFT' || p.status === 'FUNDED')
+    } else if (filter === 'active') {
+      list = list.filter(
+        (p) =>
+          p.status !== 'DRAFT' &&
+          p.status !== 'FUNDED',
+      )
+    }
+
+    return list
+  }, [projects, filter])
+
+  const completedProjects = useMemo(
+    () => projects.filter((p) => p.status === 'COMPLETED'),
+    [projects],
+  )
+
+  const renderClientProjectCard = (project: Project) => {
+    const card = projectToClientCardProps(project)
+    const canInvite =
+      (project.status === 'DRAFT' || project.status === 'FUNDED') &&
+      !project.freelancerId &&
+      !project.invitedFreelancerId
+
+    return (
+      <ProjectCard
+        key={project.id}
+        variant="client"
+        {...card}
+        showInvite={canInvite}
+        onCardClick={() => navigate(ROUTES.project(project.id))}
+        onInvite={() => setInviteProjectId(project.id)}
+        showReviewApplicants={card.showReviewApplicants}
+        applicantCount={card.applicantCount}
+        onReviewApplicants={() => setReviewProject(project)}
+      />
+    )
+  }
 
   return (
     <AppSection className="!py-8 md:!py-12">
@@ -84,12 +143,15 @@ export default function ClientDashboard() {
 
       {!loading && projects.length > 0 && (
         <DashboardSummary
+          className="mb-6"
           stats={[
             {
               id: 'total',
               label: 'Total projects',
               value: summary.total,
               icon: Briefcase,
+              active: filter === 'all',
+              onClick: () => setFilter('all'),
             },
             {
               id: 'drafts',
@@ -97,6 +159,8 @@ export default function ClientDashboard() {
               value: summary.drafts,
               icon: FileEdit,
               highlight: summary.drafts > 0,
+              active: filter === 'drafts',
+              onClick: () => setFilter('drafts'),
             },
             {
               id: 'active',
@@ -104,6 +168,8 @@ export default function ClientDashboard() {
               value: summary.active,
               icon: Rocket,
               highlight: summary.active > 0,
+              active: filter === 'active',
+              onClick: () => setFilter('active'),
             },
           ]}
         />
@@ -113,27 +179,18 @@ export default function ClientDashboard() {
 
       {loading ? (
         <DashboardGridSkeleton count={3} />
-      ) : projects.length > 0 ? (
+      ) : filteredProjects.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => {
-            const card = projectToClientCardProps(project)
-            const canInvite =
-              project.status === 'DRAFT' &&
-              !project.freelancerId &&
-              !project.invitedFreelancerId
-
-            return (
-              <ProjectCard
-                key={project.id}
-                variant="client"
-                {...card}
-                showInvite={canInvite}
-                onCardClick={() => navigate(ROUTES.project(project.id))}
-                onInvite={() => setInviteProjectId(project.id)}
-              />
-            )
-          })}
+          {filteredProjects.map((project) => renderClientProjectCard(project))}
         </div>
+      ) : projects.length > 0 && filteredProjects.length === 0 ? (
+        <EmptyState
+          title="No projects in this view"
+          description="Try another filter or create a new project."
+          action={
+            <EmptyStateButton label="Show all" onClick={() => setFilter('all')} />
+          }
+        />
       ) : (
         <EmptyState
           title="No projects yet"
@@ -147,6 +204,30 @@ export default function ClientDashboard() {
         />
       )}
 
+      {!loading && summary.completed > 0 && (
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowCompleted((prev) => !prev)}
+              className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+            >
+              {showCompleted
+                ? 'Hide completed'
+                : `Show completed (${summary.completed})`}
+            </button>
+          </div>
+          {showCompleted && (
+            <div className="flex flex-col gap-3 border-t border-ink-100 pt-6">
+              <SectionLabel>Completed</SectionLabel>
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {completedProjects.map((project) => renderClientProjectCard(project))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {inviteProjectId && (
         <InviteFreelancerModal
           open={!!inviteProjectId}
@@ -155,6 +236,14 @@ export default function ClientDashboard() {
           onSuccess={() => void refreshProjects()}
         />
       )}
+
+      <ReviewApplicationsModal
+        open={!!reviewProject}
+        projectId={reviewProject?.id ?? null}
+        projectTitle={reviewProject?.title}
+        onClose={() => setReviewProject(null)}
+        onUpdated={() => void refreshProjects()}
+      />
     </AppSection>
   )
 }

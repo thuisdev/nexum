@@ -171,11 +171,33 @@ export const listProjects = async (userId: string, userRole: Role) => {
 
   const projects = await prisma.project.findMany({
     where,
-    include: { milestones: true },
+    include: {
+      milestones: true,
+      client: { select: clientPublicSelect },
+      freelancer: { select: clientPublicSelect },
+      invitedFreelancer: { select: clientPublicSelect },
+      ...(userRole === 'CLIENT'
+        ? {
+            _count: {
+              select: {
+                applications: { where: { status: 'PENDING' } },
+              },
+            },
+          }
+        : {}),
+    },
     orderBy: { createdAt: 'desc' },
   });
 
-  return projects.map(serializeProject);
+  return projects.map((project) => ({
+    ...serializeProject(project),
+    client: project.client,
+    freelancer: project.freelancer,
+    invitedFreelancer: project.invitedFreelancer,
+    ...('_count' in project && project._count
+      ? { pendingApplicationCount: project._count.applications }
+      : {}),
+  }));
 };
 
 export const getProjectById = async (
@@ -196,6 +218,15 @@ export const getProjectById = async (
       },
       client: { select: clientPublicSelect },
       freelancer: { select: clientPublicSelect },
+      ...(userRole === 'CLIENT'
+        ? {
+            _count: {
+              select: {
+                applications: { where: { status: 'PENDING' } },
+              },
+            },
+          }
+        : {}),
     },
   });
 
@@ -221,10 +252,16 @@ export const getProjectById = async (
     openDispute &&
     (openDispute.arbiterId === userId || openDispute.arbiterId === null);
 
+  const isOpenPublicJob =
+    project.isPublic &&
+    !project.freelancerId &&
+    (project.status === 'DRAFT' || project.status === 'FUNDED');
+
   if (
     !canAccessProject(project, userId, userRole) &&
     !arbiterCanAccess &&
-    userRole !== 'ADMIN'
+    userRole !== 'ADMIN' &&
+    !(userRole === 'FREELANCER' && isOpenPublicJob)
   ) {
     return 'forbidden' as const;
   }
@@ -233,6 +270,12 @@ export const getProjectById = async (
     ...serializeProject(project),
     client: project.client,
     freelancer: project.freelancer,
+    ...(userRole === 'CLIENT' &&
+    project.clientId === userId &&
+    '_count' in project &&
+    project._count
+      ? { pendingApplicationCount: project._count.applications }
+      : {}),
     openDispute: openDispute
       ? {
           id: openDispute.id,
@@ -473,7 +516,51 @@ export const getProjectActivity = async (
   }));
 };
 
-/** Client invites a freelancer by email while project is DRAFT. */
+async function resolveFreelancerByIdentifier(identifier: string) {
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    return 'freelancer_not_found' as const;
+  }
+
+  if (trimmed.includes('@')) {
+    const freelancer = await prisma.user.findUnique({
+      where: { email: trimmed.toLowerCase() },
+    });
+
+    if (!freelancer) {
+      return 'freelancer_not_found' as const;
+    }
+
+    if (freelancer.role !== 'FREELANCER') {
+      return 'not_freelancer_role' as const;
+    }
+
+    return freelancer;
+  }
+
+  const matches = await prisma.user.findMany({
+    where: {
+      role: 'FREELANCER',
+      OR: [
+        { displayName: { equals: trimmed, mode: 'insensitive' } },
+        { name: { equals: trimmed, mode: 'insensitive' } },
+      ],
+    },
+    take: 2,
+  });
+
+  if (matches.length === 0) {
+    return 'freelancer_not_found' as const;
+  }
+
+  if (matches.length > 1) {
+    return 'freelancer_ambiguous' as const;
+  }
+
+  return matches[0]!;
+}
+
+/** Client invites a freelancer by email or display name while project is DRAFT. */
 export const inviteFreelancer = async (
   projectId: string,
   clientId: string,
@@ -497,17 +584,13 @@ export const inviteFreelancer = async (
     return 'freelancer_already_assigned' as const;
   }
 
-  const freelancer = await prisma.user.findUnique({
-    where: { email: input.freelancerEmail },
-  });
+  const resolved = await resolveFreelancerByIdentifier(input.identifier);
 
-  if (!freelancer) {
-    return 'freelancer_not_found' as const;
+  if (typeof resolved === 'string') {
+    return resolved;
   }
 
-  if (freelancer.role !== 'FREELANCER') {
-    return 'not_freelancer_role' as const;
-  }
+  const freelancer = resolved;
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.project.update({
@@ -543,6 +626,61 @@ export const inviteFreelancer = async (
   return serializeProject(updated);
 };
 
+/** Invited freelancer declines — clears invite and optionally notifies client. */
+export const declineInvite = async (
+  projectId: string,
+  freelancerId: string,
+  reason?: string,
+) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.invitedFreelancerId !== freelancerId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'already_accepted' as const;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.project.update({
+      where: { id: projectId },
+      data: { invitedFreelancerId: null },
+      include: { milestones: true },
+    });
+
+    const reasonSnippet = reason?.trim()
+      ? `: "${reason.trim().slice(0, 120)}"`
+      : '';
+
+    await tx.notification.create({
+      data: {
+        userId: project.clientId,
+        projectId,
+        type: 'INVITE_DECLINED',
+        message: `Invitation declined for "${project.title}"${reasonSnippet}`,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: freelancerId,
+        action: 'FREELANCER_DECLINED',
+        metadata: { reason: reason?.trim() || null },
+      },
+    });
+
+    return result;
+  });
+
+  return serializeProject(updated);
+};
+
 /** Invited freelancer accepts — sets freelancerId and clears invite. */
 export const acceptInvite = async (projectId: string, freelancerId: string) => {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -555,13 +693,15 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
     return 'forbidden' as const;
   }
 
-  if (project.status !== 'DRAFT') {
-    return 'not_draft' as const;
+  if (project.status !== 'DRAFT' && project.status !== 'FUNDED') {
+    return 'not_open' as const;
   }
 
   if (project.freelancerId) {
     return 'already_accepted' as const;
   }
+
+  const isPrefunded = project.escrowStatus === 'FUNDED';
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.project.update({
@@ -569,9 +709,17 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
       data: {
         freelancerId,
         invitedFreelancerId: null,
+        ...(isPrefunded ? { status: 'IN_PROGRESS' as const } : {}),
       },
       include: { milestones: true },
     });
+
+    if (isPrefunded) {
+      await tx.milestone.updateMany({
+        where: { projectId, orderIndex: 0, status: 'PENDING' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -604,24 +752,28 @@ export const fundProject = async (projectId: string, clientId: string) => {
     return 'not_draft' as const;
   }
 
-  if (!project.freelancerId) {
-    return 'no_freelancer' as const;
+  if (project.escrowStatus === 'FUNDED') {
+    return 'already_funded' as const;
   }
+
+  const hasFreelancer = Boolean(project.freelancerId);
 
   const updated = await prisma.$transaction(async (tx) => {
     await tx.project.update({
       where: { id: projectId },
       data: {
-        status: 'IN_PROGRESS',
+        status: hasFreelancer ? 'IN_PROGRESS' : 'FUNDED',
         escrowStatus: 'FUNDED',
         fundedAt: new Date(),
       },
     });
 
-    await tx.milestone.updateMany({
-      where: { projectId, orderIndex: 0, status: 'PENDING' },
-      data: { status: 'IN_PROGRESS' },
-    });
+    if (hasFreelancer) {
+      await tx.milestone.updateMany({
+        where: { projectId, orderIndex: 0, status: 'PENDING' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -672,24 +824,25 @@ const serializePreview = (project: ProjectWithClient) => ({
     })),
 });
 
-const serializeJobListing = (project: ProjectWithClient) => ({
+const serializeJobListing = (project: ProjectWithClient & { escrowStatus?: string }) => ({
   id: project.id,
   title: project.title,
   totalBudget: project.totalBudget.toString(),
   currency: project.currency,
   status: project.status,
+  escrowStatus: project.escrowStatus,
   skills: project.skills,
   milestoneCount: project.milestones.length,
   client: project.client,
   createdAt: project.createdAt.toISOString(),
 });
 
-/** Public job board — open DRAFT projects marked isPublic. */
+/** Public job board — open public projects without an assigned freelancer. */
 export const listPublicJobs = async () => {
   const projects = await prisma.project.findMany({
     where: {
       isPublic: true,
-      status: 'DRAFT',
+      status: { in: ['DRAFT', 'FUNDED'] },
       freelancerId: null,
     },
     include: {

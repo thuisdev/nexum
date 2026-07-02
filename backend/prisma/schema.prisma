@@ -49,6 +49,7 @@ enum DisputeStatus {
 
 enum NotificationType {
   PROJECT_INVITED
+  INVITE_DECLINED
   APPLICATION_RECEIVED
   APPLICATION_ACCEPTED
   APPLICATION_REJECTED
@@ -57,6 +58,7 @@ enum NotificationType {
   MILESTONE_DISPUTED
   DISPUTE_RESOLVED
   PAYMENT_RELEASED
+  REVIEW_RECEIVED
 }
 
 enum ApplicationStatus {
@@ -88,6 +90,7 @@ model User {
   name               String?
   displayName        String?
   avatarUrl          String?
+  avatarColor        String?
   isVerified         Boolean            @default(false)
   verificationMethod VerificationMethod @default(NONE)
   verifiedAt         DateTime?

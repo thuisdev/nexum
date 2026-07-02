@@ -9,4 +9,6 @@ export const PROJECT_SKILLS = [
 
 export type ProjectSkill = (typeof PROJECT_SKILLS)[number]
 
+export const MAX_PROJECT_SKILLS = 4
+
 export const JOB_BOARD_FILTER_CHIPS = ['All', ...PROJECT_SKILLS] as const

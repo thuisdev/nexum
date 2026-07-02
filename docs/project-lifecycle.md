@@ -2,7 +2,7 @@
 
 > **Source of truth for status transitions and who may do what.**  
 > Enums: `backend/prisma/schema.prisma`  
-> MVP scope: [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) (disputes/reviews out of scope)
+> Product scope: see root [README](../README.md)
 
 ---
 
@@ -205,6 +205,5 @@ stateDiagram-v2
 
 ## Related docs
 
-- [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) — roadmap & endpoints
-- [DESIGN_SPRINT.md](./DESIGN_SPRINT.md) — Figma screens per status (DS-D09 … DS-D17)
+- [README](../README.md) — MVP features, API overview, deploy
 - `backend/prisma/schema.prisma` — enum definitions

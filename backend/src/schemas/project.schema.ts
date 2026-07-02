@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-import { PROJECT_SKILLS } from '../constants/projectSkills.js';
-
 /** Money as string ("1000.00") or number — stored as decimal string after parse. */
 const moneySchema = z
   .union([z.string().trim(), z.number()])
@@ -63,6 +61,17 @@ const milestonesRefinement = (
   }
 };
 
+const projectSkillsSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, 'Skill cannot be empty')
+      .max(40, 'Skill is too long'),
+  )
+  .min(1, 'At least one skill is required')
+  .max(4, 'Select up to 4 skills');
+
 /** Body for POST /api/projects */
 export const createProjectSchema = z
   .object({
@@ -71,9 +80,7 @@ export const createProjectSchema = z
     totalBudget: moneySchema,
     currency: z.string().trim().min(1).default('USDC'),
     isPublic: z.boolean().default(false),
-    skills: z
-      .array(z.enum(PROJECT_SKILLS))
-      .min(1, 'At least one skill is required'),
+    skills: projectSkillsSchema,
     milestones: z
       .array(milestoneInputSchema)
       .min(1, 'At least one milestone is required'),
@@ -92,7 +99,7 @@ export const updateProjectSchema = z
     totalBudget: moneySchema.optional(),
     currency: z.string().trim().min(1).optional(),
     isPublic: z.boolean().optional(),
-    skills: z.array(z.enum(PROJECT_SKILLS)).min(1).optional(),
+    skills: projectSkillsSchema.optional(),
     milestones: z.array(milestoneInputSchema).min(1).optional(),
   })
   .superRefine((data, ctx) => {
@@ -127,7 +134,17 @@ export type AppendMilestonesInput = z.infer<typeof appendMilestonesSchema>;
 
 /** Body for POST /api/projects/:id/invite */
 export const inviteFreelancerSchema = z.object({
-  freelancerEmail: z.string().trim().email('Invalid freelancer email'),
+  identifier: z
+    .string()
+    .trim()
+    .min(1, 'Enter a freelancer email or display name'),
 });
 
 export type InviteFreelancerInput = z.infer<typeof inviteFreelancerSchema>;
+
+/** Body for POST /api/projects/:id/decline */
+export const declineInviteSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+});
+
+export type DeclineInviteInput = z.infer<typeof declineInviteSchema>;

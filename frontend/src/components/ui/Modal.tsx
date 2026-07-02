@@ -7,19 +7,23 @@ import { cn } from '@/lib/utils'
 export type ModalProps = {
   open: boolean
   onClose: () => void
-  title: string
+  title: ReactNode
+  description?: ReactNode
   children: ReactNode
   footer?: ReactNode
   className?: string
+  bodyClassName?: string
 }
 
 export function Modal({
   open,
   onClose,
   title,
+  description,
   children,
   footer,
   className,
+  bodyClassName,
 }: ModalProps) {
   useEffect(() => {
     if (!open) return
@@ -52,23 +56,30 @@ export function Modal({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-4">
-          <h3
-            id="modal-title"
-            className="font-display text-lg font-semibold leading-7 text-ink-900 md:text-xl md:leading-7"
-          >
-            {title}
-          </h3>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h3
+              id="modal-title"
+              className="font-display text-lg font-semibold leading-7 text-ink-900 md:text-xl md:leading-7"
+            >
+              {title}
+            </h3>
+            {description ? (
+              <p className="mt-1 truncate text-sm leading-5 text-ink-500">
+                {description}
+              </p>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded text-ink-400 transition-colors hover:text-ink-600 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40"
+            className="-mr-1 shrink-0 rounded-lg p-1 text-ink-400 transition-colors hover:bg-ink-50 hover:text-ink-600 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/40"
             aria-label="Close"
           >
             <X className="size-5" />
           </button>
         </div>
-        <div className="flex flex-col gap-4">{children}</div>
+        <div className={cn('flex flex-col gap-4', bodyClassName)}>{children}</div>
         {footer ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-2 [&_button]:w-full sm:[&_button]:w-auto">
             {footer}

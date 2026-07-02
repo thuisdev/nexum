@@ -133,6 +133,8 @@ export const meHandler = async (
         displayName: true,
         bio: true,
         skills: true,
+        avatarUrl: true,
+        avatarColor: true,
       },
     });
 

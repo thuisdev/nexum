@@ -4,16 +4,15 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import { StarRating } from '@/components/ui/StarRating'
 import { Modal, ModalActions } from '@/components/ui/Modal'
 import { StickyActionBar } from '@/components/ui/StickyActionBar'
 import {
   ActivityTimeline,
-  ApplicationCard,
   ApplyDialog,
   ApproveDialog,
   InviteFreelancerModal,
   MilestoneCard,
-  MilestoneStepper,
   ProjectDetailHero,
   ProjectEscrowSection,
   ProjectOverflowMenu,
@@ -21,6 +20,9 @@ import {
   type ProjectDetailParty,
   type ProjectOverflowItem,
 } from '@/components/features'
+import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
+import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
+import { ReviewDialog } from '@/components/features/dialogs/ReviewDialog'
 import { DisputeDialog } from '@/components/features/dialogs/DisputeDialog'
 import {
   DisputePanel,
@@ -33,34 +35,37 @@ import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import {
   acceptInvite,
   approveMilestone,
+  createProjectReview,
+  declineInvite,
   deleteProject,
   fundProject,
+  getMyProjectReview,
   getProject,
   getProjectActivity,
   getProjectPreview,
   openDispute,
   resolveDispute,
   submitMilestone,
+  type ProjectReview,
 } from '@/lib/projects.api'
 import {
-  acceptApplication,
   applyToProject,
   getMyApplication,
-  listProjectApplications,
-  rejectApplication,
+  withdrawApplication,
 } from '@/lib/applications.api'
+import { markProjectNotificationsRead } from '@/lib/notifications.api'
 import {
   canApproveMilestone,
   canDeleteProject,
   canEditProject,
+  canOpenApplicationsReview,
   canSubmitMilestone,
   displayName,
   formatDeadline,
-  formatRelativeTime,
   mapMilestoneStatus,
   mapProjectStatus,
   previewClientName,
-  projectEscrowLabel,
+  projectEscrowFunded,
   resolveClientCardStatus,
   resolveDisputeCta,
   resolveFreelancerCardStatus,
@@ -68,9 +73,15 @@ import {
 } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
-import type { Application } from '@/types/application'
 import type { Milestone, Project, ProjectActivity, ProjectPreview } from '@/types/project'
+import type { Application } from '@/types/application'
 import axios from 'axios'
+
+const COMPLETED_MILESTONE_STATUSES = new Set(['PAID'])
+
+function isCompletedMilestone(status: string) {
+  return COMPLETED_MILESTONE_STATUSES.has(status)
+}
 
 function resolveParties(
   project: Project | null,
@@ -129,10 +140,15 @@ export default function ProjectDetailPage() {
   const [submitNote, setSubmitNote] = useState('')
   const [submitFile, setSubmitFile] = useState<File | null>(null)
   const [approveMilestoneId, setApproveMilestoneId] = useState<string | null>(null)
-  const [applications, setApplications] = useState<Application[]>([])
-  const [myApplication, setMyApplication] = useState<Application | null>(null)
   const [applyOpen, setApplyOpen] = useState(false)
   const [applyPitch, setApplyPitch] = useState('')
+  const [declineOpen, setDeclineOpen] = useState(false)
+  const [declineReason, setDeclineReason] = useState('')
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [applicationsOpen, setApplicationsOpen] = useState(false)
+  const [showCompletedMilestones, setShowCompletedMilestones] = useState(false)
+  const [myReview, setMyReview] = useState<ProjectReview | null>(null)
+  const [myApplication, setMyApplication] = useState<Application | null>(null)
   const reloadProject = useCallback(async () => {
     if (!id) return
 
@@ -151,17 +167,31 @@ export default function ProjectDetailPage() {
         } catch {
           setActivity([])
         }
-        if (full.clientId === user.id && full.isPublic && !full.freelancerId) {
+
+        void markProjectNotificationsRead(id).catch(() => undefined)
+
+        if (user.role === 'FREELANCER' || user.role === 'ADMIN') {
           try {
-            const apps = await listProjectApplications(id)
-            setApplications(apps)
+            const app = await getMyApplication(id)
+            setMyApplication(app)
           } catch {
-            setApplications([])
+            setMyApplication(null)
           }
         } else {
-          setApplications([])
+          setMyApplication(null)
         }
-        setMyApplication(null)
+
+        if (full.status === 'COMPLETED') {
+          try {
+            const review = await getMyProjectReview(id)
+            setMyReview(review)
+          } catch {
+            setMyReview(null)
+          }
+        } else {
+          setMyReview(null)
+        }
+
         setLoading(false)
         return
       } catch (err) {
@@ -182,7 +212,7 @@ export default function ProjectDetailPage() {
       setPreview(data)
       setProject(null)
       setActivity([])
-      setApplications([])
+      setMyReview(null)
       if (user?.role === 'FREELANCER') {
         try {
           const app = await getMyApplication(id)
@@ -207,8 +237,14 @@ export default function ProjectDetailPage() {
   }, [id, user])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch updates page state
     void reloadProject()
   }, [reloadProject])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when switching projects
+    setShowCompletedMilestones(false)
+  }, [id])
 
   const closeInviteModal = () => {
     setInviteOpen(false)
@@ -223,6 +259,7 @@ export default function ProjectDetailPage() {
     setActionLoading(true)
     try {
       await acceptInvite(id)
+      void markProjectNotificationsRead(id).catch(() => undefined)
       const full = await getProject(id)
       setProject(full)
       setMode('full')
@@ -230,6 +267,53 @@ export default function ProjectDetailPage() {
       setActivity(logs)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDeclineInvite = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      await declineInvite(id, declineReason)
+      setDeclineOpen(false)
+      setDeclineReason('')
+      navigate(ROUTES.freelancerDashboard)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not decline invite'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleWithdrawApplication = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      await withdrawApplication(id)
+      setMyApplication(null)
+      setError(null)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not withdraw application'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleSubmitReview = async (rating: number, comment: string) => {
+    if (!id || rating < 1) return
+    setActionLoading(true)
+    try {
+      const review = await createProjectReview(id, {
+        rating,
+        ...(comment.trim() ? { comment: comment.trim() } : {}),
+      })
+      setMyReview(review)
+      setReviewOpen(false)
+      setError(null)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not submit review'))
     } finally {
       setActionLoading(false)
     }
@@ -268,35 +352,6 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleAcceptApplication = async (applicationId: string) => {
-    setActionLoading(true)
-    try {
-      await acceptApplication(applicationId)
-      await reloadProject()
-      setError(null)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not accept application'))
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleRejectApplication = async (applicationId: string) => {
-    setActionLoading(true)
-    try {
-      await rejectApplication(applicationId)
-      if (id) {
-        const apps = await listProjectApplications(id)
-        setApplications(apps)
-      }
-      setError(null)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not reject application'))
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
   const isClientOwner =
     mode === 'full' &&
     project &&
@@ -326,11 +381,12 @@ export default function ProjectDetailPage() {
   const canFund =
     isClientOwner &&
     project?.status === 'DRAFT' &&
-    !!project.freelancerId
+    project.escrowStatus !== 'FUNDED'
 
   const isPublicProject = project?.isPublic ?? preview?.isPublic ?? false
   const isDraftOpen =
-    (project?.status ?? preview?.status) === 'DRAFT' &&
+    ((project?.status ?? preview?.status) === 'DRAFT' ||
+      (project?.status ?? preview?.status) === 'FUNDED') &&
     !project?.freelancerId
   const isFreelancerUser =
     user?.role === 'FREELANCER' || user?.role === 'ADMIN'
@@ -347,11 +403,19 @@ export default function ProjectDetailPage() {
 
   const applicationPending = myApplication?.status === 'PENDING'
 
-  const canShowApplications = Boolean(
-    isClientOwner &&
-      project?.isPublic &&
-      project.status === 'DRAFT' &&
-      !project.freelancerId,
+  const reviewSubject =
+    project && user
+      ? user.id === project.clientId
+        ? project.freelancer
+        : project.client
+      : null
+
+  const canLeaveReview = Boolean(
+    mode === 'full' &&
+      project?.status === 'COMPLETED' &&
+      user &&
+      reviewSubject &&
+      !myReview,
   )
 
   const title = project?.title ?? preview?.title ?? 'Project'
@@ -370,25 +434,68 @@ export default function ProjectDetailPage() {
           status: mapProjectStatus(preview?.status ?? 'DRAFT'),
         }
 
-  const milestones: Milestone[] =
-    mode === 'full'
-      ? (project?.milestones ?? [])
-      : (preview?.milestones ?? []).map((milestone, index) => ({
-          id: String(index),
-          orderIndex: milestone.orderIndex,
-          title: milestone.title,
-          description: milestone.description,
-          amount: milestone.amount,
-          deadline: milestone.deadline,
-          status: 'PENDING',
-          latestSubmission: null,
-        }))
+  const showApplicationsCta = Boolean(
+    mode === 'full' &&
+      project &&
+      user &&
+      canOpenApplicationsReview(project, user.id),
+  )
+  const applicantCount = project?.pendingApplicationCount ?? 0
+
+  const applicationsButton = showApplicationsCta ? (
+    <div className="flex items-center gap-3">
+      {applicantCount > 0 ? (
+        <span className="text-xs font-medium uppercase tracking-[0.3px] text-ink-500">
+          {applicantCount} Applicant{applicantCount === 1 ? '' : 's'}
+        </span>
+      ) : null}
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={() => setApplicationsOpen(true)}
+      >
+        Applications
+      </Button>
+    </div>
+  ) : null
+
+  const milestones: Milestone[] = useMemo(
+    () =>
+      mode === 'full'
+        ? (project?.milestones ?? [])
+        : (preview?.milestones ?? []).map((milestone, index) => ({
+            id: String(index),
+            orderIndex: milestone.orderIndex,
+            title: milestone.title,
+            description: milestone.description,
+            amount: milestone.amount,
+            deadline: milestone.deadline,
+            status: 'PENDING',
+            latestSubmission: null,
+          })),
+    [mode, project?.milestones, preview?.milestones],
+  )
 
   const milestoneStats = useMemo(() => {
     const total = milestones.length
     const paid = milestones.filter((m) => m.status === 'PAID').length
     return { total, paid }
   }, [milestones])
+
+  const completedMilestoneCount = useMemo(
+    () => milestones.filter((m) => isCompletedMilestone(m.status)).length,
+    [milestones],
+  )
+
+  const activeMilestones = useMemo(
+    () => milestones.filter((m) => !isCompletedMilestone(m.status)),
+    [milestones],
+  )
+
+  const completedMilestones = useMemo(
+    () => milestones.filter((m) => isCompletedMilestone(m.status)),
+    [milestones],
+  )
 
   const handleDelete = async () => {
     if (!id) return
@@ -510,13 +617,35 @@ export default function ProjectDetailPage() {
 
     if (canApproveMilestone(project, milestone, user.id)) {
       return {
-        actionLabel: 'Review & approve',
+        actionLabel: 'Approve',
         actionVariant: 'approve' as const,
         onAction: () => setApproveMilestoneId(milestone.id),
       }
     }
 
     return {}
+  }
+
+  const renderMilestoneCard = (milestone: Milestone) => {
+    const cardAction = resolveMilestoneCardAction(milestone)
+    const orderIndex =
+      milestones.findIndex((item) => item.id === milestone.id) + 1
+
+    return (
+      <MilestoneCard
+        key={milestone.id ?? milestone.orderIndex}
+        orderLabel={`Milestone ${orderIndex || milestone.orderIndex + 1}`}
+        title={milestone.title}
+        description={milestone.description}
+        amount={milestone.amount}
+        deadline={formatDeadline(milestone.deadline)}
+        status={mapMilestoneStatus(milestone.status)}
+        submission={milestone.latestSubmission}
+        fileDownloadUrl={uploadFileUrl(milestone.latestSubmission?.fileUrl)}
+        paidAt={milestone.paidAt}
+        {...cardAction}
+      />
+    )
   }
 
   const overflowItems = useMemo((): ProjectOverflowItem[] => {
@@ -548,13 +677,22 @@ export default function ProjectDetailPage() {
         </Button>
       )}
       {isInvitedFreelancer && (
-        <Button
-          className="w-full sm:w-auto"
-          loading={actionLoading}
-          onClick={() => void handleAccept()}
-        >
-          Accept invite
-        </Button>
+        <>
+          <Button
+            className="w-full sm:w-auto"
+            loading={actionLoading}
+            onClick={() => void handleAccept()}
+          >
+            Accept invite
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full sm:w-auto"
+            onClick={() => setDeclineOpen(true)}
+          >
+            Decline
+          </Button>
+        </>
       )}
       {mode === 'full' && project && canFund && (
         <Button
@@ -585,8 +723,18 @@ export default function ProjectDetailPage() {
         </Button>
       )}
       {applicationPending && (
-        <Button className="w-full sm:w-auto" variant="secondary" disabled>
-          Application pending
+        <Button
+          className="w-full sm:w-auto"
+          variant="ghost"
+          loading={actionLoading}
+          onClick={() => void handleWithdrawApplication()}
+        >
+          Withdraw application
+        </Button>
+      )}
+      {canLeaveReview && (
+        <Button className="w-full sm:w-auto" onClick={() => setReviewOpen(true)}>
+          Leave a review
         </Button>
       )}
     </>
@@ -598,6 +746,7 @@ export default function ProjectDetailPage() {
       canFund ||
       canApply ||
       applicationPending ||
+      canLeaveReview ||
       (mode === 'preview' && !user),
   )
 
@@ -626,14 +775,6 @@ export default function ProjectDetailPage() {
         <div className="flex flex-col gap-8">
           {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
-          {mode === 'preview' && (
-            <InlineAlert variant="info">
-              {user
-                ? 'Public preview — milestones and scope only. Apply below if you want to work on this project.'
-                : 'Public preview — milestones and scope only. Sign up or log in to apply.'}
-            </InlineAlert>
-          )}
-
           {myApplication?.status === 'REJECTED' && (
             <InlineAlert variant="info">
               Your previous application was not selected. You can apply again with a
@@ -644,9 +785,14 @@ export default function ProjectDetailPage() {
           <ProjectDetailHero
             title={title}
             status={statusInfo.status}
-            statusLabel={statusInfo.label}
+            statusLabel={showApplicationsCta ? undefined : statusInfo.label}
+            statusSlot={applicationsButton}
             skills={skills}
-            escrowLabel={project ? projectEscrowLabel(project) : 'Escrow-backed'}
+            escrowFunded={
+              mode === 'full' && project
+                ? projectEscrowFunded(project)
+                : undefined
+            }
             milestoneCount={milestoneStats.total}
             milestonesPaid={milestoneStats.paid}
             milestonesTotal={milestoneStats.total}
@@ -658,52 +804,18 @@ export default function ProjectDetailPage() {
             actions={workflowActions}
           />
 
-          {showEscrowSection && (
-            <ProjectEscrowSection
-              disputeCta={disputeCta}
-              openDispute={project?.openDispute}
-              onOpenDispute={() => setDisputeOpen(true)}
-              onViewDispute={() => setViewDisputeOpen(true)}
-              onResolveDispute={() => setResolveOpen(true)}
-            />
-          )}
-
-          {milestones.length > 0 && (
-            <section className="flex flex-col gap-3 text-left">
-              <SectionLabel>Progress</SectionLabel>
-              <MilestoneStepper
-                milestones={milestones.map((m) => ({
-                  id: m.id ?? String(m.orderIndex),
-                  title: m.title,
-                  status: m.status,
-                }))}
-              />
-            </section>
-          )}
-
           <section className="flex flex-col gap-3 text-left">
             <SectionLabel>Milestones</SectionLabel>
-            {milestones.length > 0 ? (
+            {activeMilestones.length > 0 ? (
               <div className="flex flex-col gap-3">
-                {milestones.map((milestone) => {
-                  const cardAction = resolveMilestoneCardAction(milestone)
-
-                  return (
-                    <MilestoneCard
-                      key={milestone.id ?? milestone.orderIndex}
-                      title={milestone.title}
-                      description={milestone.description}
-                      amount={milestone.amount}
-                      deadline={formatDeadline(milestone.deadline)}
-                      status={mapMilestoneStatus(milestone.status)}
-                      submission={milestone.latestSubmission}
-                      fileDownloadUrl={uploadFileUrl(milestone.latestSubmission?.fileUrl)}
-                      paidAt={milestone.paidAt}
-                      {...cardAction}
-                    />
-                  )
-                })}
+                {activeMilestones.map((milestone) => renderMilestoneCard(milestone))}
               </div>
+            ) : completedMilestoneCount > 0 ? (
+              <EmptyPanel
+                icon={ListChecks}
+                title="All milestones completed"
+                message="Use “Show completed” below to view paid milestones."
+              />
             ) : (
               <EmptyPanel
                 icon={ListChecks}
@@ -711,39 +823,32 @@ export default function ProjectDetailPage() {
                 message="Milestones define scope, deadlines, and escrow releases for this project."
               />
             )}
-          </section>
-
-          {canShowApplications && (
-            <section className="flex flex-col gap-3 text-left">
-              <SectionLabel>
-                {applications.length > 0
-                  ? `Applications (${applications.length})`
-                  : 'Applications'}
-              </SectionLabel>
-              {applications.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {applications.map((application) => (
-                    <ApplicationCard
-                      key={application.id}
-                      freelancerName={displayName(application.freelancer)}
-                      avatarUrl={application.freelancer?.avatarUrl}
-                      verified={application.freelancer?.isVerified}
-                      timeAgo={formatRelativeTime(application.createdAt)}
-                      pitch={application.pitch}
-                      onAccept={() => void handleAcceptApplication(application.id)}
-                      onReject={() => void handleRejectApplication(application.id)}
-                    />
-                  ))}
+            {completedMilestoneCount > 0 && (
+              <div className="flex flex-col gap-4 pt-1">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedMilestones((prev) => !prev)}
+                    className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+                  >
+                    {showCompletedMilestones
+                      ? 'Hide completed'
+                      : `Show completed (${completedMilestoneCount})`}
+                  </button>
                 </div>
-              ) : (
-                <EmptyPanel
-                  icon={ListChecks}
-                  title="No applications yet"
-                  message="Freelancers can apply from the public job board while this project is open."
-                />
-              )}
-            </section>
-          )}
+                {showCompletedMilestones && (
+                  <div className="flex flex-col gap-3 border-t border-ink-100 pt-4">
+                    <SectionLabel>Completed</SectionLabel>
+                    <div className="flex flex-col gap-3">
+                      {completedMilestones.map((milestone) =>
+                        renderMilestoneCard(milestone),
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
           {mode === 'full' && (
             <section className="flex flex-col gap-3 text-left">
@@ -752,6 +857,28 @@ export default function ProjectDetailPage() {
                 <ActivityTimeline items={activity} />
               </div>
             </section>
+          )}
+
+          {myReview && (
+            <section className="flex flex-col gap-3 text-left">
+              <SectionLabel>Your review</SectionLabel>
+              <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-sm">
+                <StarRating rating={myReview.rating} size="md" />
+                {myReview.comment && (
+                  <p className="mt-2 text-sm leading-5 text-ink-600">{myReview.comment}</p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {showEscrowSection && (
+            <ProjectEscrowSection
+              disputeCta={disputeCta}
+              openDispute={project?.openDispute}
+              onOpenDispute={() => setDisputeOpen(true)}
+              onViewDispute={() => setViewDisputeOpen(true)}
+              onResolveDispute={() => setResolveOpen(true)}
+            />
           )}
         </div>
 
@@ -857,6 +984,39 @@ export default function ProjectDetailPage() {
           pitch={applyPitch}
           onPitchChange={setApplyPitch}
         />
+
+        <DeclineInviteDialog
+          open={declineOpen}
+          onClose={() => {
+            setDeclineOpen(false)
+            setDeclineReason('')
+          }}
+          onSubmit={() => void handleDeclineInvite()}
+          loading={actionLoading}
+          reason={declineReason}
+          onReasonChange={setDeclineReason}
+        />
+
+        {mode === 'full' && project && (
+          <ReviewApplicationsModal
+            open={applicationsOpen}
+            projectId={project.id}
+            projectTitle={project.title}
+            onClose={() => setApplicationsOpen(false)}
+            onUpdated={() => void reloadProject()}
+            showProjectLink={false}
+          />
+        )}
+
+        {reviewSubject && (
+          <ReviewDialog
+            open={reviewOpen}
+            onClose={() => setReviewOpen(false)}
+            onSubmit={(rating, comment) => void handleSubmitReview(rating, comment)}
+            loading={actionLoading}
+            subjectName={displayName(reviewSubject)}
+          />
+        )}
       </AppSection>
       {hasMobileActions && (
         <StickyActionBar>{workflowActions}</StickyActionBar>

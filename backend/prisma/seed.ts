@@ -119,8 +119,27 @@ async function main() {
     include: { milestones: true },
   });
 
+  await prisma.application.deleteMany({ where: { projectId: publicProject.id } });
+  await prisma.milestone.updateMany({
+    where: { projectId: publicProject.id },
+    data: { status: 'PENDING', paidAt: null, completedAt: null },
+  });
+  await prisma.project.update({
+    where: { id: publicProject.id },
+    data: {
+      freelancerId: null,
+      invitedFreelancerId: null,
+      status: 'DRAFT',
+      escrowStatus: 'NOT_FUNDED',
+      fundedAt: null,
+      completedAt: null,
+    },
+  });
+
+  const privateProjectId = '00000000-0000-4000-8000-000000000002';
+
   await prisma.project.upsert({
-    where: { id: '00000000-0000-4000-8000-000000000002' },
+    where: { id: privateProjectId },
     update: {
       title: 'Private API Integration',
       description: 'Invite-only backend integration work.',
@@ -130,7 +149,7 @@ async function main() {
       skills: ['Solidity'],
     },
     create: {
-      id: '00000000-0000-4000-8000-000000000002',
+      id: privateProjectId,
       title: 'Private API Integration',
       description: 'Invite-only backend integration work.',
       totalBudget: 1500,
@@ -157,6 +176,22 @@ async function main() {
           },
         ],
       },
+    },
+  });
+
+  await prisma.milestone.updateMany({
+    where: { projectId: privateProjectId },
+    data: { status: 'PENDING', paidAt: null, completedAt: null },
+  });
+  await prisma.project.update({
+    where: { id: privateProjectId },
+    data: {
+      freelancerId: null,
+      invitedFreelancerId: freelancer.id,
+      status: 'DRAFT',
+      escrowStatus: 'NOT_FUNDED',
+      fundedAt: null,
+      completedAt: null,
     },
   });
 

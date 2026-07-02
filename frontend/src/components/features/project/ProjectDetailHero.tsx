@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
-import { EscrowPill } from '@/components/ui/EscrowPill'
+import { EscrowLockBadge, MilestoneCount } from '@/components/ui/EscrowLockBadge'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { StatusBadge, type StatusBadgeStatus } from '@/components/ui/StatusBadge'
 import { Tag } from '@/components/ui/Tag'
@@ -22,7 +22,7 @@ export type ProjectDetailHeroProps = {
   status: StatusBadgeStatus
   statusLabel?: string
   skills: string[]
-  escrowLabel: string
+  escrowFunded?: boolean
   milestoneCount?: number
   milestonesPaid?: number
   milestonesTotal?: number
@@ -31,6 +31,7 @@ export type ProjectDetailHeroProps = {
   currency: string
   parties?: ProjectDetailParty[]
   menu?: ReactNode
+  statusSlot?: ReactNode
   actions?: ReactNode
   className?: string
 }
@@ -58,7 +59,7 @@ export function ProjectDetailHero({
   status,
   statusLabel,
   skills,
-  escrowLabel,
+  escrowFunded,
   milestoneCount,
   milestonesPaid,
   milestonesTotal,
@@ -67,6 +68,7 @@ export function ProjectDetailHero({
   currency,
   parties = [],
   menu,
+  statusSlot,
   actions,
   className,
 }: ProjectDetailHeroProps) {
@@ -94,11 +96,13 @@ export function ProjectDetailHero({
               {title}
             </h1>
             <div className="flex shrink-0 items-center gap-2 self-start">
-              <StatusBadge
-                status={status}
-                label={statusLabel}
-                className="w-fit shrink-0"
-              />
+              {statusSlot ?? (
+                <StatusBadge
+                  status={status}
+                  label={statusLabel}
+                  className="w-fit shrink-0"
+                />
+              )}
               {menu}
             </div>
           </div>
@@ -111,6 +115,18 @@ export function ProjectDetailHero({
             </div>
           )}
 
+          {(escrowFunded !== undefined ||
+            (milestoneCount !== undefined && milestoneCount > 0)) && (
+            <div className="flex flex-wrap items-center gap-2.5">
+              {escrowFunded !== undefined && (
+                <EscrowLockBadge funded={escrowFunded} />
+              )}
+              {milestoneCount !== undefined && milestoneCount > 0 && (
+                <MilestoneCount count={milestoneCount} />
+              )}
+            </div>
+          )}
+
           {skills.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {skills.map((skill) => (
@@ -118,8 +134,6 @@ export function ProjectDetailHero({
               ))}
             </div>
           )}
-
-          <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
 
           {description && (
             <p className="max-w-3xl text-base leading-[26px] text-ink-600">

@@ -12,3 +12,15 @@ export const markNotificationRead = async (notificationId: string) => {
   )
   return res.data
 }
+
+export const deleteNotification = async (notificationId: string) => {
+  const res = await api.delete<{ id: string }>(`/notifications/${notificationId}`)
+  return res.data
+}
+
+export const markProjectNotificationsRead = async (projectId: string) => {
+  const res = await api.post<{ updated: number }>('/notifications/mark-project-read', {
+    projectId,
+  })
+  return res.data
+}

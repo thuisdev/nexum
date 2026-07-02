@@ -8,10 +8,12 @@ export type EscrowPillProps = {
 }
 
 export function EscrowPill({
-  label = 'Escrow-backed',
+  label,
   milestoneCount,
   className,
 }: EscrowPillProps) {
+  if (!label) return null
+
   return (
     <span className={cn('inline-flex items-center gap-2', className)}>
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium leading-4 text-emerald-700">

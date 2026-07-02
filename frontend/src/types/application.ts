@@ -11,6 +11,7 @@ export interface Application {
     displayName: string | null
     name: string | null
     avatarUrl: string | null
+    avatarColor?: string | null
     isVerified: boolean
   }
 }

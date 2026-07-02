@@ -65,14 +65,36 @@ export function resolveClientCardStatus(project: Project): {
   }
 
   if (project.isPublic && !project.freelancerId) {
-    return { status: 'PENDING', label: 'Review applications' }
+    const count = project.pendingApplicationCount ?? 0
+    if (count > 0) {
+      return { status: 'PENDING', label: `${count} applicant${count === 1 ? '' : 's'}` }
+    }
+    return { status: 'PENDING', label: 'Open for applications' }
   }
 
-  if (project.freelancerId) {
+  if (project.freelancerId && project.escrowStatus === 'NOT_FUNDED') {
     return { status: 'PENDING', label: 'Awaiting funding' }
   }
 
+  if (project.escrowStatus === 'FUNDED' && !project.freelancerId) {
+    return { status: 'FUNDED', label: 'Funded · pick freelancer' }
+  }
+
   return { status: 'DRAFT' }
+}
+
+/** Client can review applications on an open public draft project. */
+export function canOpenApplicationsReview(
+  project: Project,
+  userId: string,
+): boolean {
+  return (
+    project.clientId === userId &&
+    project.isPublic &&
+    !project.freelancerId &&
+    project.status === 'DRAFT' &&
+    !project.invitedFreelancerId
+  )
 }
 
 export function resolveFreelancerCardStatus(
@@ -94,12 +116,30 @@ export function resolveFreelancerCardStatus(
   return { status: mapProjectStatus(project.status) }
 }
 
-export function projectEscrowLabel(project: Project) {
-  if (project.escrowStatus === 'FUNDED' || project.status === 'IN_PROGRESS') {
-    return 'Escrow-funded'
+export function projectEscrowFunded(
+  project: Pick<Project, 'escrowStatus' | 'status'>,
+): boolean {
+  return (
+    project.escrowStatus === 'FUNDED' ||
+    project.escrowStatus === 'RELEASED' ||
+    project.status === 'IN_PROGRESS' ||
+    project.status === 'COMPLETED'
+  )
+}
+
+export function projectEscrowLabel(
+  project: Pick<Project, 'escrowStatus' | 'status'>,
+): string | undefined {
+  if (
+    project.escrowStatus === 'FUNDED' ||
+    project.escrowStatus === 'RELEASED' ||
+    project.status === 'IN_PROGRESS' ||
+    project.status === 'COMPLETED'
+  ) {
+    return 'Escrow-backed'
   }
 
-  return 'Escrow-backed'
+  return undefined
 }
 
 export function mapMilestoneStatus(status: string): StatusBadgeStatus {
@@ -140,7 +180,6 @@ export function projectDraftMeta(project: Project) {
 }
 
 export function jobToCardProps(job: JobBoardProject) {
-  const lastMilestone = job.milestoneCount
   return {
     id: job.id,
     title: job.title,
@@ -148,14 +187,35 @@ export function jobToCardProps(job: JobBoardProject) {
     currency: job.currency,
     partyName: displayName(job.client),
     tags: job.skills,
-    milestoneCount: lastMilestone,
-    escrowLabel: 'Escrow-backed',
+    milestoneCount: job.milestoneCount,
+    escrowFunded: job.escrowStatus === 'FUNDED',
     timeAgo: formatRelativeTime(job.createdAt),
   }
 }
 
 export function projectToClientCardProps(project: Project) {
   const cardStatus = resolveClientCardStatus(project)
+  const hasApplicants =
+    project.isPublic && !project.freelancerId && project.status === 'DRAFT'
+  const applicantCount = project.pendingApplicationCount ?? 0
+
+  const party = project.freelancer
+    ? {
+        partyId: project.freelancer.id,
+        partyLabel: 'Freelancer' as const,
+        partyName: displayName(project.freelancer),
+        partyAvatarUrl: project.freelancer.avatarUrl,
+        verified: project.freelancer.isVerified,
+      }
+    : project.invitedFreelancer && project.invitedFreelancerId && !project.freelancerId
+      ? {
+          partyId: project.invitedFreelancer.id,
+          partyLabel: 'Invited' as const,
+          partyName: displayName(project.invitedFreelancer),
+          partyAvatarUrl: project.invitedFreelancer.avatarUrl,
+          verified: project.invitedFreelancer.isVerified,
+        }
+      : {}
 
   return {
     id: project.id,
@@ -166,10 +226,15 @@ export function projectToClientCardProps(project: Project) {
     statusLabel: cardStatus.label,
     tags: project.skills,
     clientState:
-      project.status === 'DRAFT' ? ('draft' as const) : ('in_progress' as const),
+      project.status === 'DRAFT' || project.status === 'FUNDED'
+        ? ('draft' as const)
+        : ('in_progress' as const),
     draftMeta: projectDraftMeta(project),
     milestoneCount: project.milestones.length,
-    escrowLabel: projectEscrowLabel(project),
+    escrowFunded: projectEscrowFunded(project),
+    applicantCount: hasApplicants ? applicantCount : undefined,
+    showReviewApplicants: hasApplicants,
+    ...party,
   }
 }
 
@@ -193,7 +258,16 @@ export function projectToFreelancerCardProps(
       ? ('invited' as const)
       : ('in_progress' as const),
     milestoneCount: project.milestones.length,
-    escrowLabel: projectEscrowLabel(project),
+    escrowFunded: projectEscrowFunded(project),
+    ...(project.client
+      ? {
+          partyId: project.client.id,
+          partyLabel: 'Client' as const,
+          partyName: displayName(project.client),
+          partyAvatarUrl: project.client.avatarUrl,
+          verified: project.client.isVerified,
+        }
+      : {}),
   }
 }
 

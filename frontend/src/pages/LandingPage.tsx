@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
@@ -12,6 +13,11 @@ import {
   StepCard,
 } from '@/components/features'
 import { ROUTES } from '@/router/routes'
+import {
+  formatUsdcStat,
+  getPlatformStats,
+  type PlatformStats,
+} from '@/lib/stats.api'
 
 const HERO_MILESTONES = [
   { id: '1', title: 'Wireframes', amount: '200', status: 'pending' as const },
@@ -19,9 +25,9 @@ const HERO_MILESTONES = [
   { id: '3', title: 'Final delivery', amount: '300', status: 'approve' as const },
 ]
 
-const TRUST_STATS = [
-  { id: '1', value: '312,400', label: 'USDC in escrow', highlight: true },
-  { id: '2', value: '47', label: 'open projects' },
+const TRUST_STATS_FALLBACK = [
+  { id: '1', value: '0', label: 'USDC in escrow', highlight: true },
+  { id: '2', value: '0', label: 'open projects' },
   { id: '3', value: '100%', label: 'milestone-protected' },
   { id: '4', value: '0%', label: 'ghosting' },
 ]
@@ -50,6 +56,31 @@ const STEPS = [
 export default function LandingPage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
+  const [stats, setStats] = useState<PlatformStats | null>(null)
+
+  useEffect(() => {
+    getPlatformStats()
+      .then(setStats)
+      .catch(() => setStats(null))
+  }, [])
+
+  const trustStats = stats
+    ? [
+        {
+          id: '1',
+          value: formatUsdcStat(stats.usdcInEscrow),
+          label: 'USDC in escrow',
+          highlight: true,
+        },
+        { id: '2', value: String(stats.openProjects), label: 'open projects' },
+        { id: '3', value: '100%', label: 'milestone-protected' },
+        { id: '4', value: '0%', label: 'ghosting' },
+      ]
+    : TRUST_STATS_FALLBACK
+
+  const escrowTrustline = stats
+    ? `${formatUsdcStat(stats.usdcInEscrow)} USDC currently in escrow`
+    : 'USDC held in escrow before work starts'
 
   const goStart = () =>
     navigate(isLoggedIn ? ROUTES.dashboard : ROUTES.register)
@@ -85,7 +116,7 @@ export default function LandingPage() {
                 Browse jobs
               </Button>
             </div>
-            <Trustline text="312,400 USDC currently in escrow" />
+            <Trustline text={escrowTrustline} />
           </div>
           <div className="w-full lg:flex-1">
             <HeroPanel escrowAmount="800 USDC" milestones={HERO_MILESTONES} />
@@ -93,7 +124,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <LandingTrustStrip stats={TRUST_STATS} />
+      <LandingTrustStrip stats={trustStats} />
 
       {/* How it works */}
       <AppSection marketing className="!py-12 md:!py-[72px]">

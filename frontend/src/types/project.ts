@@ -48,7 +48,15 @@ export interface Project {
     avatarUrl: string | null
     isVerified: boolean
   } | null
+  invitedFreelancer?: {
+    id: string
+    displayName: string | null
+    name: string | null
+    avatarUrl: string | null
+    isVerified: boolean
+  } | null
   openDispute?: ProjectOpenDispute | null
+  pendingApplicationCount?: number
 }
 
 export interface ProjectOpenDispute {
@@ -128,6 +136,7 @@ export interface JobBoardProject {
   totalBudget: string
   currency: string
   status: string
+  escrowStatus?: string
   skills: string[]
   milestoneCount: number
   createdAt: string

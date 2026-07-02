@@ -1,14 +1,16 @@
 import { type MouseEvent } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { Link } from '@/components/ui/Link'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Divider } from '@/components/ui/Divider'
-import { EscrowPill } from '@/components/ui/EscrowPill'
+import { EscrowLockBadge, MilestoneCount } from '@/components/ui/EscrowLockBadge'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { ReviewPill } from '@/components/ui/ReviewPill'
 import { StatusBadge, type StatusBadgeStatus } from '@/components/ui/StatusBadge'
 import { Tag } from '@/components/ui/Tag'
 import { VerifiedIcon } from '@/components/ui/VerifiedIcon'
+import { ROUTES } from '@/router/routes'
 import { cn } from '@/lib/utils'
 
 export type ProjectCardVariant = 'jobboard' | 'client' | 'freelancer'
@@ -24,13 +26,15 @@ export type ProjectCardProps = {
   status?: StatusBadgeStatus
   statusLabel?: string
   /** Client on jobboard / counterparty on dashboards */
+  partyId?: string
+  partyLabel?: string
   partyName?: string
   partyAvatarUrl?: string | null
   verified?: boolean
   timeAgo?: string
   deadline?: string
   tags?: string[]
-  escrowLabel?: string
+  escrowFunded?: boolean
   milestoneCount?: number
   applicantCount?: number
   /** Structured progress (cards-build) */
@@ -42,6 +46,9 @@ export type ProjectCardProps = {
   draftMeta?: string
   footLinkLabel?: string
   footLinkTo?: string
+  showReviewApplicants?: boolean
+  onReviewApplicants?: () => void
+  showApply?: boolean
   clientState?: ClientCardState
   freelancerState?: FreelancerCardState
   submitLabel?: string
@@ -63,13 +70,15 @@ export function ProjectCard({
   currency = 'USDC',
   status,
   statusLabel,
+  partyId,
+  partyLabel,
   partyName,
   partyAvatarUrl,
   verified = false,
   timeAgo,
   deadline,
   tags = [],
-  escrowLabel,
+  escrowFunded,
   milestoneCount,
   applicantCount,
   milestonesDone,
@@ -80,6 +89,9 @@ export function ProjectCard({
   draftMeta,
   footLinkLabel,
   footLinkTo,
+  showReviewApplicants = false,
+  onReviewApplicants,
+  showApply = true,
   clientState = 'in_progress',
   freelancerState = 'invited',
   submitLabel,
@@ -103,6 +115,60 @@ export function ProjectCard({
     (variant === 'client' && clientState === 'in_progress') ||
     (variant === 'freelancer' && freelancerState === 'in_progress')
 
+  const dashboardFallback =
+    variant === 'client' && !partyName
+      ? applicantCount !== undefined
+        ? `Open · ${applicantCount} applicant${applicantCount === 1 ? '' : 's'}`
+        : 'Awaiting freelancer'
+      : null
+
+  const renderTopLeft = () => {
+    if (isJobboard) {
+      return (
+        <div className={cn('flex min-w-0 items-center', partyGap)}>
+          {partyName && (
+            <Avatar src={partyAvatarUrl} name={partyName} size="sm" />
+          )}
+          <span className="truncate text-sm font-medium text-ink-900">
+            {partyName ?? 'Open'}
+          </span>
+          {partyName && verified && <VerifiedIcon size="sm" />}
+        </div>
+      )
+    }
+
+    if (partyName && partyId) {
+      return (
+        <RouterLink
+          to={ROUTES.profile(partyId)}
+          onClick={stop}
+          className="group flex min-w-0 items-center gap-2 rounded-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500"
+        >
+          <Avatar src={partyAvatarUrl} name={partyName} size="sm" />
+          <div className="min-w-0 text-left">
+            {partyLabel && (
+              <span className="block text-[10px] font-medium uppercase tracking-[0.8px] text-ink-400">
+                {partyLabel}
+              </span>
+            )}
+            <span className="block truncate text-sm font-medium text-ink-900 transition-colors group-hover:text-brand-700">
+              {partyName}
+            </span>
+          </div>
+          {verified && <VerifiedIcon size="sm" />}
+        </RouterLink>
+      )
+    }
+
+    if (dashboardFallback) {
+      return (
+        <span className="text-sm font-medium text-ink-500">{dashboardFallback}</span>
+      )
+    }
+
+    return null
+  }
+
   return (
     <article
       role="button"
@@ -122,36 +188,17 @@ export function ProjectCard({
     >
       {/* Top row */}
       <div className="flex items-center justify-between gap-2">
-        <div className={cn('flex min-w-0 items-center', partyGap)}>
-          {isJobboard || partyName ? (
-            <>
-              {partyName && (
-                <Avatar src={partyAvatarUrl} name={partyName} size="sm" />
-              )}
-              <span
-                className={cn(
-                  'truncate text-sm font-medium text-ink-900',
-                  !partyName && 'font-normal text-ink-500',
-                )}
-              >
-                {partyName ??
-                  (variant === 'client'
-                    ? `Open · ${applicantCount ?? 0} applicants`
-                    : 'Open')}
-              </span>
-              {partyName && verified && <VerifiedIcon size="sm" />}
-            </>
-          ) : (
-            <span className="text-sm text-ink-500">
-              Open · {applicantCount ?? 0} applicants
-            </span>
+        {renderTopLeft()}
+        <div className="flex shrink-0 items-center gap-2">
+          {isJobboard && escrowFunded !== undefined && (
+            <EscrowLockBadge funded={escrowFunded} />
           )}
+          {isJobboard && timeAgo ? (
+            <span className="text-xs leading-4 text-ink-400">{timeAgo}</span>
+          ) : status ? (
+            <StatusBadge status={status} label={statusLabel} />
+          ) : null}
         </div>
-        {isJobboard && timeAgo ? (
-          <span className="shrink-0 text-xs leading-4 text-ink-400">{timeAgo}</span>
-        ) : status ? (
-          <StatusBadge status={status} label={statusLabel} />
-        ) : null}
       </div>
 
       {/* Title — H3 Desktop */}
@@ -168,6 +215,9 @@ export function ProjectCard({
       <div className="flex min-h-0 flex-1 flex-col gap-2">
         {isJobboard && (
           <>
+            {milestoneCount !== undefined && (
+              <MilestoneCount count={milestoneCount} />
+            )}
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
@@ -175,7 +225,6 @@ export function ProjectCard({
                 ))}
               </div>
             )}
-            <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
           </>
         )}
 
@@ -192,7 +241,14 @@ export function ProjectCard({
               <p className="text-sm leading-5 text-ink-500">{draftMeta}</p>
             )}
             {(clientState === 'draft' || clientState === 'in_progress') && (
-              <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
+              <div className="flex items-center gap-2">
+                {escrowFunded !== undefined && (
+                  <EscrowLockBadge funded={escrowFunded} />
+                )}
+                {milestoneCount !== undefined && (
+                  <MilestoneCount count={milestoneCount} />
+                )}
+              </div>
             )}
             {showProgress &&
               milestonesDone !== undefined &&
@@ -220,8 +276,21 @@ export function ProjectCard({
               </div>
             )}
             {freelancerState === 'invited' ? (
-              <EscrowPill label={escrowLabel} milestoneCount={milestoneCount} />
-            ) : showProgress &&
+              <div className="flex items-center gap-2">
+                {escrowFunded !== undefined && (
+                  <EscrowLockBadge funded={escrowFunded} />
+                )}
+                {milestoneCount !== undefined && (
+                  <MilestoneCount count={milestoneCount} />
+                )}
+              </div>
+            ) : (
+              milestoneCount !== undefined && (
+                <MilestoneCount count={milestoneCount} />
+              )
+            )}
+            {freelancerState === 'in_progress' &&
+            showProgress &&
               milestonesDone !== undefined &&
               milestonesTotal !== undefined &&
               progressAmountText ? (
@@ -262,12 +331,17 @@ export function ProjectCard({
               Invite
             </Button>
           )}
-          {isJobboard && (
+          {isJobboard && showApply && (
             <Button size="sm" className="px-[18px]" onClick={onApply}>
               Apply
             </Button>
           )}
-          {variant === 'client' && footLinkTo && (
+          {variant === 'client' && showReviewApplicants && onReviewApplicants && (
+            <Button size="sm" onClick={onReviewApplicants}>
+              Applications
+            </Button>
+          )}
+          {variant === 'client' && footLinkTo && !showReviewApplicants && (
             <Link to={footLinkTo} className="text-base font-medium">
               {footLinkLabel ?? 'Review →'}
             </Link>
@@ -285,7 +359,11 @@ export function ProjectCard({
           {variant === 'freelancer' &&
             freelancerState === 'in_progress' &&
             submitLabel && (
-              <Button size="sm" onClick={onSubmit}>
+              <Button
+                size="sm"
+                variant={submitLabel === 'Withdraw' ? 'ghost' : 'primary'}
+                onClick={onSubmit}
+              >
                 {submitLabel}
               </Button>
             )}

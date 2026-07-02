@@ -15,7 +15,7 @@ import {
   type MilestoneRowErrors,
 } from '@/components/features'
 import { SkillPicker } from '@/components/features/project/SkillPicker'
-import { type ProjectSkill } from '@/lib/projectSkills'
+import { type ProjectSkill, MAX_PROJECT_SKILLS } from '@/lib/projectSkills'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { getProject, updateProject } from '@/lib/projects.api'
 import { canEditProject } from '@/lib/projectDisplay'
@@ -290,7 +290,13 @@ export default function EditProjectPage() {
             </FormField>
 
             <FormField label="Skills">
-              <SkillPicker value={skills} onChange={setSkills} error={errors.skills} />
+              <SkillPicker
+                value={skills}
+                onChange={(next) => setSkills(next as typeof skills)}
+                allowCustom
+                maxSkills={MAX_PROJECT_SKILLS}
+                error={errors.skills}
+              />
             </FormField>
 
             <div className="flex flex-col gap-2">

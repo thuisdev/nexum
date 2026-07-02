@@ -8,6 +8,7 @@ export type NotificationDropdownItem = {
   time: string
   unread?: boolean
   onClick?: () => void
+  onDelete?: () => void
 }
 
 export type NotificationDropdownProps = {
@@ -51,6 +52,7 @@ export function NotificationDropdown({
               time={item.time}
               unread={item.unread}
               onClick={item.onClick}
+              onDelete={item.onDelete}
             />
           ))
         ) : (
