@@ -17,7 +17,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
     >
       <div className="mb-8 flex w-full max-w-[480px] flex-col items-center gap-3 text-center">
         <p className="font-display text-2xl font-bold tracking-[-0.5px] text-ink-900">
-          Pactum
+          Nexum
         </p>
         <Trustline text="Milestone escrow · 0% platform fees" />
       </div>

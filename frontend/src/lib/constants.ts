@@ -1,1 +1,1 @@
-export const TOKEN_KEY = 'pactum_token';
+export const TOKEN_KEY = 'nexum_token';

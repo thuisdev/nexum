@@ -96,7 +96,7 @@ export default function LandingPage() {
               Get paid for crypto work — without the trust problem.
             </h1>
             <p className="max-w-[480px] text-lg leading-[26px] text-ink-500">
-              Pactum locks the budget in{' '}
+              Nexum locks the budget in{' '}
               <span className="font-medium text-ink-900">escrow</span> before work
               starts and releases it{' '}
               <span className="font-medium text-ink-900">milestone by milestone</span>.

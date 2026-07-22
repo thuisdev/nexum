@@ -83,7 +83,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
             to={ROUTES.home}
             className="font-display text-xl font-bold leading-6 text-ink-900"
           >
-            Pactum
+            Nexum
           </Link>
 
           <div className="hidden items-center gap-[18px] lg:flex">
