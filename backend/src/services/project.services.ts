@@ -261,7 +261,7 @@ export const getProjectById = async (
     !canAccessProject(project, userId, userRole) &&
     !arbiterCanAccess &&
     userRole !== 'ADMIN' &&
-    !(userRole === 'FREELANCER' && isOpenPublicJob)
+    !isOpenPublicJob
   ) {
     return 'forbidden' as const;
   }
@@ -497,8 +497,15 @@ export const getProjectActivity = async (
     return null;
   }
 
-  if (!canAccessProject(project, userId, userRole)) {
-    return 'forbidden' as const;
+  if (!canAccessProject(project, userId, userRole) && userRole !== 'ADMIN') {
+    const isOpenPublicJob =
+      project.isPublic &&
+      !project.freelancerId &&
+      (project.status === 'DRAFT' || project.status === 'FUNDED');
+
+    if (!isOpenPublicJob) {
+      return 'forbidden' as const;
+    }
   }
 
   const logs = await prisma.activityLog.findMany({
@@ -809,6 +816,7 @@ const serializePreview = (project: ProjectWithClient) => ({
   totalBudget: project.totalBudget.toString(),
   currency: project.currency,
   status: project.status,
+  escrowStatus: project.escrowStatus,
   isPublic: project.isPublic,
   skills: project.skills,
   createdAt: project.createdAt.toISOString(),

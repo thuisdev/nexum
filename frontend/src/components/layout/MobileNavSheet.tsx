@@ -10,8 +10,11 @@ export type MobileNavSheetProps = {
   open: boolean
   onClose: () => void
   isLoggedIn: boolean
+  userId?: string
   userName?: string | null
   avatarUrl?: string | null
+  unreadCount?: number
+  onOpenNotifications?: () => void
   onLogout: () => void
 }
 
@@ -19,8 +22,11 @@ export function MobileNavSheet({
   open,
   onClose,
   isLoggedIn,
+  userId,
   userName,
   avatarUrl,
+  unreadCount = 0,
+  onOpenNotifications,
   onLogout,
 }: MobileNavSheetProps) {
   const navigate = useNavigate()
@@ -82,10 +88,25 @@ export function MobileNavSheet({
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  onClose()
+                  onOpenNotifications?.()
+                }}
+                className="flex items-center justify-between py-3 text-left text-base text-ink-900"
+              >
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="rounded-full bg-brand-500 px-2 py-0.5 text-xs font-medium text-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
                 onClick={() => go(ROUTES.settings)}
                 className="py-3 text-left text-base text-ink-900"
               >
-                Notifications
+                Settings
               </button>
             </>
           ) : (
@@ -102,12 +123,20 @@ export function MobileNavSheet({
         <div className="mt-auto flex flex-col gap-2">
           {isLoggedIn ? (
             <>
-              <div className="flex items-center gap-2 py-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (userId) go(ROUTES.profile(userId))
+                }}
+                disabled={!userId}
+                className="flex items-center gap-2 rounded-lg py-2 text-left transition-colors hover:bg-ink-50 disabled:opacity-60"
+                aria-label="Open profile"
+              >
                 <Avatar src={avatarUrl} name={userName} size="md" />
                 <span className="text-base font-medium text-ink-900">
                   {userName ?? 'Account'}
                 </span>
-              </div>
+              </button>
               <Button
                 variant="ghost"
                 fullWidth

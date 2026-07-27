@@ -120,7 +120,7 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
 
   const [project, setProject] = useState<Project | null>(null)
   const [preview, setPreview] = useState<ProjectPreview | null>(null)
@@ -147,7 +147,7 @@ export default function ProjectDetailPage() {
   const [myReview, setMyReview] = useState<ProjectReview | null>(null)
   const [myApplication, setMyApplication] = useState<Application | null>(null)
   const reloadProject = useCallback(async () => {
-    if (!id) return
+    if (!id || authLoading) return
 
     setLoading(true)
     setError(null)
@@ -231,7 +231,7 @@ export default function ProjectDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [id, user])
+  }, [id, user, authLoading])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch updates page state
@@ -376,8 +376,7 @@ export default function ProjectDetailPage() {
     isClientOwner &&
       project &&
       (project.status === 'DRAFT' || project.status === 'FUNDED') &&
-      !project.freelancerId &&
-      !project.invitedFreelancerId,
+      !project.freelancerId,
   )
 
   const canFund =
@@ -650,7 +649,7 @@ export default function ProjectDetailPage() {
     <>
       {canInvite && id && (
         <Button className="w-full sm:w-auto" onClick={() => setInviteOpen(true)}>
-          Invite freelancer
+          {project?.invitedFreelancerId ? 'Change invite' : 'Invite freelancer'}
         </Button>
       )}
       {isInvitedFreelancer && (
@@ -764,7 +763,12 @@ export default function ProjectDetailPage() {
             escrowFunded={
               mode === 'full' && project
                 ? projectEscrowFunded(project)
-                : undefined
+                : preview
+                  ? projectEscrowFunded({
+                      escrowStatus: preview.escrowStatus ?? 'NOT_FUNDED',
+                      status: preview.status,
+                    })
+                  : undefined
             }
             milestoneCount={milestoneStats.total}
             milestonesPaid={milestoneStats.paid}
