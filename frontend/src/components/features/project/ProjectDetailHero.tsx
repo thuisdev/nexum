@@ -115,12 +115,10 @@ export function ProjectDetailHero({
             </div>
           )}
 
-          {(escrowFunded !== undefined ||
+          {(escrowFunded ||
             (milestoneCount !== undefined && milestoneCount > 0)) && (
             <div className="flex flex-wrap items-center gap-2.5">
-              {escrowFunded !== undefined && (
-                <EscrowLockBadge funded={escrowFunded} />
-              )}
+              <EscrowLockBadge funded={escrowFunded} />
               {milestoneCount !== undefined && milestoneCount > 0 && (
                 <MilestoneCount count={milestoneCount} />
               )}

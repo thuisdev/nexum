@@ -15,7 +15,7 @@ import {
   type MilestoneRowErrors,
 } from '@/components/features'
 import { SkillPicker } from '@/components/features/project/SkillPicker'
-import { type ProjectSkill, MAX_PROJECT_SKILLS } from '@/lib/projectSkills'
+import { MAX_PROJECT_SKILLS } from '@/lib/projectSkills'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { getProject, updateProject } from '@/lib/projects.api'
 import { canEditProject } from '@/lib/projectDisplay'
@@ -90,7 +90,7 @@ export default function EditProjectPage() {
   const [budget, setBudget] = useState('')
   const [currency, setCurrency] = useState('USDC')
   const [visibility, setVisibility] = useState('public')
-  const [skills, setSkills] = useState<ProjectSkill[]>([])
+  const [skills, setSkills] = useState<string[]>([])
   const [milestones, setMilestones] = useState<MilestoneRowData[]>([
     emptyMilestone(),
   ])
@@ -112,7 +112,7 @@ export default function EditProjectPage() {
         setBudget(data.totalBudget)
         setCurrency(data.currency)
         setVisibility(data.isPublic ? 'public' : 'private')
-        setSkills(data.skills as ProjectSkill[])
+        setSkills(data.skills)
         setMilestones(
           data.milestones.map((m) => ({
             id: m.id,
@@ -292,7 +292,7 @@ export default function EditProjectPage() {
             <FormField label="Skills">
               <SkillPicker
                 value={skills}
-                onChange={(next) => setSkills(next as typeof skills)}
+                onChange={setSkills}
                 allowCustom
                 maxSkills={MAX_PROJECT_SKILLS}
                 error={errors.skills}

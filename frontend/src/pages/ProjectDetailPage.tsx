@@ -21,7 +21,6 @@ import {
   type ProjectOverflowItem,
 } from '@/components/features'
 import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
-import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
 import { ReviewDialog } from '@/components/features/dialogs/ReviewDialog'
 import { DisputeDialog } from '@/components/features/dialogs/DisputeDialog'
 import {
@@ -58,7 +57,6 @@ import {
   canApproveMilestone,
   canDeleteProject,
   canEditProject,
-  canOpenApplicationsReview,
   canSubmitMilestone,
   displayName,
   formatDeadline,
@@ -145,7 +143,6 @@ export default function ProjectDetailPage() {
   const [declineOpen, setDeclineOpen] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
   const [reviewOpen, setReviewOpen] = useState(false)
-  const [applicationsOpen, setApplicationsOpen] = useState(false)
   const [showCompletedMilestones, setShowCompletedMilestones] = useState(false)
   const [myReview, setMyReview] = useState<ProjectReview | null>(null)
   const [myApplication, setMyApplication] = useState<Application | null>(null)
@@ -375,8 +372,13 @@ export default function ProjectDetailPage() {
     user?.id === project.invitedFreelancerId &&
     !project.freelancerId
 
-  const canInvite =
-    isClientOwner && project?.status === 'DRAFT' && !project.freelancerId && !project.invitedFreelancerId
+  const canInvite = Boolean(
+    isClientOwner &&
+      project &&
+      (project.status === 'DRAFT' || project.status === 'FUNDED') &&
+      !project.freelancerId &&
+      !project.invitedFreelancerId,
+  )
 
   const canFund =
     isClientOwner &&
@@ -433,31 +435,6 @@ export default function ProjectDetailPage() {
       : {
           status: mapProjectStatus(preview?.status ?? 'DRAFT'),
         }
-
-  const showApplicationsCta = Boolean(
-    mode === 'full' &&
-      project &&
-      user &&
-      canOpenApplicationsReview(project, user.id),
-  )
-  const applicantCount = project?.pendingApplicationCount ?? 0
-
-  const applicationsButton = showApplicationsCta ? (
-    <div className="flex items-center gap-3">
-      {applicantCount > 0 ? (
-        <span className="text-xs font-medium uppercase tracking-[0.3px] text-ink-500">
-          {applicantCount} Applicant{applicantCount === 1 ? '' : 's'}
-        </span>
-      ) : null}
-      <Button
-        variant="primary"
-        size="sm"
-        onClick={() => setApplicationsOpen(true)}
-      >
-        Applications
-      </Button>
-    </div>
-  ) : null
 
   const milestones: Milestone[] = useMemo(
     () =>
@@ -750,9 +727,6 @@ export default function ProjectDetailPage() {
       (mode === 'preview' && !user),
   )
 
-  const showEscrowSection =
-    mode === 'full' && Boolean(disputeCta || project?.openDispute)
-
   if (loading) {
     return (
       <AppSection className="!py-8 md:!py-12">
@@ -772,7 +746,7 @@ export default function ProjectDetailPage() {
   return (
     <>
       <AppSection className={hasMobileActions ? '!pb-28 md:!pb-12' : '!py-8 md:!py-12'}>
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-10">
           {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
           {myApplication?.status === 'REJECTED' && (
@@ -785,8 +759,7 @@ export default function ProjectDetailPage() {
           <ProjectDetailHero
             title={title}
             status={statusInfo.status}
-            statusLabel={showApplicationsCta ? undefined : statusInfo.label}
-            statusSlot={applicationsButton}
+            statusLabel={statusInfo.label}
             skills={skills}
             escrowFunded={
               mode === 'full' && project
@@ -804,8 +777,13 @@ export default function ProjectDetailPage() {
             actions={workflowActions}
           />
 
-          <section className="flex flex-col gap-3 text-left">
-            <SectionLabel>Milestones</SectionLabel>
+          <section className="flex flex-col gap-4 text-left">
+            <div className="flex flex-col gap-1">
+              <SectionLabel>Milestones</SectionLabel>
+              <p className="text-sm text-ink-500">
+                Scope, deadlines, and escrow releases for this project.
+              </p>
+            </div>
             {activeMilestones.length > 0 ? (
               <div className="flex flex-col gap-3">
                 {activeMilestones.map((milestone) => renderMilestoneCard(milestone))}
@@ -851,8 +829,13 @@ export default function ProjectDetailPage() {
           </section>
 
           {mode === 'full' && (
-            <section className="flex flex-col gap-3 text-left">
-              <SectionLabel>Activity</SectionLabel>
+            <section className="flex flex-col gap-4 text-left">
+              <div className="flex flex-col gap-1">
+                <SectionLabel>Activity</SectionLabel>
+                <p className="text-sm text-ink-500">
+                  Recent project events and status changes.
+                </p>
+              </div>
               <div className="rounded-xl border border-ink-200 bg-white p-5 shadow-sm">
                 <ActivityTimeline items={activity} />
               </div>
@@ -871,8 +854,9 @@ export default function ProjectDetailPage() {
             </section>
           )}
 
-          {showEscrowSection && (
+          {mode === 'full' && (
             <ProjectEscrowSection
+              funded={project ? projectEscrowFunded(project) : false}
               disputeCta={disputeCta}
               openDispute={project?.openDispute}
               onOpenDispute={() => setDisputeOpen(true)}
@@ -996,17 +980,6 @@ export default function ProjectDetailPage() {
           reason={declineReason}
           onReasonChange={setDeclineReason}
         />
-
-        {mode === 'full' && project && (
-          <ReviewApplicationsModal
-            open={applicationsOpen}
-            projectId={project.id}
-            projectTitle={project.title}
-            onClose={() => setApplicationsOpen(false)}
-            onUpdated={() => void reloadProject()}
-            showProjectLink={false}
-          />
-        )}
 
         {reviewSubject && (
           <ReviewDialog

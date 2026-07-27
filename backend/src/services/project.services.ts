@@ -560,7 +560,7 @@ async function resolveFreelancerByIdentifier(identifier: string) {
   return matches[0]!;
 }
 
-/** Client invites a freelancer by email or display name while project is DRAFT. */
+/** Client invites a freelancer while project is open (DRAFT or prefunded FUNDED). */
 export const inviteFreelancer = async (
   projectId: string,
   clientId: string,
@@ -576,8 +576,8 @@ export const inviteFreelancer = async (
     return 'forbidden' as const;
   }
 
-  if (project.status !== 'DRAFT') {
-    return 'not_draft' as const;
+  if (project.status !== 'DRAFT' && project.status !== 'FUNDED') {
+    return 'not_open' as const;
   }
 
   if (project.freelancerId) {
