@@ -5,6 +5,7 @@ import type {
   OpenDisputeInput,
   ResolveDisputeInput,
 } from '../schemas/dispute.schema.js';
+import { releaseMilestonePayout } from './milestone.services.js';
 
 const openDisputeStatuses: DisputeStatus[] = [
   DisputeStatus.OPEN,
@@ -62,7 +63,11 @@ export const listProjectDisputes = async (
 
   if (
     userRole !== 'ADMIN' &&
-    userRole !== 'ARBITER' &&
+    !(
+      userRole === 'ARBITER' &&
+      project.arbiterId &&
+      project.arbiterId === userId
+    ) &&
     project.clientId !== userId &&
     project.freelancerId !== userId &&
     project.invitedFreelancerId !== userId
@@ -225,8 +230,7 @@ export const resolveDispute = async (
 
   if (
     userRole !== 'ADMIN' &&
-    userRole !== 'ARBITER' &&
-    dispute.arbiterId !== userId
+    !(userRole === 'ARBITER' && dispute.arbiterId === userId)
   ) {
     return 'forbidden' as const;
   }
@@ -236,8 +240,6 @@ export const resolveDispute = async (
   }
 
   const project = dispute.milestone.project;
-  const nextMilestoneStatus =
-    input.outcome === 'RESOLVED_CLIENT' ? 'IN_PROGRESS' : 'APPROVED';
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.dispute.update({
@@ -254,10 +256,14 @@ export const resolveDispute = async (
       },
     });
 
-    await tx.milestone.update({
-      where: { id: dispute.milestoneId },
-      data: { status: nextMilestoneStatus },
-    });
+    if (input.outcome === 'RESOLVED_CLIENT') {
+      await tx.milestone.update({
+        where: { id: dispute.milestoneId },
+        data: { status: 'IN_PROGRESS' },
+      });
+    } else {
+      await releaseMilestonePayout(tx, dispute.milestone, userId);
+    }
 
     const notifyIds = [project.clientId, project.freelancerId].filter(
       (id): id is string => Boolean(id),

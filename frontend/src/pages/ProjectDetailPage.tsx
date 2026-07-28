@@ -57,6 +57,7 @@ import {
   canApproveMilestone,
   canDeleteProject,
   canEditProject,
+  canOpenApplicationsReview,
   canSubmitMilestone,
   displayName,
   formatDeadline,
@@ -74,6 +75,7 @@ import { useAuth } from '@/hooks/useAuth'
 import type { Milestone, Project, ProjectActivity, ProjectPreview } from '@/types/project'
 import type { Application } from '@/types/application'
 import axios from 'axios'
+import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
 
 const COMPLETED_MILESTONE_STATUSES = new Set(['PAID'])
 
@@ -113,6 +115,16 @@ function resolveParties(
     })
   }
 
+  if (!project?.freelancer && project?.invitedFreelancer) {
+    parties.push({
+      id: project.invitedFreelancer.id,
+      name: displayName(project.invitedFreelancer),
+      role: 'Freelancer',
+      avatarUrl: project.invitedFreelancer.avatarUrl,
+      verified: project.invitedFreelancer.isVerified,
+    })
+  }
+
   return parties
 }
 
@@ -129,6 +141,9 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(searchParams.get('invite') === '1')
+  const [applicationsOpen, setApplicationsOpen] = useState(
+    searchParams.get('applications') === '1',
+  )
   const [actionLoading, setActionLoading] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [disputeOpen, setDisputeOpen] = useState(false)
@@ -247,6 +262,14 @@ export default function ProjectDetailPage() {
     setInviteOpen(false)
     if (searchParams.get('invite')) {
       searchParams.delete('invite')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }
+
+  const closeApplicationsModal = () => {
+    setApplicationsOpen(false)
+    if (searchParams.get('applications')) {
+      searchParams.delete('applications')
       setSearchParams(searchParams, { replace: true })
     }
   }
@@ -384,13 +407,22 @@ export default function ProjectDetailPage() {
     project?.status === 'DRAFT' &&
     project.escrowStatus !== 'FUNDED'
 
+  const canReviewApplications = Boolean(
+    mode === 'full' &&
+      project &&
+      user &&
+      canOpenApplicationsReview(project, user.id) &&
+      (project.pendingApplicationCount ?? 0) > 0,
+  )
+
   const isPublicProject = project?.isPublic ?? preview?.isPublic ?? false
   const isDraftOpen =
     ((project?.status ?? preview?.status) === 'DRAFT' ||
       (project?.status ?? preview?.status) === 'FUNDED') &&
-    !project?.freelancerId
+    !(project?.freelancerId ?? false)
   const isFreelancerUser =
     user?.role === 'FREELANCER' || user?.role === 'ADMIN'
+  const canGuestApply = Boolean(mode === 'preview' && !user && isPublicProject && isDraftOpen)
 
   const canApply = Boolean(
     user &&
@@ -652,6 +684,15 @@ export default function ProjectDetailPage() {
           {project?.invitedFreelancerId ? 'Change invite' : 'Invite freelancer'}
         </Button>
       )}
+      {canReviewApplications && (
+        <Button
+          variant="secondary"
+          className="w-full sm:w-auto"
+          onClick={() => setApplicationsOpen(true)}
+        >
+          Review applications
+        </Button>
+      )}
       {isInvitedFreelancer && (
         <>
           <Button
@@ -679,7 +720,7 @@ export default function ProjectDetailPage() {
           Fund project
         </Button>
       )}
-      {mode === 'preview' && !user && (
+      {canGuestApply && (
         <>
           <Button className="w-full sm:w-auto" onClick={() => navigate(ROUTES.register)}>
             Sign up to apply
@@ -718,12 +759,13 @@ export default function ProjectDetailPage() {
 
   const hasMobileActions = Boolean(
     canInvite ||
+      canReviewApplications ||
       isInvitedFreelancer ||
       canFund ||
       canApply ||
       applicationPending ||
       canLeaveReview ||
-      (mode === 'preview' && !user),
+      canGuestApply,
   )
 
   if (loading) {
@@ -876,6 +918,17 @@ export default function ProjectDetailPage() {
             projectId={id}
             onClose={closeInviteModal}
             onSuccess={() => void reloadProject()}
+          />
+        )}
+
+        {id && (
+          <ReviewApplicationsModal
+            open={applicationsOpen}
+            projectId={id}
+            projectTitle={project?.title}
+            onClose={closeApplicationsModal}
+            onUpdated={() => void reloadProject()}
+            showProjectLink={false}
           />
         )}
 

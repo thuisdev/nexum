@@ -105,8 +105,7 @@ export function canOpenApplicationsReview(
     project.clientId === userId &&
     project.isPublic &&
     !project.freelancerId &&
-    (project.status === 'DRAFT' || project.status === 'FUNDED') &&
-    !project.invitedFreelancerId
+    (project.status === 'DRAFT' || project.status === 'FUNDED')
   )
 }
 
@@ -193,12 +192,8 @@ export function jobToCardProps(job: JobBoardProject) {
 
 export function projectToClientCardProps(project: Project) {
   const cardStatus = resolveClientCardStatus(project)
-  const hasApplicants =
-    project.isPublic &&
-    !project.freelancerId &&
-    (project.status === 'DRAFT' || project.status === 'FUNDED') &&
-    !project.invitedFreelancerId
   const applicantCount = project.pendingApplicationCount ?? 0
+  const canReviewApplicants = applicantCount > 0 && canOpenApplicationsReview(project, project.clientId)
 
   const party = project.freelancer
     ? {
@@ -233,8 +228,8 @@ export function projectToClientCardProps(project: Project) {
     draftMeta: projectDraftMeta(project),
     milestoneCount: project.milestones.length,
     escrowFunded: projectEscrowFunded(project),
-    applicantCount: hasApplicants ? applicantCount : undefined,
-    showReviewApplicants: hasApplicants,
+    applicantCount: canReviewApplicants ? applicantCount : undefined,
+    showReviewApplicants: canReviewApplicants,
     ...party,
   }
 }

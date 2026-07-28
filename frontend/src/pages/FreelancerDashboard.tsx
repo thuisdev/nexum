@@ -84,17 +84,21 @@ export default function FreelancerDashboard() {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([listProjects(), listMyApplications()])
-      .then(([projectData, applicationData]) => {
-        if (!cancelled) {
-          setProjects(projectData)
-          setApplications(applicationData)
+    Promise.allSettled([listProjects(), listMyApplications()])
+      .then(([projectsResult, applicationsResult]) => {
+        if (cancelled) return
+
+        if (projectsResult.status === 'fulfilled') {
+          setProjects(projectsResult.value)
           setError(null)
+        } else {
+          setError(getApiErrorMessage(projectsResult.reason, 'Could not load projects'))
         }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Could not load projects'))
+
+        if (applicationsResult.status === 'fulfilled') {
+          setApplications(applicationsResult.value)
+        } else {
+          setApplications([])
         }
       })
       .finally(() => {

@@ -163,7 +163,7 @@ export function ProjectDetailHero({
             </p>
           </div>
           {actions ? (
-            <div className="hidden flex-col gap-2 sm:flex sm:flex-row sm:items-center md:flex">
+            <div className="hidden flex-col gap-2 md:flex md:flex-row md:items-center">
               {actions}
             </div>
           ) : null}
