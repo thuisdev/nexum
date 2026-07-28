@@ -116,10 +116,6 @@ export default function LandingPage() {
               milestones are approved. Freelancers can see the budget is locked before
               they start.
             </p>
-            <p className="max-w-[600px] rounded-2xl border border-ink-200/80 bg-white/80 px-4 py-3 text-sm leading-6 text-ink-600 shadow-sm backdrop-blur">
-              In short: <span className="font-medium text-ink-900">Upwork-style hiring for crypto work</span>,
-              but with built-in escrow and milestone-based releases instead of trust-based promises.
-            </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
               <Button size="lg" fullWidth className="sm:w-auto" onClick={goStart}>
                 Post a project
