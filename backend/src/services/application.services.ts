@@ -290,7 +290,7 @@ export const acceptApplication = async (
         userId: application.freelancerId,
         projectId: application.projectId,
         type: 'APPLICATION_ACCEPTED',
-        message: `Your application for "${project.title}" was accepted`,
+        message: `Your application for "${application.project.title}" was accepted`,
       },
     });
 
@@ -300,7 +300,7 @@ export const acceptApplication = async (
           userId: row.freelancerId,
           projectId: application.projectId,
           type: 'APPLICATION_REJECTED',
-          message: `Your application for "${project.title}" was not selected`,
+          message: `Your application for "${application.project.title}" was not selected`,
         },
       });
     }

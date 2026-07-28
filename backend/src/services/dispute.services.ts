@@ -219,7 +219,16 @@ export const resolveDispute = async (
     where: { id: disputeId },
     include: {
       milestone: {
-        include: { project: true },
+        include: {
+          project: {
+            include: {
+              milestones: {
+                select: { id: true, status: true },
+                orderBy: { orderIndex: 'asc' },
+              },
+            },
+          },
+        },
       },
     },
   });
