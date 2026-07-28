@@ -42,7 +42,9 @@ export default function Navbar({ landing = false }: NavbarProps) {
       ) {
         setUserMenuOpen(false)
       }
+      // Desktop only — mobile sheet has its own overlay close handler
       if (
+        window.matchMedia('(min-width: 1024px)').matches &&
         bellRef.current &&
         !bellRef.current.contains(e.target as Node)
       ) {
@@ -119,6 +121,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
                       <NotificationDropdown
                         items={isLoggedIn ? notificationItems : []}
                         loading={isLoggedIn && notificationsLoading}
+                        onClose={() => setNotificationsOpen(false)}
                       />
                     </div>
                   )}
@@ -126,6 +129,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
                 <div ref={userMenuRef} className="relative">
                   <UserMenuTrigger
                     name={user?.displayName ?? user?.name}
+                    avatarUrl={user?.avatarUrl}
                     onClick={() => setUserMenuOpen((v) => !v)}
                   />
                   {userMenuOpen && (
@@ -152,11 +156,14 @@ export default function Navbar({ landing = false }: NavbarProps) {
 
           <button
             type="button"
-            className="text-ink-900 lg:hidden"
+            className="relative text-ink-900 lg:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
           >
             <Menu className="size-6" />
+            {isLoggedIn && unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-brand-500" />
+            )}
           </button>
         </div>
       </header>
@@ -165,9 +172,27 @@ export default function Navbar({ landing = false }: NavbarProps) {
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         isLoggedIn={isLoggedIn}
+        userId={user?.id}
         userName={user?.displayName ?? user?.name}
+        avatarUrl={user?.avatarUrl}
+        unreadCount={unreadCount}
+        onOpenNotifications={() => {
+          setNotificationsOpen(true)
+          if (isLoggedIn) void refreshNotifications()
+        }}
         onLogout={handleLogout}
       />
+
+      {notificationsOpen && (
+        <div className="lg:hidden">
+          <NotificationDropdown
+            mobile
+            items={isLoggedIn ? notificationItems : []}
+            loading={isLoggedIn && notificationsLoading}
+            onClose={() => setNotificationsOpen(false)}
+          />
+        </div>
+      )}
     </>
   )
 }

@@ -186,13 +186,11 @@ export function ProjectCard({
         className,
       )}
     >
-      {/* Top row */}
-      <div className="flex items-center justify-between gap-2">
+      {/* Top row — fixed min height so titles align across cards */}
+      <div className="flex min-h-10 items-center justify-between gap-2">
         {renderTopLeft()}
         <div className="flex shrink-0 items-center gap-2">
-          {isJobboard && escrowFunded !== undefined && (
-            <EscrowLockBadge funded={escrowFunded} />
-          )}
+          {isJobboard && <EscrowLockBadge funded={escrowFunded} />}
           {isJobboard && timeAgo ? (
             <span className="text-xs leading-4 text-ink-400">{timeAgo}</span>
           ) : status ? (
@@ -242,9 +240,7 @@ export function ProjectCard({
             )}
             {(clientState === 'draft' || clientState === 'in_progress') && (
               <div className="flex items-center gap-2">
-                {escrowFunded !== undefined && (
-                  <EscrowLockBadge funded={escrowFunded} />
-                )}
+                <EscrowLockBadge funded={escrowFunded} />
                 {milestoneCount !== undefined && (
                   <MilestoneCount count={milestoneCount} />
                 )}
@@ -277,9 +273,7 @@ export function ProjectCard({
             )}
             {freelancerState === 'invited' ? (
               <div className="flex items-center gap-2">
-                {escrowFunded !== undefined && (
-                  <EscrowLockBadge funded={escrowFunded} />
-                )}
+                <EscrowLockBadge funded={escrowFunded} />
                 {milestoneCount !== undefined && (
                   <MilestoneCount count={milestoneCount} />
                 )}

@@ -113,6 +113,7 @@ export interface ProjectPreview {
   totalBudget: string
   currency: string
   status: string
+  escrowStatus?: string
   isPublic: boolean
   skills: string[]
   createdAt: string

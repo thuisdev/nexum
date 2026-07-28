@@ -306,9 +306,10 @@ export const handleInviteProject = async (
       return;
     }
 
-    if (project === 'not_draft') {
+    if (project === 'not_open') {
       res.status(409).json({
-        error: 'Invites are only allowed while project status is DRAFT',
+        error:
+          'Invites are only allowed while the project is open (draft or funded, before a freelancer is assigned)',
       });
       return;
     }

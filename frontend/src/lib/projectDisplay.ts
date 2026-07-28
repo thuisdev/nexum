@@ -56,34 +56,47 @@ export function resolveClientCardStatus(project: Project): {
     return { status: 'DISPUTED', label: 'Under review' }
   }
 
-  if (project.status !== 'DRAFT') {
-    return { status: mapProjectStatus(project.status) }
-  }
+  const isOpenForHire =
+    (project.status === 'DRAFT' || project.status === 'FUNDED') &&
+    !project.freelancerId
 
-  if (project.invitedFreelancerId && !project.freelancerId) {
+  if (isOpenForHire && project.invitedFreelancerId) {
     return { status: 'INVITED', label: 'Invite sent' }
   }
 
-  if (project.isPublic && !project.freelancerId) {
+  if (isOpenForHire && project.isPublic) {
     const count = project.pendingApplicationCount ?? 0
     if (count > 0) {
-      return { status: 'PENDING', label: `${count} applicant${count === 1 ? '' : 's'}` }
+      return {
+        status: 'PENDING',
+        label: `${count} applicant${count === 1 ? '' : 's'}`,
+      }
     }
-    return { status: 'PENDING', label: 'Open for applications' }
+    return {
+      status: project.status === 'FUNDED' ? 'FUNDED' : 'PENDING',
+      label:
+        project.status === 'FUNDED'
+          ? 'Funded · open for applications'
+          : 'Open for applications',
+    }
   }
 
   if (project.freelancerId && project.escrowStatus === 'NOT_FUNDED') {
     return { status: 'PENDING', label: 'Awaiting funding' }
   }
 
-  if (project.escrowStatus === 'FUNDED' && !project.freelancerId) {
+  if (project.status === 'FUNDED' && !project.freelancerId) {
     return { status: 'FUNDED', label: 'Funded · pick freelancer' }
+  }
+
+  if (project.status !== 'DRAFT') {
+    return { status: mapProjectStatus(project.status) }
   }
 
   return { status: 'DRAFT' }
 }
 
-/** Client can review applications on an open public draft project. */
+/** Client can review applications on an open public project (draft or prefunded). */
 export function canOpenApplicationsReview(
   project: Project,
   userId: string,
@@ -92,8 +105,7 @@ export function canOpenApplicationsReview(
     project.clientId === userId &&
     project.isPublic &&
     !project.freelancerId &&
-    project.status === 'DRAFT' &&
-    !project.invitedFreelancerId
+    (project.status === 'DRAFT' || project.status === 'FUNDED')
   )
 }
 
@@ -125,21 +137,6 @@ export function projectEscrowFunded(
     project.status === 'IN_PROGRESS' ||
     project.status === 'COMPLETED'
   )
-}
-
-export function projectEscrowLabel(
-  project: Pick<Project, 'escrowStatus' | 'status'>,
-): string | undefined {
-  if (
-    project.escrowStatus === 'FUNDED' ||
-    project.escrowStatus === 'RELEASED' ||
-    project.status === 'IN_PROGRESS' ||
-    project.status === 'COMPLETED'
-  ) {
-    return 'Escrow-backed'
-  }
-
-  return undefined
 }
 
 export function mapMilestoneStatus(status: string): StatusBadgeStatus {
@@ -195,9 +192,8 @@ export function jobToCardProps(job: JobBoardProject) {
 
 export function projectToClientCardProps(project: Project) {
   const cardStatus = resolveClientCardStatus(project)
-  const hasApplicants =
-    project.isPublic && !project.freelancerId && project.status === 'DRAFT'
   const applicantCount = project.pendingApplicationCount ?? 0
+  const canReviewApplicants = applicantCount > 0 && canOpenApplicationsReview(project, project.clientId)
 
   const party = project.freelancer
     ? {
@@ -232,8 +228,8 @@ export function projectToClientCardProps(project: Project) {
     draftMeta: projectDraftMeta(project),
     milestoneCount: project.milestones.length,
     escrowFunded: projectEscrowFunded(project),
-    applicantCount: hasApplicants ? applicantCount : undefined,
-    showReviewApplicants: hasApplicants,
+    applicantCount: canReviewApplicants ? applicantCount : undefined,
+    showReviewApplicants: canReviewApplicants,
     ...party,
   }
 }

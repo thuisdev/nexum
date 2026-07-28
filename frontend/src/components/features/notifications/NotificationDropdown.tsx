@@ -51,7 +51,14 @@ export function NotificationDropdown({
               message={item.message}
               time={item.time}
               unread={item.unread}
-              onClick={item.onClick}
+              onClick={
+                item.onClick
+                  ? () => {
+                      item.onClick?.()
+                      onClose?.()
+                    }
+                  : undefined
+              }
               onDelete={item.onDelete}
             />
           ))

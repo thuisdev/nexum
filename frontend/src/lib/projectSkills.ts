@@ -1,10 +1,15 @@
 /** Allowed project skills — must match job board filter chips (except "All"). */
 export const PROJECT_SKILLS = [
   'Solidity',
-  'Design',
   'Frontend',
-  'Writing',
+  'Backend',
+  'Design',
   'Audit',
+  'Writing',
+  'DevOps',
+  'Product',
+  'Research',
+  'Marketing',
 ] as const
 
 export type ProjectSkill = (typeof PROJECT_SKILLS)[number]

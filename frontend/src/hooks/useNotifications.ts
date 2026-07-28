@@ -53,6 +53,11 @@ export function useNotifications(enabled = true) {
     }
 
     if (notification.projectId) {
+      if (notification.type === 'APPLICATION_RECEIVED') {
+        navigate(`${ROUTES.project(notification.projectId)}?applications=1`)
+        return
+      }
+
       navigate(ROUTES.project(notification.projectId))
     }
   }

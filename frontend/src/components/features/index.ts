@@ -45,7 +45,6 @@ export {
   type ProjectDetailHeroProps,
   type ProjectDetailParty,
 } from './project/ProjectDetailHero'
-export { MilestoneStepper, type MilestoneStepperProps } from './project/MilestoneStepper'
 export { ProjectEscrowSection, type ProjectEscrowSectionProps } from './project/ProjectEscrowSection'
 export {
   ProjectOverflowMenu,

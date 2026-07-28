@@ -5,7 +5,8 @@ import type { DisputeCta } from '@/lib/projectDisplay'
 import type { ProjectOpenDispute } from '@/types/project'
 
 export type ProjectEscrowSectionProps = {
-  disputeCta: DisputeCta | null
+  funded?: boolean
+  disputeCta?: DisputeCta | null
   openDispute?: ProjectOpenDispute | null
   onOpenDispute?: () => void
   onViewDispute?: () => void
@@ -13,18 +14,18 @@ export type ProjectEscrowSectionProps = {
 }
 
 export function ProjectEscrowSection({
-  disputeCta,
+  funded = false,
+  disputeCta = null,
   openDispute,
   onOpenDispute,
   onViewDispute,
   onResolveDispute,
 }: ProjectEscrowSectionProps) {
-  if (!disputeCta && !openDispute) return null
-
   const showPanel = Boolean(openDispute)
   const canRequest = disputeCta?.action === 'open'
   const canView = disputeCta?.action === 'view'
   const canResolve = disputeCta?.action === 'arbiter'
+  const hasActions = canRequest || canView || canResolve
 
   return (
     <section className="flex flex-col gap-3 text-left">
@@ -40,32 +41,46 @@ export function ProjectEscrowSection({
             <p className="text-sm leading-6 text-ink-500">
               {showPanel
                 ? 'An arbiter is reviewing this milestone. Escrow stays locked until a decision is made.'
-                : 'If the work, scope, or payment timing does not match your agreement, request an independent arbiter.'}
+                : funded
+                  ? 'Budget is locked in escrow. Funds release per milestone after approval — either side can request an arbiter if something goes wrong.'
+                  : 'Once funded, the full budget locks in escrow until milestones are approved. Either side can request an independent arbiter if needed.'}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 p-5 md:p-6">
-          {showPanel && openDispute && <DisputePanel dispute={openDispute} />}
+        {(showPanel || hasActions) && (
+          <div className="flex flex-col gap-4 p-5 md:p-6">
+            {showPanel && openDispute && <DisputePanel dispute={openDispute} />}
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {canRequest && onOpenDispute && (
-              <Button variant="secondary" className="w-full sm:w-auto" onClick={onOpenDispute}>
-                Request arbiter review
-              </Button>
-            )}
-            {canView && onViewDispute && (
-              <Button variant="secondary" className="w-full sm:w-auto" onClick={onViewDispute}>
-                View dispute details
-              </Button>
-            )}
-            {canResolve && onResolveDispute && (
-              <Button className="w-full sm:w-auto" onClick={onResolveDispute}>
-                Resolve dispute
-              </Button>
+            {hasActions && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {canRequest && onOpenDispute && (
+                  <Button
+                    variant="secondary"
+                    className="w-full sm:w-auto"
+                    onClick={onOpenDispute}
+                  >
+                    Request arbiter review
+                  </Button>
+                )}
+                {canView && onViewDispute && (
+                  <Button
+                    variant="secondary"
+                    className="w-full sm:w-auto"
+                    onClick={onViewDispute}
+                  >
+                    View dispute details
+                  </Button>
+                )}
+                {canResolve && onResolveDispute && (
+                  <Button className="w-full sm:w-auto" onClick={onResolveDispute}>
+                    Resolve dispute
+                  </Button>
+                )}
+              </div>
             )}
           </div>
-        </div>
+        )}
       </div>
     </section>
   )

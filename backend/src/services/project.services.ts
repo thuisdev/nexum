@@ -218,6 +218,7 @@ export const getProjectById = async (
       },
       client: { select: clientPublicSelect },
       freelancer: { select: clientPublicSelect },
+      invitedFreelancer: { select: clientPublicSelect },
       ...(userRole === 'CLIENT'
         ? {
             _count: {
@@ -261,7 +262,7 @@ export const getProjectById = async (
     !canAccessProject(project, userId, userRole) &&
     !arbiterCanAccess &&
     userRole !== 'ADMIN' &&
-    !(userRole === 'FREELANCER' && isOpenPublicJob)
+    !isOpenPublicJob
   ) {
     return 'forbidden' as const;
   }
@@ -270,6 +271,7 @@ export const getProjectById = async (
     ...serializeProject(project),
     client: project.client,
     freelancer: project.freelancer,
+    invitedFreelancer: project.invitedFreelancer,
     ...(userRole === 'CLIENT' &&
     project.clientId === userId &&
     '_count' in project &&
@@ -497,8 +499,18 @@ export const getProjectActivity = async (
     return null;
   }
 
-  if (!canAccessProject(project, userId, userRole)) {
-    return 'forbidden' as const;
+  const isDirectViewer =
+    userRole === 'ADMIN' || canAccessProject(project, userId, userRole);
+
+  if (!isDirectViewer) {
+    const isOpenPublicJob =
+      project.isPublic &&
+      !project.freelancerId &&
+      (project.status === 'DRAFT' || project.status === 'FUNDED');
+
+    if (!isOpenPublicJob) {
+      return 'forbidden' as const;
+    }
   }
 
   const logs = await prisma.activityLog.findMany({
@@ -510,7 +522,14 @@ export const getProjectActivity = async (
   return logs.map((log) => ({
     id: log.id,
     action: log.action,
-    metadata: log.metadata,
+    metadata:
+      isDirectViewer || !log.metadata || typeof log.metadata !== 'object'
+        ? log.metadata
+        : (() => {
+            const metadata = { ...(log.metadata as Record<string, unknown>) };
+            delete metadata.freelancerEmail;
+            return metadata;
+          })(),
     createdAt: log.createdAt.toISOString(),
     actor: log.actor,
   }));
@@ -560,7 +579,7 @@ async function resolveFreelancerByIdentifier(identifier: string) {
   return matches[0]!;
 }
 
-/** Client invites a freelancer by email or display name while project is DRAFT. */
+/** Client invites a freelancer while project is open (DRAFT or prefunded FUNDED). */
 export const inviteFreelancer = async (
   projectId: string,
   clientId: string,
@@ -576,8 +595,8 @@ export const inviteFreelancer = async (
     return 'forbidden' as const;
   }
 
-  if (project.status !== 'DRAFT') {
-    return 'not_draft' as const;
+  if (project.status !== 'DRAFT' && project.status !== 'FUNDED') {
+    return 'not_open' as const;
   }
 
   if (project.freelancerId) {
@@ -615,7 +634,6 @@ export const inviteFreelancer = async (
         action: 'FREELANCER_INVITED',
         metadata: {
           freelancerId: freelancer.id,
-          freelancerEmail: freelancer.email,
         },
       },
     });
@@ -704,15 +722,48 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
   const isPrefunded = project.escrowStatus === 'FUNDED';
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const assignment = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        invitedFreelancerId: freelancerId,
+        freelancerId: null,
+        status: { in: ['DRAFT', 'FUNDED'] },
+      },
       data: {
         freelancerId,
         invitedFreelancerId: null,
         ...(isPrefunded ? { status: 'IN_PROGRESS' as const } : {}),
       },
-      include: { milestones: true },
     });
+
+    if (assignment.count === 0) {
+      return 'already_accepted' as const;
+    }
+
+    const pendingApplications = await tx.application.findMany({
+      where: { projectId, status: 'PENDING' },
+      select: { freelancerId: true },
+    });
+
+    await tx.application.updateMany({
+      where: { projectId, freelancerId, status: 'PENDING' },
+      data: { status: 'ACCEPTED' },
+    });
+
+    const rejectedApplicants = pendingApplications.filter(
+      (application) => application.freelancerId !== freelancerId,
+    );
+
+    if (rejectedApplicants.length > 0) {
+      await tx.application.updateMany({
+        where: {
+          projectId,
+          freelancerId: { not: freelancerId },
+          status: 'PENDING',
+        },
+        data: { status: 'REJECTED' },
+      });
+    }
 
     if (isPrefunded) {
       await tx.milestone.updateMany({
@@ -730,8 +781,26 @@ export const acceptInvite = async (projectId: string, freelancerId: string) => {
       },
     });
 
-    return result;
+    for (const rejectedApplicant of rejectedApplicants) {
+      await tx.notification.create({
+        data: {
+          userId: rejectedApplicant.freelancerId,
+          projectId,
+          type: 'APPLICATION_REJECTED',
+          message: `Your application for "${project.title}" was not selected`,
+        },
+      });
+    }
+
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
   });
+
+  if (updated === 'already_accepted') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };
@@ -809,6 +878,7 @@ const serializePreview = (project: ProjectWithClient) => ({
   totalBudget: project.totalBudget.toString(),
   currency: project.currency,
   status: project.status,
+  escrowStatus: project.escrowStatus,
   isPublic: project.isPublic,
   skills: project.skills,
   createdAt: project.createdAt.toISOString(),
@@ -865,7 +935,12 @@ export const getProjectPreview = async (projectId: string) => {
     },
   });
 
-  if (!project || !project.isPublic) {
+  if (
+    !project ||
+    !project.isPublic ||
+    project.freelancerId ||
+    (project.status !== 'DRAFT' && project.status !== 'FUNDED')
+  ) {
     return null;
   }
 

@@ -245,15 +245,22 @@ export const acceptApplication = async (
 
     const isPrefunded = application.project.escrowStatus === 'FUNDED';
 
-    const project = await tx.project.update({
-      where: { id: application.projectId },
+    const assignment = await tx.project.updateMany({
+      where: {
+        id: application.projectId,
+        freelancerId: null,
+        status: { in: ['DRAFT', 'FUNDED'] },
+      },
       data: {
         freelancerId: application.freelancerId,
         invitedFreelancerId: null,
         ...(isPrefunded ? { status: 'IN_PROGRESS' as const } : {}),
       },
-      include: { milestones: true },
     });
+
+    if (assignment.count === 0) {
+      return 'freelancer_already_assigned' as const;
+    }
 
     if (isPrefunded) {
       await tx.milestone.updateMany({
@@ -283,7 +290,7 @@ export const acceptApplication = async (
         userId: application.freelancerId,
         projectId: application.projectId,
         type: 'APPLICATION_ACCEPTED',
-        message: `Your application for "${project.title}" was accepted`,
+        message: `Your application for "${application.project.title}" was accepted`,
       },
     });
 
@@ -293,7 +300,7 @@ export const acceptApplication = async (
           userId: row.freelancerId,
           projectId: application.projectId,
           type: 'APPLICATION_REJECTED',
-          message: `Your application for "${project.title}" was not selected`,
+          message: `Your application for "${application.project.title}" was not selected`,
         },
       });
     }
@@ -310,8 +317,15 @@ export const acceptApplication = async (
       },
     });
 
-    return project;
+    return tx.project.findUniqueOrThrow({
+      where: { id: application.projectId },
+      include: { milestones: true },
+    });
   });
+
+  if (updated === 'freelancer_already_assigned') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };

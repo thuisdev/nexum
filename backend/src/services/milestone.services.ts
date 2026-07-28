@@ -1,10 +1,144 @@
 import { randomUUID } from 'node:crypto';
 
+import { Prisma } from '../generated/prisma/client.js';
 import { prisma } from '../lib/prisma.js';
 import type { SubmitMilestoneInput } from '../schemas/milestone.schema.js';
 
 const simulatedPayoutRef = () =>
   `SIM-${randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+
+type MilestoneForPayout = {
+  id: string;
+  title: string;
+  amount: Prisma.Decimal;
+  projectId: string;
+  project: {
+    id: string;
+    title: string;
+    currency: string;
+    freelancerId: string | null;
+    milestones: Array<{ id: string; status: string }>;
+  };
+};
+
+export const releaseMilestonePayout = async (
+  tx: Prisma.TransactionClient,
+  milestone: MilestoneForPayout,
+  approvedBy: string,
+) => {
+  const projectId = milestone.projectId;
+  const payoutTxRef = simulatedPayoutRef();
+  const now = new Date();
+
+  await tx.approval.create({
+    data: {
+      milestoneId: milestone.id,
+      approvedBy,
+      payoutTxRef,
+      payoutMethod: 'SIMULATED',
+    },
+  });
+
+  await tx.milestone.update({
+    where: { id: milestone.id },
+    data: {
+      status: 'PAID',
+      paidAt: now,
+      completedAt: now,
+    },
+  });
+
+  await tx.activityLog.create({
+    data: {
+      projectId,
+      actorId: approvedBy,
+      action: 'MILESTONE_APPROVED',
+      metadata: {
+        milestoneId: milestone.id,
+        milestoneTitle: milestone.title,
+        amount: milestone.amount.toString(),
+        payoutTxRef,
+      },
+    },
+  });
+
+  await tx.activityLog.create({
+    data: {
+      projectId,
+      actorId: approvedBy,
+      action: 'MILESTONE_PAID',
+      metadata: {
+        milestoneId: milestone.id,
+        milestoneTitle: milestone.title,
+        amount: milestone.amount.toString(),
+        payoutTxRef,
+      },
+    },
+  });
+
+  const freelancerId = milestone.project.freelancerId;
+  if (freelancerId) {
+    await tx.notification.create({
+      data: {
+        userId: freelancerId,
+        projectId,
+        type: 'MILESTONE_APPROVED',
+        message: `Milestone "${milestone.title}" was approved`,
+      },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: freelancerId,
+        projectId,
+        type: 'PAYMENT_RELEASED',
+        message: `${milestone.amount.toString()} ${milestone.project.currency} released for "${milestone.title}"`,
+      },
+    });
+  }
+
+  const nextPending = milestone.project.milestones.find(
+    (item) => item.id !== milestone.id && item.status === 'PENDING',
+  );
+
+  if (nextPending) {
+    await tx.milestone.update({
+      where: { id: nextPending.id },
+      data: { status: 'IN_PROGRESS' },
+    });
+  } else {
+    const allPaid = milestone.project.milestones.every(
+      (item) => item.id === milestone.id || item.status === 'PAID',
+    );
+
+    if (allPaid) {
+      await tx.project.update({
+        where: { id: projectId },
+        data: {
+          status: 'COMPLETED',
+          escrowStatus: 'RELEASED',
+          completedAt: now,
+        },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          projectId,
+          actorId: approvedBy,
+          action: 'PROJECT_COMPLETED',
+          metadata: { title: milestone.project.title },
+        },
+      });
+    } else {
+      await tx.project.update({
+        where: { id: projectId },
+        data: { escrowStatus: 'RELEASED' },
+      });
+    }
+  }
+
+  return { projectId, payoutTxRef } as const;
+};
 
 /** Freelancer submits work on an IN_PROGRESS milestone. */
 export const submitMilestone = async (
@@ -113,116 +247,11 @@ export const approveMilestone = async (
   }
 
   const projectId = milestone.projectId;
-  const payoutTxRef = simulatedPayoutRef();
-  const now = new Date();
+  let payoutTxRef = '';
 
   await prisma.$transaction(async (tx) => {
-    await tx.approval.create({
-      data: {
-        milestoneId,
-        approvedBy: clientId,
-        payoutTxRef,
-        payoutMethod: 'SIMULATED',
-      },
-    });
-
-    await tx.milestone.update({
-      where: { id: milestoneId },
-      data: {
-        status: 'PAID',
-        paidAt: now,
-        completedAt: now,
-      },
-    });
-
-    await tx.activityLog.create({
-      data: {
-        projectId,
-        actorId: clientId,
-        action: 'MILESTONE_APPROVED',
-        metadata: {
-          milestoneId,
-          milestoneTitle: milestone.title,
-          amount: milestone.amount.toString(),
-          payoutTxRef,
-        },
-      },
-    });
-
-    await tx.activityLog.create({
-      data: {
-        projectId,
-        actorId: clientId,
-        action: 'MILESTONE_PAID',
-        metadata: {
-          milestoneId,
-          milestoneTitle: milestone.title,
-          amount: milestone.amount.toString(),
-          payoutTxRef,
-        },
-      },
-    });
-
-    const freelancerId = milestone.project.freelancerId;
-    if (freelancerId) {
-      await tx.notification.create({
-        data: {
-          userId: freelancerId,
-          projectId,
-          type: 'MILESTONE_APPROVED',
-          message: `Milestone "${milestone.title}" was approved`,
-        },
-      });
-
-      await tx.notification.create({
-        data: {
-          userId: freelancerId,
-          projectId,
-          type: 'PAYMENT_RELEASED',
-          message: `${milestone.amount.toString()} ${milestone.project.currency} released for "${milestone.title}"`,
-        },
-      });
-    }
-
-    const nextPending = milestone.project.milestones.find(
-      (m) => m.id !== milestoneId && m.status === 'PENDING',
-    );
-
-    if (nextPending) {
-      await tx.milestone.update({
-        where: { id: nextPending.id },
-        data: { status: 'IN_PROGRESS' },
-      });
-    } else {
-      const allPaid = milestone.project.milestones.every(
-        (m) => m.id === milestoneId || m.status === 'PAID',
-      );
-
-      if (allPaid) {
-        await tx.project.update({
-          where: { id: projectId },
-          data: {
-            status: 'COMPLETED',
-            escrowStatus: 'RELEASED',
-            completedAt: now,
-          },
-        });
-
-        await tx.activityLog.create({
-          data: {
-            projectId,
-            actorId: clientId,
-            action: 'PROJECT_COMPLETED',
-            metadata: { title: milestone.project.title },
-          },
-        });
-      } else {
-        await tx.project.update({
-          where: { id: projectId },
-          data: { escrowStatus: 'RELEASED' },
-        });
-      }
-    }
+    const payout = await releaseMilestonePayout(tx, milestone, clientId);
+    payoutTxRef = payout.payoutTxRef;
 
     // Phase 2: on-chain release via smart contract using payoutTxRef
   });

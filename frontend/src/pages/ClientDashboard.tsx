@@ -112,14 +112,14 @@ export default function ClientDashboard() {
     const card = projectToClientCardProps(project)
     const canInvite =
       (project.status === 'DRAFT' || project.status === 'FUNDED') &&
-      !project.freelancerId &&
-      !project.invitedFreelancerId
+      !project.freelancerId
 
     return (
       <ProjectCard
         key={project.id}
         variant="client"
         {...card}
+        className="rounded-none border-x-0 sm:rounded-xl sm:border-x"
         showInvite={canInvite}
         onCardClick={() => navigate(ROUTES.project(project.id))}
         onInvite={() => setInviteProjectId(project.id)}
@@ -131,81 +131,89 @@ export default function ClientDashboard() {
   }
 
   return (
-    <AppSection className="!py-8 md:!py-12">
-      <PageHeader
-        title="Your projects"
-        action={
-          <Button onClick={() => navigate(ROUTES.createProject)}>
-            New project
-          </Button>
-        }
-      />
-
-      {!loading && projects.length > 0 && (
-        <DashboardSummary
-          className="mb-6"
-          stats={[
-            {
-              id: 'total',
-              label: 'Total projects',
-              value: summary.total,
-              icon: Briefcase,
-              active: filter === 'all',
-              onClick: () => setFilter('all'),
-            },
-            {
-              id: 'drafts',
-              label: 'Drafts',
-              value: summary.drafts,
-              icon: FileEdit,
-              highlight: summary.drafts > 0,
-              active: filter === 'drafts',
-              onClick: () => setFilter('drafts'),
-            },
-            {
-              id: 'active',
-              label: 'In progress',
-              value: summary.active,
-              icon: Rocket,
-              highlight: summary.active > 0,
-              active: filter === 'active',
-              onClick: () => setFilter('active'),
-            },
-          ]}
+    <AppSection className="!px-0 !py-8 md:!px-6 md:!py-12 lg:!px-8">
+      <div className="flex flex-col gap-6 px-4 md:px-0">
+        <PageHeader
+          title="Your projects"
+          action={
+            <Button onClick={() => navigate(ROUTES.createProject)}>
+              New project
+            </Button>
+          }
         />
-      )}
 
-      {error && <InlineAlert variant="error">{error}</InlineAlert>}
+        {!loading && projects.length > 0 && (
+          <DashboardSummary
+            className="mb-0"
+            stats={[
+              {
+                id: 'total',
+                label: 'Total projects',
+                value: summary.total,
+                icon: Briefcase,
+                active: filter === 'all',
+                onClick: () => setFilter('all'),
+              },
+              {
+                id: 'drafts',
+                label: 'Drafts',
+                value: summary.drafts,
+                icon: FileEdit,
+                highlight: summary.drafts > 0,
+                active: filter === 'drafts',
+                onClick: () => setFilter('drafts'),
+              },
+              {
+                id: 'active',
+                label: 'In progress',
+                value: summary.active,
+                icon: Rocket,
+                highlight: summary.active > 0,
+                active: filter === 'active',
+                onClick: () => setFilter('active'),
+              },
+            ]}
+          />
+        )}
+
+        {error && <InlineAlert variant="error">{error}</InlineAlert>}
+      </div>
 
       {loading ? (
-        <DashboardGridSkeleton count={3} />
+        <div className="px-4 md:px-0">
+          <DashboardGridSkeleton count={3} />
+        </div>
       ) : filteredProjects.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
           {filteredProjects.map((project) => renderClientProjectCard(project))}
         </div>
       ) : projects.length > 0 && filteredProjects.length === 0 ? (
-        <EmptyState
-          title="No projects in this view"
-          description="Try another filter or create a new project."
-          action={
-            <EmptyStateButton label="Show all" onClick={() => setFilter('all')} />
-          }
-        />
+        <div className="px-4 md:px-0">
+          <EmptyState
+            title="No projects in this view"
+            description="Try another filter or create a new project."
+            action={
+              <EmptyStateButton label="Show all" onClick={() => setFilter('all')} />
+            }
+          />
+        </div>
       ) : (
-        <EmptyState
-          title="No projects yet"
-          description="Create your first project, define milestones, and invite a freelancer."
-          action={
-            <EmptyStateButton
-              label="New project"
-              onClick={() => navigate(ROUTES.createProject)}
-            />
-          }
-        />
+        <div className="px-4 md:px-0">
+          <EmptyState
+            title="No projects yet"
+            description="Create your first project, define milestones, and invite a freelancer."
+            action={
+              <EmptyStateButton
+                label="New project"
+                onClick={() => navigate(ROUTES.createProject)}
+              />
+            }
+          />
+        </div>
       )}
 
       {!loading && summary.completed > 0 && (
-        <div className="mt-6 flex flex-col gap-4">
+        <div className="mt-6 flex flex-col gap-4 px-4 md:px-0">
           <div className="flex justify-end">
             <button
               type="button"
@@ -218,9 +226,9 @@ export default function ClientDashboard() {
             </button>
           </div>
           {showCompleted && (
-            <div className="flex flex-col gap-3 border-t border-ink-100 pt-6">
-              <SectionLabel>Completed</SectionLabel>
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="-mx-4 flex flex-col gap-3 border-t border-ink-100 pt-6 md:mx-0">
+              <SectionLabel className="px-4 md:px-0">Completed</SectionLabel>
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
                 {completedProjects.map((project) => renderClientProjectCard(project))}
               </div>
             </div>
