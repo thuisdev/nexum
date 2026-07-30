@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import {
   acceptInvite,
   appendMilestones,
+  cancelInvite,
   createProject,
   declineInvite,
   deleteProject,
@@ -333,6 +334,49 @@ export const handleInviteProject = async (
       res.status(409).json({
         error: 'Multiple freelancers match that name — use their email instead',
       });
+      return;
+    }
+
+    res.json(project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** DELETE /api/projects/:id/invite — client cancels a pending invite. */
+export const handleCancelInvite = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = String(req.params.id);
+    const project = await cancelInvite(projectId, req.userId!);
+
+    if (project === null) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (project === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (project === 'not_open') {
+      res.status(409).json({
+        error: 'Invite can only be cancelled while the project is open',
+      });
+      return;
+    }
+
+    if (project === 'freelancer_already_assigned') {
+      res.status(409).json({ error: 'Project already has a freelancer' });
+      return;
+    }
+
+    if (project === 'no_invite') {
+      res.status(409).json({ error: 'No pending invite to cancel' });
       return;
     }
 

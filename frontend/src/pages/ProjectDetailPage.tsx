@@ -34,6 +34,7 @@ import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import {
   acceptInvite,
   approveMilestone,
+  cancelInvite,
   createProjectReview,
   declineInvite,
   deleteProject,
@@ -402,6 +403,24 @@ export default function ProjectDetailPage() {
       !project.freelancerId,
   )
 
+  const canCancelInvite = Boolean(
+    canInvite && project?.invitedFreelancerId,
+  )
+
+  const handleCancelInvite = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      await cancelInvite(id)
+      await reloadProject()
+      setError(null)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not cancel invite'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const canFund =
     isClientOwner &&
     project?.status === 'DRAFT' &&
@@ -684,6 +703,16 @@ export default function ProjectDetailPage() {
           {project?.invitedFreelancerId ? 'Change invite' : 'Invite freelancer'}
         </Button>
       )}
+      {canCancelInvite && (
+        <Button
+          variant="ghost"
+          className="w-full sm:w-auto"
+          loading={actionLoading}
+          onClick={() => void handleCancelInvite()}
+        >
+          Cancel invite
+        </Button>
+      )}
       {canReviewApplications && (
         <Button
           variant="secondary"
@@ -759,6 +788,7 @@ export default function ProjectDetailPage() {
 
   const hasMobileActions = Boolean(
     canInvite ||
+      canCancelInvite ||
       canReviewApplications ||
       isInvitedFreelancer ||
       canFund ||
