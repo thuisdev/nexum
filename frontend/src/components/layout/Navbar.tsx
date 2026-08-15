@@ -83,7 +83,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
         <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-4 lg:px-8">
           <Link
             to={ROUTES.home}
-            className="font-display text-xl font-bold leading-6 text-ink-900"
+            className="relative z-10 font-display text-xl font-bold leading-6 text-ink-900"
           >
             Nexum
           </Link>

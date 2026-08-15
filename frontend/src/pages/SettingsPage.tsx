@@ -97,26 +97,19 @@ function SettingsForm({ user }: { user: User }) {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-brand-50/70 to-transparent"
-        aria-hidden
-      />
-
-      <div className="relative flex flex-col gap-6 p-6 md:p-8">
+    <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-6 p-6 md:p-8">
         {error && <InlineAlert variant="error">{error}</InlineAlert>}
 
         <div className="flex flex-col gap-4 border-b border-ink-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4 text-left">
-            <div className="rounded-full bg-gradient-to-br from-brand-100 to-brand-50 p-1 shadow-md ring-1 ring-white">
-              <Avatar
-                src={avatarUrl}
-                color={avatarColor}
-                name={user.displayName ?? user.name}
-                size="settings"
-                className="ring-2 ring-white"
-              />
-            </div>
+            <Avatar
+              src={avatarUrl}
+              color={avatarColor}
+              name={user.displayName ?? user.name}
+              size="settings"
+              className="shadow-sm ring-1 ring-ink-200"
+            />
             <div className="flex flex-col gap-1.5">
               <p className="font-display text-lg font-semibold text-ink-900">
                 {displayName(user)}

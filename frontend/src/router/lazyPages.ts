@@ -1,6 +1,5 @@
 import { lazy } from 'react'
 
-export const LandingPage = lazy(() => import('@/pages/LandingPage'))
 export const LoginPage = lazy(() => import('@/pages/LoginPage'))
 export const RegisterPage = lazy(() => import('@/pages/RegisterPage'))
 export const JobBoardPage = lazy(() => import('@/pages/JobBoardPage'))

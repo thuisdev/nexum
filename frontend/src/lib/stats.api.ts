@@ -9,9 +9,24 @@ const publicApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 })
 
-export const getPlatformStats = async () => {
-  const res = await publicApi.get<PlatformStats>('/stats')
-  return res.data
+let inflight: Promise<PlatformStats> | null = null
+
+export const getPlatformStats = () => {
+  if (!inflight) {
+    inflight = publicApi
+      .get<PlatformStats>('/stats')
+      .then((res) => res.data)
+      .catch((error) => {
+        inflight = null
+        throw error
+      })
+  }
+  return inflight
+}
+
+/** Start the public stats request as soon as the app boots. */
+export function prefetchPlatformStats() {
+  void getPlatformStats()
 }
 
 export function formatUsdcStat(amount: string) {
