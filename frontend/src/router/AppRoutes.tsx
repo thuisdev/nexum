@@ -5,7 +5,8 @@ import ProtectedRoute from './guards/ProtectedRoute'
 import DashboardRedirect from '@/pages/DashboardRedirect'
 import RoleRoute from './guards/RoleRoute'
 import GuestRoute from './guards/GuestRoute'
-import LandingPage, { landingLoader } from '@/pages/LandingPage'
+import LandingPage from '@/pages/LandingPage'
+import { landingLoader } from '@/router/landingLoader'
 import {
   LoginPage,
   RegisterPage,

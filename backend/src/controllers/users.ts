@@ -10,7 +10,6 @@ import {
 
 const publicProfileSelect = {
   id: true,
-  name: true,
   displayName: true,
   avatarUrl: true,
   avatarColor: true,
@@ -23,6 +22,7 @@ const publicProfileSelect = {
 
 const privateProfileSelect = {
   ...publicProfileSelect,
+  name: true,
   email: true,
 } as const;
 
@@ -49,7 +49,7 @@ export const handleGetPublicProfile = async (
         _count: { _all: true },
         _sum: { rating: true },
       }),
-      countCompletedProjects(user.id, user.role),
+      countCompletedProjects(user.id, user.role, { publicOnly: true }),
     ]);
 
     res.json({
@@ -95,12 +95,11 @@ export const handleGetUserReviews = async (
           select: {
             id: true,
             displayName: true,
-            name: true,
             avatarUrl: true,
             avatarColor: true,
           },
         },
-        project: { select: { id: true, title: true } },
+        project: { select: { id: true, title: true, isPublic: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
@@ -113,7 +112,9 @@ export const handleGetUserReviews = async (
         comment: review.comment,
         createdAt: review.createdAt.toISOString(),
         author: review.author,
-        project: review.project,
+        project: review.project.isPublic
+          ? { id: review.project.id, title: review.project.title }
+          : { id: null, title: null },
       })),
     );
   } catch (error) {
@@ -138,7 +139,9 @@ export const handleGetUserCompletedProjects = async (
       return;
     }
 
-    const projects = await listCompletedProjects(user.id, user.role);
+    const projects = await listCompletedProjects(user.id, user.role, {
+      publicOnly: true,
+    });
     res.json(projects);
   } catch (error) {
     next(error);

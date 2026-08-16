@@ -12,24 +12,8 @@ import {
   StepCard,
 } from '@/components/features'
 import { ROUTES } from '@/router/routes'
-import {
-  formatUsdcStat,
-  getPlatformStats,
-  type PlatformStats,
-} from '@/lib/stats.api'
-
-export type LandingLoaderData = {
-  stats: PlatformStats | null
-}
-
-export async function landingLoader(): Promise<LandingLoaderData> {
-  try {
-    const stats = await getPlatformStats()
-    return { stats }
-  } catch {
-    return { stats: null }
-  }
-}
+import { formatUsdcStat } from '@/lib/stats.api'
+import { type LandingLoaderData } from '@/router/landingLoader'
 
 const HERO_MILESTONES = [
   { id: '1', title: 'Wireframes', amount: '200', status: 'pending' as const },

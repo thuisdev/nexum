@@ -35,11 +35,10 @@ export type PublicReview = {
   author: {
     id: string
     displayName: string | null
-    name: string | null
     avatarUrl: string | null
     avatarColor?: string | null
   }
-  project: { id: string; title: string }
+  project: { id: string | null; title: string | null }
 }
 
 export type PublicCompletedProject = {
