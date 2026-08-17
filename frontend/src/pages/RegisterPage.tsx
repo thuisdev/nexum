@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { FormField } from '@/components/ui/FormField'
@@ -11,12 +11,23 @@ import { Link } from '@/components/ui/Link'
 import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/hooks/useAuth'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { getPostAuthRedirect } from '@/lib/authRedirect'
 import { registerSchema, type RegisterInput } from '@/lib/validation'
 import { ROUTES } from '@/router/routes'
+
+type AuthLocationState = {
+  from?: {
+    pathname: string
+    search?: string
+    hash?: string
+  }
+}
 
 export default function RegisterPage() {
   const { register: registerUser } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as AuthLocationState | null)?.from
   const [error, setError] = useState<string | null>(null)
 
   const {
@@ -47,7 +58,7 @@ export default function RegisterPage() {
         ...(data.name?.trim() && { name: data.name.trim() }),
         ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
       })
-      navigate(ROUTES.dashboard, { replace: true })
+      navigate(getPostAuthRedirect(from), { replace: true })
     } catch (err) {
       setError(getApiErrorMessage(err, 'Email already in use.'))
     }
@@ -151,7 +162,9 @@ export default function RegisterPage() {
 
       <p className="flex flex-wrap items-center justify-center gap-1 text-sm text-ink-500">
         Already have an account?
-        <Link to={ROUTES.login}>Log in</Link>
+        <Link to={ROUTES.login} state={from ? { from } : undefined}>
+          Log in
+        </Link>
       </p>
     </AuthLayout>
   )

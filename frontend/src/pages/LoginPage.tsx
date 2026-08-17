@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { FormField } from '@/components/ui/FormField'
@@ -10,12 +10,23 @@ import { Input } from '@/components/ui/Input'
 import { Link } from '@/components/ui/Link'
 import { useAuth } from '@/hooks/useAuth'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
+import { getPostAuthRedirect } from '@/lib/authRedirect'
 import { loginSchema, type LoginInput } from '@/lib/validation'
 import { ROUTES } from '@/router/routes'
+
+type LoginLocationState = {
+  from?: {
+    pathname: string
+    search?: string
+    hash?: string
+  }
+}
 
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as LoginLocationState | null)?.from
   const [error, setError] = useState<string | null>(null)
 
   const {
@@ -31,7 +42,7 @@ export default function LoginPage() {
     setError(null)
     try {
       await login(data)
-      navigate(ROUTES.dashboard, { replace: true })
+      navigate(getPostAuthRedirect(from), { replace: true })
     } catch (err) {
       setError(getApiErrorMessage(err, 'Wrong email or password.'))
     }
@@ -85,7 +96,9 @@ export default function LoginPage() {
 
       <p className="flex flex-wrap items-center justify-center gap-1 text-sm text-ink-500">
         New here?
-        <Link to={ROUTES.register}>Create an account</Link>
+        <Link to={ROUTES.register} state={from ? { from } : undefined}>
+          Create an account
+        </Link>
       </p>
     </AuthLayout>
   )
