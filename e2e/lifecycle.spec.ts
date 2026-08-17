@@ -79,12 +79,10 @@ test.describe('Private project lifecycle', () => {
     await expect(page.getByText('Recent work')).toBeVisible();
     await expect(page.getByText('No completed projects yet')).toBeVisible();
     await expect(page.getByText('Private API Integration')).toHaveCount(0);
-    await expect(page.getByText('Completed projects', { exact: true })).toBeVisible();
-    await expect(
-      page
-        .locator('div')
-        .filter({ has: page.getByText('Completed projects', { exact: true }) })
-        .getByText('0', { exact: true }),
-    ).toBeVisible();
+    const completedStat = page
+      .getByText('Completed projects', { exact: true })
+      .locator('..');
+    await expect(completedStat).toBeVisible();
+    await expect(completedStat.locator('span').first()).toHaveText('0');
   });
 });
