@@ -50,15 +50,22 @@ export function MobileNavSheet({
     <div className="fixed inset-0 z-40 lg:hidden" role="presentation">
       <button
         type="button"
-        className="absolute inset-0 bg-ink-950/60"
+        className="absolute inset-0 z-0 bg-ink-950/60"
         onClick={onClose}
         aria-label="Close menu"
       />
       <aside
-        className="fixed top-0 right-0 z-[41] flex h-full w-[min(320px,85vw)] flex-col gap-2 bg-white p-6 shadow-lg [animation:slideInFromRight_200ms_ease-out]"
+        className="relative z-10 ml-auto flex h-full w-[min(320px,85vw)] flex-col gap-2 bg-white p-6 shadow-lg [animation:slideInFromRight_200ms_ease-out]"
       >
         <div className="mb-2 flex items-center justify-between pb-2">
-          <span className="font-display text-xl font-bold text-ink-900">Nexum</span>
+          <button
+            type="button"
+            onClick={() => go(ROUTES.home)}
+            className="font-display text-xl font-bold text-ink-900"
+            aria-label="Nexum home"
+          >
+            Nexum
+          </button>
           <button
             type="button"
             onClick={onClose}

@@ -67,6 +67,11 @@ export const inviteFreelancer = async (
   return res.data
 }
 
+export const cancelInvite = async (projectId: string) => {
+  const res = await api.delete<Project>(`/projects/${projectId}/invite`)
+  return res.data
+}
+
 export const acceptInvite = async (projectId: string) => {
   const res = await api.post<Project>(`/projects/${projectId}/accept`)
   return res.data

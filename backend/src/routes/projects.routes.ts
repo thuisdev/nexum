@@ -9,6 +9,7 @@ import {
 import {
   handleAcceptInvite,
   handleAppendMilestones,
+  handleCancelInvite,
   handleCreateProject,
   handleDeclineInvite,
   handleDeleteProject,
@@ -39,6 +40,7 @@ router.get('/', checkAuth, handleListProjects);
 router.get('/disputes/assigned', checkAuth, requireRole('ARBITER', 'ADMIN'), handleListArbiterDisputes);
 router.get('/:id/preview', handleGetProjectPreview);
 router.post('/:id/invite', checkAuth, requireRole('CLIENT'), handleInviteProject);
+router.delete('/:id/invite', checkAuth, requireRole('CLIENT'), handleCancelInvite);
 router.post('/:id/accept', checkAuth, requireRole('FREELANCER'), handleAcceptInvite);
 router.post('/:id/decline', checkAuth, requireRole('FREELANCER'), handleDeclineInvite);
 router.post('/:id/apply', checkAuth, requireRole('FREELANCER'), handleApplyToProject);

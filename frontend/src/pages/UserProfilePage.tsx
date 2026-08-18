@@ -239,7 +239,9 @@ export default function UserProfilePage() {
                   timeAgo={formatRelativeTime(review.createdAt)}
                   text={
                     review.comment?.trim() ||
-                    `Review for ${review.project.title}`
+                    (review.project.title
+                      ? `Review for ${review.project.title}`
+                      : 'Review after a completed project')
                   }
                 />
               ))}

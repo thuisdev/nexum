@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLoaderData, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { Eyebrow, Trustline } from '@/components/ui/Trustline'
@@ -13,11 +12,8 @@ import {
   StepCard,
 } from '@/components/features'
 import { ROUTES } from '@/router/routes'
-import {
-  formatUsdcStat,
-  getPlatformStats,
-  type PlatformStats,
-} from '@/lib/stats.api'
+import { formatUsdcStat } from '@/lib/stats.api'
+import { type LandingLoaderData } from '@/router/landingLoader'
 
 const HERO_MILESTONES = [
   { id: '1', title: 'Wireframes', amount: '200', status: 'pending' as const },
@@ -26,8 +22,8 @@ const HERO_MILESTONES = [
 ]
 
 const TRUST_STATS_FALLBACK = [
-  { id: '1', value: '0', label: 'USDC in escrow', highlight: true },
-  { id: '2', value: '0', label: 'open projects' },
+  { id: '1', value: '—', label: 'USDC in escrow', highlight: true },
+  { id: '2', value: '—', label: 'open projects' },
   { id: '3', value: '100%', label: 'milestone-protected' },
   { id: '4', value: '0%', label: 'ghosting' },
 ]
@@ -71,13 +67,7 @@ const STEPS = [
 export default function LandingPage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
-  const [stats, setStats] = useState<PlatformStats | null>(null)
-
-  useEffect(() => {
-    getPlatformStats()
-      .then(setStats)
-      .catch(() => setStats(null))
-  }, [])
+  const { stats } = useLoaderData() as LandingLoaderData
 
   const trustStats = stats
     ? [

@@ -70,16 +70,19 @@ test.describe('Private project lifecycle', () => {
     await expect(page.getByText('COMPLETED')).toBeVisible();
 
     await loginAs(page, 'freelancer@example.com');
+    await expect(page).toHaveURL(/\/dashboard\/freelancer/);
+    await page.getByRole('button', { name: /Show completed/ }).click();
+    await expect(page.getByText('Private API Integration')).toBeVisible();
+
     await page.goto('/settings');
     await page.getByRole('link', { name: 'View public profile →' }).click();
     await expect(page.getByText('Recent work')).toBeVisible();
-    await expect(page.getByText('Private API Integration')).toBeVisible();
-    await expect(page.getByText('Completed projects', { exact: true })).toBeVisible();
-    await expect(
-      page
-        .locator('div')
-        .filter({ has: page.getByText('Completed projects', { exact: true }) })
-        .getByText('1', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText('No completed projects yet')).toBeVisible();
+    await expect(page.getByText('Private API Integration')).toHaveCount(0);
+    const completedStat = page
+      .getByText('Completed projects', { exact: true })
+      .locator('..');
+    await expect(completedStat).toBeVisible();
+    await expect(completedStat.locator('span').first()).toHaveText('0');
   });
 });

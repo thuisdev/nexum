@@ -644,6 +644,63 @@ export const inviteFreelancer = async (
   return serializeProject(updated);
 };
 
+/** Client cancels a pending invite before acceptance. */
+export const cancelInvite = async (projectId: string, clientId: string) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.status !== 'DRAFT' && project.status !== 'FUNDED') {
+    return 'not_open' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'freelancer_already_assigned' as const;
+  }
+
+  if (!project.invitedFreelancerId) {
+    return 'no_invite' as const;
+  }
+
+  const invitedFreelancerId = project.invitedFreelancerId;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.project.update({
+      where: { id: projectId },
+      data: { invitedFreelancerId: null },
+      include: { milestones: true },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: invitedFreelancerId,
+        projectId,
+        type: 'INVITE_CANCELLED',
+        message: `Invitation to "${project.title}" was cancelled by the client`,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'FREELANCER_INVITE_CANCELLED',
+        metadata: { freelancerId: invitedFreelancerId },
+      },
+    });
+
+    return result;
+  });
+
+  return serializeProject(updated);
+};
+
 /** Invited freelancer declines — clears invite and optionally notifies client. */
 export const declineInvite = async (
   projectId: string,

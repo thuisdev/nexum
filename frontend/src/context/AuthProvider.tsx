@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import type { User } from '@/types/user';
 import { TOKEN_KEY } from '@/lib/constants';
 import { getMe, loginApi, registerApi } from '@/lib/auth.api';
+import { subscribeUnauthorized } from '@/lib/axiosInteceptor';
 import { patchMe } from '@/lib/users.api';
 import type { RegisterCredentials, LoginCredentials } from '@/types/api.types';
 import type { UpdateProfileInput } from '@/lib/validation';
@@ -22,6 +23,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
+    const unsubscribe = subscribeUnauthorized(() => {
+      setUser(null);
+    });
+
     const initAuth = async () => {
       const token = localStorage.getItem(TOKEN_KEY);
       if (!token) {
@@ -33,13 +38,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const res = await getMe();
         setUser(res.data);
       } catch {
-        logout();
+        localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
       } finally {
         setLoading(false);
       }
     };
 
-    initAuth();
+    void initAuth();
+    return unsubscribe;
   }, []);
 
   const isLoggedIn = !!user;

@@ -1,9 +1,8 @@
 import type { Milestone, Project, ProjectPreview, JobBoardProject } from '@/types/project'
-import type { PublicUserProfile } from '@/types/user'
 import type { StatusBadgeStatus } from '@/components/ui/StatusBadge'
 
 export function displayName(
-  user: Pick<PublicUserProfile, 'displayName' | 'name'> | null | undefined,
+  user: { displayName?: string | null; name?: string | null } | null | undefined,
   fallback = 'Anonymous',
 ) {
   return user?.displayName ?? user?.name ?? fallback

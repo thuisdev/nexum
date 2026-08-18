@@ -49,8 +49,7 @@ export function DashboardGridSkeleton({ count = 3 }: { count?: number }) {
 export function ProfilePageSkeleton() {
   return (
     <div className="flex flex-col gap-8">
-      <div className="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
-        <Skeleton className="h-28 w-full rounded-none" />
+      <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
         <div className="flex flex-col gap-6 p-6 md:p-8 sm:flex-row sm:items-start">
           <Skeleton className="size-32 shrink-0 rounded-full" />
           <div className="flex flex-1 flex-col gap-3">
@@ -80,8 +79,7 @@ export function SettingsPageSkeleton() {
   return (
     <div className="flex flex-col gap-6">
       <Skeleton className="h-10 w-56" />
-      <div className="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
-        <Skeleton className="h-20 w-full rounded-none" />
+      <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 p-6 md:p-8">
           <div className="flex items-center gap-4 border-b border-ink-100 pb-6">
             <Skeleton className="size-16 rounded-full" />

@@ -1,6 +1,5 @@
 export interface PublicUserProfile {
   id: string
-  name: string | null
   displayName: string | null
   avatarUrl: string | null
   avatarColor: string | null

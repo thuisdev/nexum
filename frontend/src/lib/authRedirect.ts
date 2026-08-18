@@ -15,3 +15,21 @@ export function getDashboardPathForRole(role: User['role']): string {
       return ROUTES.dashboard;
   }
 }
+
+const AUTH_PATHS = new Set<string>([ROUTES.login, ROUTES.register]);
+
+type ReturnLocation = {
+  pathname?: string;
+  search?: string;
+  hash?: string;
+};
+
+/** Safe in-app path to resume after login/register. Falls back to dashboard. */
+export function getPostAuthRedirect(from?: ReturnLocation | null) {
+  const pathname = from?.pathname;
+  if (!pathname || !pathname.startsWith('/') || AUTH_PATHS.has(pathname)) {
+    return ROUTES.dashboard;
+  }
+
+  return `${pathname}${from.search ?? ''}${from.hash ?? ''}`;
+}

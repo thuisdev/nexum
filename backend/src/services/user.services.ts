@@ -10,29 +10,45 @@ const completedProjectSelect = {
   isPublic: true,
 } as const;
 
-export async function countCompletedProjects(userId: string, role: string) {
+type CompletedProjectFilter = {
+  publicOnly?: boolean;
+};
+
+function completedWhere(
+  userId: string,
+  role: string,
+  options?: CompletedProjectFilter,
+) {
+  const visibility = options?.publicOnly ? { isPublic: true } : {};
+
   if (role === 'CLIENT') {
-    return prisma.project.count({
-      where: { clientId: userId, status: 'COMPLETED' },
-    });
+    return { clientId: userId, status: 'COMPLETED' as const, ...visibility };
   }
 
   if (role === 'FREELANCER') {
-    return prisma.project.count({
-      where: { freelancerId: userId, status: 'COMPLETED' },
-    });
+    return { freelancerId: userId, status: 'COMPLETED' as const, ...visibility };
   }
 
-  return 0;
+  return null;
 }
 
-export async function listCompletedProjects(userId: string, role: string) {
-  const where =
-    role === 'CLIENT'
-      ? { clientId: userId, status: 'COMPLETED' as const }
-      : role === 'FREELANCER'
-        ? { freelancerId: userId, status: 'COMPLETED' as const }
-        : null;
+export async function countCompletedProjects(
+  userId: string,
+  role: string,
+  options?: CompletedProjectFilter,
+) {
+  const where = completedWhere(userId, role, options);
+  if (!where) return 0;
+
+  return prisma.project.count({ where });
+}
+
+export async function listCompletedProjects(
+  userId: string,
+  role: string,
+  options?: CompletedProjectFilter,
+) {
+  const where = completedWhere(userId, role, options);
 
   if (!where) {
     return [];
