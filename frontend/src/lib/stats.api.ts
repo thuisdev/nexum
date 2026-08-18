@@ -12,15 +12,15 @@ const publicApi = axios.create({
 let inflight: Promise<PlatformStats> | null = null
 
 export const getPlatformStats = () => {
-  if (!inflight) {
-    inflight = publicApi
-      .get<PlatformStats>('/stats')
-      .then((res) => res.data)
-      .catch((error) => {
-        inflight = null
-        throw error
-      })
-  }
+  if (inflight) return inflight
+
+  inflight = publicApi
+    .get<PlatformStats>('/stats')
+    .then((res) => res.data)
+    .finally(() => {
+      inflight = null
+    })
+
   return inflight
 }
 
