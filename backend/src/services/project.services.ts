@@ -79,6 +79,18 @@ const canAccessProject = (
   project.invitedFreelancerId === userId ||
   (userRole === 'ARBITER' && project.arbiterId === userId);
 
+/** Public job board listing: funded escrow, no freelancer yet. */
+export const isEscrowBackedPublicJob = (project: {
+  isPublic: boolean;
+  freelancerId: string | null;
+  status: string;
+  escrowStatus?: string;
+}) =>
+  project.isPublic &&
+  !project.freelancerId &&
+  project.status === 'FUNDED' &&
+  project.escrowStatus === 'FUNDED';
+
 const clientPublicSelect = {
   id: true,
   displayName: true,
@@ -253,10 +265,7 @@ export const getProjectById = async (
     openDispute &&
     (openDispute.arbiterId === userId || openDispute.arbiterId === null);
 
-  const isOpenPublicJob =
-    project.isPublic &&
-    !project.freelancerId &&
-    (project.status === 'DRAFT' || project.status === 'FUNDED');
+  const isOpenPublicJob = isEscrowBackedPublicJob(project);
 
   if (
     !canAccessProject(project, userId, userRole) &&
@@ -503,10 +512,7 @@ export const getProjectActivity = async (
     userRole === 'ADMIN' || canAccessProject(project, userId, userRole);
 
   if (!isDirectViewer) {
-    const isOpenPublicJob =
-      project.isPublic &&
-      !project.freelancerId &&
-      (project.status === 'DRAFT' || project.status === 'FUNDED');
+    const isOpenPublicJob = isEscrowBackedPublicJob(project);
 
     if (!isOpenPublicJob) {
       return 'forbidden' as const;
@@ -964,12 +970,13 @@ const serializeJobListing = (project: ProjectWithClient & { escrowStatus?: strin
   createdAt: project.createdAt.toISOString(),
 });
 
-/** Public job board — open public projects without an assigned freelancer. */
+/** Public job board — funded public projects without an assigned freelancer. */
 export const listPublicJobs = async () => {
   const projects = await prisma.project.findMany({
     where: {
       isPublic: true,
-      status: { in: ['DRAFT', 'FUNDED'] },
+      status: 'FUNDED',
+      escrowStatus: 'FUNDED',
       freelancerId: null,
     },
     include: {
@@ -992,12 +999,7 @@ export const getProjectPreview = async (projectId: string) => {
     },
   });
 
-  if (
-    !project ||
-    !project.isPublic ||
-    project.freelancerId ||
-    (project.status !== 'DRAFT' && project.status !== 'FUNDED')
-  ) {
+  if (!project || !isEscrowBackedPublicJob(project)) {
     return null;
   }
 

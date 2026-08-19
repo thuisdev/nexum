@@ -23,13 +23,27 @@ describe('mapProjectStatus', () => {
 })
 
 describe('projectDraftMeta', () => {
-  it('describes public projects waiting for applications', () => {
+  it('tells clients to fund before a public job is listed', () => {
     const project = {
       isPublic: true,
       freelancerId: null,
       invitedFreelancerId: null,
+      status: 'DRAFT',
+      escrowStatus: 'NOT_FUNDED',
     } as Project
 
-    expect(projectDraftMeta(project)).toContain('applications')
+    expect(projectDraftMeta(project)).toContain('fund escrow')
+  })
+
+  it('describes funded public jobs as listed on the board', () => {
+    const project = {
+      isPublic: true,
+      freelancerId: null,
+      invitedFreelancerId: null,
+      status: 'FUNDED',
+      escrowStatus: 'FUNDED',
+    } as Project
+
+    expect(projectDraftMeta(project)).toContain('job board')
   })
 })

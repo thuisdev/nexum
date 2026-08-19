@@ -195,7 +195,7 @@ export default function LandingPage() {
               'Invite freelancers or post publicly',
             ]}
             ctaLabel="Post a project"
-            onCta={() => navigate(ROUTES.register)}
+            onCta={goStart}
           />
           <AudienceCard
             eyebrow="For freelancers"

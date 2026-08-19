@@ -64,6 +64,9 @@ export function resolveClientCardStatus(project: Project): {
   }
 
   if (isOpenForHire && project.isPublic) {
+    if (project.status !== 'FUNDED' || project.escrowStatus !== 'FUNDED') {
+      return { status: 'PENDING', label: 'Public · awaiting funding' }
+    }
     const count = project.pendingApplicationCount ?? 0
     if (count > 0) {
       return {
@@ -72,11 +75,8 @@ export function resolveClientCardStatus(project: Project): {
       }
     }
     return {
-      status: project.status === 'FUNDED' ? 'FUNDED' : 'PENDING',
-      label:
-        project.status === 'FUNDED'
-          ? 'Funded · open for applications'
-          : 'Open for applications',
+      status: 'FUNDED',
+      label: 'Funded · on the job board',
     }
   }
 
@@ -162,7 +162,10 @@ export function mapMilestoneStatus(status: string): StatusBadgeStatus {
 export function projectDraftMeta(project: Project) {
   if (project.isPublic) {
     if (!project.freelancerId) {
-      return 'Public · open for applications on job board'
+      if (project.status === 'FUNDED' && project.escrowStatus === 'FUNDED') {
+        return 'Public · funded · listed on the job board'
+      }
+      return 'Public · fund escrow to list on the job board'
     }
     return 'Public · freelancer selected'
   }

@@ -7,7 +7,8 @@ export const getPlatformStats = async () => {
       where: {
         isPublic: true,
         freelancerId: null,
-        status: { in: ['DRAFT', 'FUNDED'] },
+        status: 'FUNDED',
+        escrowStatus: 'FUNDED',
       },
     }),
     prisma.milestone.aggregate({

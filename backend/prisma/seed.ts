@@ -129,9 +129,9 @@ async function main() {
     data: {
       freelancerId: null,
       invitedFreelancerId: null,
-      status: 'DRAFT',
-      escrowStatus: 'NOT_FUNDED',
-      fundedAt: null,
+      status: 'FUNDED',
+      escrowStatus: 'FUNDED',
+      fundedAt: new Date(),
       completedAt: null,
     },
   });
