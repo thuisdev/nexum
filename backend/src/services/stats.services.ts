@@ -7,16 +7,23 @@ export const getPlatformStats = async () => {
       where: {
         isPublic: true,
         freelancerId: null,
-        status: { in: ['DRAFT', 'FUNDED'] },
+        status: 'FUNDED',
+        escrowStatus: 'FUNDED',
       },
     }),
-    prisma.project.aggregate({
-      where: { escrowStatus: 'FUNDED' },
-      _sum: { totalBudget: true },
+    prisma.milestone.aggregate({
+      where: {
+        status: { notIn: ['PAID', 'REFUNDED'] },
+        project: {
+          escrowStatus: 'FUNDED',
+          currency: 'USDC',
+        },
+      },
+      _sum: { amount: true },
     }),
   ]);
 
-  const usdcInEscrow = escrowAggregate._sum.totalBudget?.toString() ?? '0';
+  const usdcInEscrow = escrowAggregate._sum.amount?.toString() ?? '0';
 
   return {
     openProjects,

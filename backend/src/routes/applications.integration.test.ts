@@ -96,6 +96,11 @@ describe.skipIf(!hasDatabase)('applications integration', () => {
     expect(response.status).toBe(201);
     projectId = response.body.id;
     projectIds.push(projectId);
+
+    const funded = await request(app)
+      .post(`/api/projects/${projectId}/fund`)
+      .set('Authorization', `Bearer ${clientToken}`);
+    expect(funded.status).toBe(200);
   });
 
   it('lets a freelancer apply', async () => {

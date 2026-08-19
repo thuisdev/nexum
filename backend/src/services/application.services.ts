@@ -45,7 +45,7 @@ const serializeApplication = (application: {
   freelancer: application.freelancer,
 });
 
-/** Freelancer applies to a public DRAFT project. */
+/** Freelancer applies to a funded public job. */
 export const applyToProject = async (
   projectId: string,
   freelancerId: string,
@@ -61,7 +61,7 @@ export const applyToProject = async (
     return 'not_public' as const;
   }
 
-  if (project.status !== 'DRAFT' && project.status !== 'FUNDED') {
+  if (project.status !== 'FUNDED' || project.escrowStatus !== 'FUNDED') {
     return 'not_open' as const;
   }
 

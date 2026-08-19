@@ -435,19 +435,19 @@ export default function ProjectDetailPage() {
   )
 
   const isPublicProject = project?.isPublic ?? preview?.isPublic ?? false
-  const isDraftOpen =
-    ((project?.status ?? preview?.status) === 'DRAFT' ||
-      (project?.status ?? preview?.status) === 'FUNDED') &&
+  const isOpenFundedJob =
+    (project?.status ?? preview?.status) === 'FUNDED' &&
+    (project?.escrowStatus ?? preview?.escrowStatus) === 'FUNDED' &&
     !(project?.freelancerId ?? false)
   const isFreelancerUser =
     user?.role === 'FREELANCER' || user?.role === 'ADMIN'
-  const canGuestApply = Boolean(mode === 'preview' && !user && isPublicProject && isDraftOpen)
+  const canGuestApply = Boolean(mode === 'preview' && !user && isPublicProject && isOpenFundedJob)
 
   const canApply = Boolean(
     user &&
       isFreelancerUser &&
       isPublicProject &&
-      isDraftOpen &&
+      isOpenFundedJob &&
       !isInvitedFreelancer &&
       user.id !== (project?.clientId ?? preview?.client.id) &&
       (!myApplication || myApplication.status === 'REJECTED'),
