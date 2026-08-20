@@ -142,8 +142,9 @@ export default function LandingPage() {
               What Nexum actually does
             </h2>
             <p className="mt-2 max-w-[680px] text-sm leading-6 text-ink-500">
-              Nexum helps clients and freelancers work together on crypto-native projects
-              without guessing whether the other side will follow through.
+              Parties who don't trust each other can still work together securely.
+              The budget is locked before work starts and released only when each
+              milestone is approved.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">

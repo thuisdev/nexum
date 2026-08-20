@@ -52,9 +52,8 @@ export default function Footer() {
             >
               Nexum
             </Link>
-            <p className="max-w-[260px] text-sm leading-5 text-ink-500">
-              Milestone escrow for freelancers and clients. Ship work, release
-              payment, build trust.
+            <p className="max-w-[280px] text-sm leading-5 text-ink-500">
+              Parties who don't trust each other can still work together securely.
             </p>
           </div>
 
