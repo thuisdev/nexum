@@ -4,6 +4,10 @@
 
 .env.*.local
 
+# Dependencies (root concurrently/playwright install)
+
+node_modules/
+
 # Build outputs
 
 dist/
