@@ -125,6 +125,22 @@ export const releaseMilestonePayout = async (
     });
   }
 
+  await advanceProjectAfterTerminal(tx, milestone, approvedBy, now, 'PAID');
+
+  return { projectId, payoutTxRef } as const;
+};
+
+const isTerminalStatus = (status: string) =>
+  status === 'PAID' || status === 'REFUNDED';
+
+async function advanceProjectAfterTerminal(
+  tx: Prisma.TransactionClient,
+  milestone: MilestoneForPayout,
+  actorId: string,
+  now: Date,
+  currentOutcome: 'PAID' | 'REFUNDED',
+) {
+  const projectId = milestone.projectId;
   const nextPending = milestone.project.milestones.find(
     (item) => item.id !== milestone.id && item.status === 'PENDING',
   );
@@ -134,38 +150,79 @@ export const releaseMilestonePayout = async (
       where: { id: nextPending.id },
       data: { status: 'IN_PROGRESS' },
     });
-  } else {
-    const allPaid = milestone.project.milestones.every(
-      (item) => item.id === milestone.id || item.status === 'PAID',
-    );
-
-    if (allPaid) {
-      await tx.project.update({
-        where: { id: projectId },
-        data: {
-          status: 'COMPLETED',
-          escrowStatus: 'RELEASED',
-          completedAt: now,
-        },
-      });
-
-      await tx.activityLog.create({
-        data: {
-          projectId,
-          actorId: approvedBy,
-          action: 'PROJECT_COMPLETED',
-          metadata: { title: milestone.project.title },
-        },
-      });
-    } else {
-      await tx.project.update({
-        where: { id: projectId },
-        data: { escrowStatus: 'RELEASED' },
-      });
-    }
+    return;
   }
 
-  return { projectId, payoutTxRef } as const;
+  const allTerminal = milestone.project.milestones.every(
+    (item) => item.id === milestone.id || isTerminalStatus(item.status),
+  );
+
+  if (!allTerminal) {
+    return;
+  }
+
+  const anyPaid =
+    currentOutcome === 'PAID' ||
+    milestone.project.milestones.some(
+      (item) => item.id !== milestone.id && item.status === 'PAID',
+    );
+
+  await tx.project.update({
+    where: { id: projectId },
+    data: {
+      status: 'COMPLETED',
+      escrowStatus: anyPaid ? 'RELEASED' : 'REFUNDED',
+      completedAt: now,
+    },
+  });
+
+  await tx.activityLog.create({
+    data: {
+      projectId,
+      actorId,
+      action: 'PROJECT_COMPLETED',
+      metadata: { title: milestone.project.title },
+    },
+  });
+}
+
+/** Arbiter rules for the client — simulated refund, milestone is terminal. */
+export const refundMilestone = async (
+  tx: Prisma.TransactionClient,
+  milestone: MilestoneForPayout,
+  actorId: string,
+) => {
+  const projectId = milestone.projectId;
+  const now = new Date();
+
+  const claimed = await tx.milestone.updateMany({
+    where: { id: milestone.id, status: 'DISPUTED' },
+    data: {
+      status: 'REFUNDED',
+      completedAt: now,
+    },
+  });
+
+  if (claimed.count === 0) {
+    return 'already_released' as const;
+  }
+
+  await tx.activityLog.create({
+    data: {
+      projectId,
+      actorId,
+      action: 'MILESTONE_REFUNDED',
+      metadata: {
+        milestoneId: milestone.id,
+        milestoneTitle: milestone.title,
+        amount: milestone.amount.toString(),
+      },
+    },
+  });
+
+  await advanceProjectAfterTerminal(tx, milestone, actorId, now, 'REFUNDED');
+
+  return { projectId } as const;
 };
 
 /** Freelancer submits work on an IN_PROGRESS milestone. */

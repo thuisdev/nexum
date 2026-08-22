@@ -154,6 +154,8 @@ export function mapMilestoneStatus(status: string): StatusBadgeStatus {
       return 'REVISION'
     case 'DISPUTED':
       return 'DISPUTED'
+    case 'REFUNDED':
+      return 'REFUNDED'
     default:
       return 'PENDING'
   }

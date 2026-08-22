@@ -6,7 +6,10 @@ import type {
   ResolveDisputeInput,
 } from '../schemas/dispute.schema.js';
 import { splitSimulatedPayout } from '../lib/splitPayout.js';
-import { releaseMilestonePayout } from './milestone.services.js';
+import {
+  refundMilestone,
+  releaseMilestonePayout,
+} from './milestone.services.js';
 
 const openDisputeStatuses: DisputeStatus[] = [
   DisputeStatus.OPEN,
@@ -269,12 +272,9 @@ export const resolveDispute = async (
     }
 
     if (input.outcome === 'RESOLVED_CLIENT') {
-      const reopened = await tx.milestone.updateMany({
-        where: { id: dispute.milestoneId, status: 'DISPUTED' },
-        data: { status: 'IN_PROGRESS' },
-      });
-      if (reopened.count === 0) {
-        throw new Error('Dispute resolve lost the milestone claim');
+      const refund = await refundMilestone(tx, dispute.milestone, userId);
+      if (refund === 'already_released') {
+        throw new Error('Dispute resolve lost the refund claim');
       }
     } else if (input.outcome === 'SPLIT') {
       const { freelancerShare } = splitSimulatedPayout(dispute.milestone.amount);
@@ -318,6 +318,9 @@ export const resolveDispute = async (
         metadata: {
           disputeId,
           outcome: input.outcome,
+          ...(input.outcome === 'RESOLVED_CLIENT'
+            ? { refundedAmount: dispute.milestone.amount.toString() }
+            : {}),
         },
       },
     });
