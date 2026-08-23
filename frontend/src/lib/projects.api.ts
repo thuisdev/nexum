@@ -136,9 +136,7 @@ export const submitMilestone = async (
   if (file) {
     form.append('file', file)
   }
-  const res = await api.post<Project>(`/milestones/${milestoneId}/submit`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const res = await api.post<Project>(`/milestones/${milestoneId}/submit`, form)
   return res.data
 }
 
