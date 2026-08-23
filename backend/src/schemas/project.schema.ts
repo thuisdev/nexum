@@ -103,11 +103,24 @@ export const updateProjectSchema = z
     milestones: z.array(milestoneInputSchema).min(1).optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.totalBudget !== undefined && data.milestones !== undefined) {
+    const hasBudget = data.totalBudget !== undefined;
+    const hasMilestones = data.milestones !== undefined;
+
+    if (hasBudget !== hasMilestones) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'totalBudget and milestones must be sent together so they stay in sync',
+        path: hasBudget ? ['milestones'] : ['totalBudget'],
+      });
+      return;
+    }
+
+    if (hasBudget && hasMilestones) {
       milestonesRefinement(
         {
-          totalBudget: data.totalBudget,
-          milestones: data.milestones,
+          totalBudget: data.totalBudget!,
+          milestones: data.milestones!,
         },
         ctx,
       );
