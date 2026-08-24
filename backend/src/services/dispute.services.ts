@@ -134,12 +134,10 @@ export const openDispute = async (
     return 'dispute_already_open' as const;
   }
 
-  if (isClient && !['IN_PROGRESS', 'SUBMITTED'].includes(milestone.status)) {
-    return 'client_cannot_dispute' as const;
-  }
-
-  if (isFreelancer && !['IN_PROGRESS', 'SUBMITTED'].includes(milestone.status)) {
-    return 'freelancer_cannot_dispute' as const;
+  if (!['IN_PROGRESS', 'SUBMITTED'].includes(milestone.status)) {
+    return isFreelancer && !isClient
+      ? ('freelancer_cannot_dispute' as const)
+      : ('client_cannot_dispute' as const);
   }
 
   const arbiter = await prisma.user.findFirst({
