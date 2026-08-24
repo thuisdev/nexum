@@ -145,6 +145,10 @@ export const openDispute = async (
     orderBy: { createdAt: 'asc' },
   });
 
+  if (!arbiter) {
+    return 'no_arbiter' as const;
+  }
+
   const dispute = await prisma.$transaction(async (tx) => {
     await tx.milestone.update({
       where: { id: milestone.id },
@@ -156,7 +160,7 @@ export const openDispute = async (
         milestoneId: milestone.id,
         raisedBy: userId,
         reason: input.reason,
-        arbiterId: arbiter?.id,
+        arbiterId: arbiter.id,
       },
       include: {
         milestone: {
@@ -165,21 +169,19 @@ export const openDispute = async (
       },
     });
 
-    if (arbiter) {
-      await tx.project.update({
-        where: { id: projectId },
-        data: { arbiterId: arbiter.id },
-      });
+    await tx.project.update({
+      where: { id: projectId },
+      data: { arbiterId: arbiter.id },
+    });
 
-      await tx.notification.create({
-        data: {
-          userId: arbiter.id,
-          projectId,
-          type: 'MILESTONE_DISPUTED',
-          message: `Dispute opened on "${project.title}" — ${milestone.title}`,
-        },
-      });
-    }
+    await tx.notification.create({
+      data: {
+        userId: arbiter.id,
+        projectId,
+        type: 'MILESTONE_DISPUTED',
+        message: `Dispute opened on "${project.title}" — ${milestone.title}`,
+      },
+    });
 
     const counterpartyId = isClient ? project.freelancerId : project.clientId;
     if (counterpartyId) {
