@@ -3,8 +3,14 @@ import { z } from 'zod';
 /** Roles a user may pick when self-registering (no ADMIN/ARBITER). */
 const registerableRoleSchema = z.enum(['CLIENT', 'FREELANCER']);
 
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email('Invalid email address');
+
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: emailSchema,
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().trim().min(1, 'Name cannot be empty').optional(),
   displayName: z.string().trim().min(1, 'Display name cannot be empty').optional(),
@@ -12,7 +18,7 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: emailSchema,
   password: z.string().min(1, 'Password is required'),
 });
 

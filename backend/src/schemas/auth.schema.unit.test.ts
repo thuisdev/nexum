@@ -22,6 +22,19 @@ describe('registerSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('stores emails in lowercase', () => {
+    const result = registerSchema.safeParse({
+      email: '  Client@Example.COM  ',
+      password: '12345678',
+      role: 'CLIENT',
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.email).toBe('client@example.com');
+    }
+  });
 });
 
 describe('loginSchema', () => {
@@ -29,5 +42,17 @@ describe('loginSchema', () => {
     const result = loginSchema.safeParse({ email: '', password: '' });
 
     expect(result.success).toBe(false);
+  });
+
+  it('looks up emails in lowercase', () => {
+    const result = loginSchema.safeParse({
+      email: 'Client@Example.COM',
+      password: '12345678',
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.email).toBe('client@example.com');
+    }
   });
 });
