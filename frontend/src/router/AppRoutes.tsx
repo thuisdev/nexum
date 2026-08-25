@@ -55,7 +55,7 @@ export const router = createBrowserRouter([
           { path: ROUTES.dashboard, element: <DashboardRedirect /> },
           { path: ROUTES.settings, element: withSuspense(SettingsPage) },
           {
-            element: <RoleRoute allowedRoles={['CLIENT']} />,
+            element: <RoleRoute allowedRoles={['CLIENT', 'ADMIN']} />,
             children: [
               { path: ROUTES.clientDashboard, element: withSuspense(ClientDashboard) },
               { path: ROUTES.createProject, element: withSuspense(CreateProjectPage) },
@@ -63,7 +63,7 @@ export const router = createBrowserRouter([
             ]
           },
           {
-            element: <RoleRoute allowedRoles={['FREELANCER']} />,
+            element: <RoleRoute allowedRoles={['FREELANCER', 'ADMIN']} />,
             children: [
               { path: ROUTES.freelancerDashboard, element: withSuspense(FreelancerDashboard) },
             ]
@@ -72,10 +72,6 @@ export const router = createBrowserRouter([
             element: <RoleRoute allowedRoles={['ADMIN']} />,
             children: [
               { path: ROUTES.adminDashboard, element: withSuspense(AdminDashboard) },
-              { path: ROUTES.clientDashboard, element: withSuspense(ClientDashboard) },
-              { path: ROUTES.freelancerDashboard, element: withSuspense(FreelancerDashboard) },
-              { path: ROUTES.createProject, element: withSuspense(CreateProjectPage) },
-              { path: '/projects/:id/edit', element: withSuspense(EditProjectPage) },
             ]
           },
           {
