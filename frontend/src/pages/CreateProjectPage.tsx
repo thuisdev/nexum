@@ -16,7 +16,7 @@ import {
 import { SkillPicker } from '@/components/features/project/SkillPicker'
 import { MAX_PROJECT_SKILLS } from '@/lib/projectSkills'
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
-import { createProject } from '@/lib/projects.api'
+import { createProject, mapCreateProjectPayload } from '@/lib/projects.api'
 import {
   createProjectFormSchema,
   type CreateProjectFormInput,
@@ -103,10 +103,11 @@ export default function CreateProjectPage() {
       currency,
       visibility: visibility as 'public' | 'private',
       skills,
-      milestones: milestones.map(({ title, amount, deadline }) => ({
+      milestones: milestones.map(({ title, amount, deadline, description }) => ({
         title,
         amount,
         deadline,
+        description,
       })),
     }
 
@@ -122,21 +123,7 @@ export default function CreateProjectPage() {
 
     try {
       const isPublic = formData.visibility === 'public'
-      const project = await createProject({
-        title: formData.title,
-        description: formData.description,
-        totalBudget: formData.budget,
-        currency: formData.currency,
-        isPublic,
-        skills: formData.skills,
-        milestones: formData.milestones.map((milestone, index) => ({
-          orderIndex: index,
-          title: milestone.title,
-          description: milestone.title,
-          amount: milestone.amount,
-          deadline: milestone.deadline,
-        })),
-      })
+      const project = await createProject(mapCreateProjectPayload(formData))
 
       navigate(
         isPublic

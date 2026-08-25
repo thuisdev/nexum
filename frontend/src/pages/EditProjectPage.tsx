@@ -119,6 +119,7 @@ export default function EditProjectPage() {
             title: m.title,
             amount: m.amount,
             deadline: m.deadline.slice(0, 10),
+            description: m.description,
           })),
         )
         setLoadError(null)
@@ -188,10 +189,11 @@ export default function EditProjectPage() {
       currency,
       visibility: visibility as 'public' | 'private',
       skills,
-      milestones: milestones.map(({ title: t, amount, deadline }) => ({
+      milestones: milestones.map(({ title: t, amount, deadline, description }) => ({
         title: t,
         amount,
         deadline,
+        description,
       })),
     }
 
@@ -216,7 +218,7 @@ export default function EditProjectPage() {
         milestones: formData.milestones.map((milestone, index) => ({
           orderIndex: index,
           title: milestone.title,
-          description: milestone.title,
+          description: milestone.description?.trim() || milestone.title,
           amount: milestone.amount,
           deadline: milestone.deadline,
         })),

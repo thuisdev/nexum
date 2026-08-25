@@ -25,7 +25,7 @@ export function mapCreateProjectPayload(
     milestones: form.milestones.map((milestone, index) => ({
       orderIndex: index,
       title: milestone.title,
-      description: milestone.title,
+      description: milestone.description?.trim() || milestone.title,
       amount: milestone.amount,
       deadline: milestone.deadline,
     })),

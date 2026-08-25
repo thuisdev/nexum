@@ -87,6 +87,7 @@ const milestoneFormSchema = z.object({
   title: z.string().trim().min(1, 'Milestone title is required'),
   amount: positiveAmount('Amount'),
   deadline: z.string().min(1, 'Deadline is required'),
+  description: z.string().optional(),
 })
 
 export const createProjectFormSchema = z
