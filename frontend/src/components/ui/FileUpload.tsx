@@ -1,5 +1,5 @@
 import { Upload, X, File as FileIcon } from 'lucide-react'
-import { useRef, type ChangeEvent, type DragEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { InlineAlert } from '@/components/ui/InlineAlert'
 
@@ -21,22 +21,27 @@ export function FileUpload({
   className,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [sizeError, setSizeError] = useState<string | null>(null)
 
   const validateAndSet = (next: File | null) => {
     if (!next) {
+      setSizeError(null)
       onFileChange(null)
       return
     }
     if (next.size > maxSizeMb * 1024 * 1024) {
+      setSizeError(`File too large (max ${maxSizeMb}MB)`)
       onFileChange(null)
       return
     }
+    setSizeError(null)
     onFileChange(next)
   }
 
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0] ?? null
     validateAndSet(picked)
+    e.target.value = ''
   }
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -45,12 +50,7 @@ export function FileUpload({
     validateAndSet(dropped)
   }
 
-  const sizeError =
-    file && file.size > maxSizeMb * 1024 * 1024
-      ? `File too large (max ${maxSizeMb}MB)`
-      : null
-
-  if (file && !sizeError) {
+  if (file) {
     return (
       <div className={cn('flex flex-col gap-2', className)}>
         <div className="flex items-center justify-between rounded-[10px] border border-ink-200 px-3 py-3">
