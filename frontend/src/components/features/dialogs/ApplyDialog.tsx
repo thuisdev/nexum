@@ -21,6 +21,8 @@ export function ApplyDialog({
   onPitchChange,
   maxLength = 100,
 }: ApplyDialogProps) {
+  const pitchTooShort = pitch.trim().length < 10
+
   return (
     <Modal
       open={open}
@@ -32,13 +34,22 @@ export function ApplyDialog({
           onConfirm={() => onSubmit(pitch)}
           confirmLabel="Send application"
           loading={loading}
+          confirmDisabled={pitchTooShort}
         />
       }
     >
       <p className="text-sm text-ink-500">
         Tell the client why you&apos;re the right fit.
       </p>
-      <FormField label="Your pitch">
+      <FormField
+        label="Your pitch"
+        helper="At least 10 characters"
+        error={
+          pitch.length > 0 && pitchTooShort
+            ? 'Pitch must be at least 10 characters'
+            : undefined
+        }
+      >
         <Textarea
           placeholder="Tell them why you're a fit…"
           value={pitch}

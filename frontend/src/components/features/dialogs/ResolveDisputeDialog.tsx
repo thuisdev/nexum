@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FormField } from '@/components/ui/FormField'
 import { Modal, ModalActions } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
@@ -52,6 +53,8 @@ export function ResolveDisputeDialog({
     onClose()
   }
 
+  const resolutionTooShort = resolution.trim().length < 5
+
   return (
     <Modal
       open={open}
@@ -64,6 +67,7 @@ export function ResolveDisputeDialog({
           confirmLabel="Resolve"
           confirmVariant="approve"
           loading={loading}
+          confirmDisabled={resolutionTooShort}
         />
       }
     >
@@ -76,12 +80,22 @@ export function ResolveDisputeDialog({
         <option value="RESOLVED_CLIENT">Rule for client</option>
         <option value="SPLIT">Split outcome</option>
       </Select>
-      <Textarea
-        value={resolution}
-        onChange={(e) => setResolution(e.target.value)}
-        placeholder="Resolution note visible to both parties…"
-        rows={3}
-      />
+      <FormField
+        label="Resolution note"
+        helper="At least 5 characters"
+        error={
+          resolution.length > 0 && resolutionTooShort
+            ? 'Add a short resolution note'
+            : undefined
+        }
+      >
+        <Textarea
+          value={resolution}
+          onChange={(e) => setResolution(e.target.value)}
+          placeholder="Resolution note visible to both parties…"
+          rows={3}
+        />
+      </FormField>
     </Modal>
   )
 }

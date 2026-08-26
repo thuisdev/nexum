@@ -1,8 +1,13 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ApplyDialog } from './ApplyDialog'
+
+afterEach(() => {
+  cleanup()
+  document.body.replaceChildren()
+})
 
 describe('ApplyDialog', () => {
   it('submits the current pitch', async () => {
@@ -23,5 +28,22 @@ describe('ApplyDialog', () => {
 
     expect(onSubmit).toHaveBeenCalledOnce()
     expect(screen.getByText('Apply to this project')).toBeInTheDocument()
+  })
+
+  it('disables send when the pitch is too short', () => {
+    render(
+      <ApplyDialog
+        open
+        onClose={() => undefined}
+        onSubmit={() => undefined}
+        pitch="short"
+        onPitchChange={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Send application' })).toBeDisabled()
+    expect(
+      screen.getByText('Pitch must be at least 10 characters'),
+    ).toBeInTheDocument()
   })
 })
