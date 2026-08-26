@@ -585,6 +585,20 @@ async function resolveFreelancerByIdentifier(identifier: string) {
   return matches[0]!;
 }
 
+export const notifyInviteCancelled = async (
+  tx: Prisma.TransactionClient,
+  params: { userId: string; projectId: string; title: string },
+) => {
+  await tx.notification.create({
+    data: {
+      userId: params.userId,
+      projectId: params.projectId,
+      type: 'INVITE_CANCELLED',
+      message: `Invitation to "${params.title}" was cancelled by the client`,
+    },
+  });
+};
+
 /** Client invites a freelancer while project is open (DRAFT or prefunded FUNDED). */
 export const inviteFreelancer = async (
   projectId: string,
@@ -616,6 +630,7 @@ export const inviteFreelancer = async (
   }
 
   const freelancer = resolved;
+  const previousInviteeId = project.invitedFreelancerId;
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.project.update({
@@ -623,6 +638,14 @@ export const inviteFreelancer = async (
       data: { invitedFreelancerId: freelancer.id },
       include: { milestones: true },
     });
+
+    if (previousInviteeId && previousInviteeId !== freelancer.id) {
+      await notifyInviteCancelled(tx, {
+        userId: previousInviteeId,
+        projectId,
+        title: result.title,
+      });
+    }
 
     await tx.notification.create({
       data: {
@@ -683,13 +706,10 @@ export const cancelInvite = async (projectId: string, clientId: string) => {
       include: { milestones: true },
     });
 
-    await tx.notification.create({
-      data: {
-        userId: invitedFreelancerId,
-        projectId,
-        type: 'INVITE_CANCELLED',
-        message: `Invitation to "${project.title}" was cancelled by the client`,
-      },
+    await notifyInviteCancelled(tx, {
+      userId: invitedFreelancerId,
+      projectId,
+      title: project.title,
     });
 
     await tx.activityLog.create({

@@ -64,7 +64,17 @@ export const updateProfileSchema = z.object({
     .optional(),
   bio: z.string().trim().optional(),
   skills: z.array(z.string().trim().min(1)).optional(),
-  avatarUrl: z.string().url().nullable().optional(),
+  avatarUrl: z
+    .string()
+    .trim()
+    .refine(
+      (value) =>
+        /^\/uploads\/[A-Za-z0-9._-]+$/.test(value) ||
+        z.string().url().safeParse(value).success,
+      'Must be a URL or /uploads/ path',
+    )
+    .nullable()
+    .optional(),
   avatarColor: z
     .enum(['brand', 'violet', 'emerald', 'amber', 'rose', 'sky', 'ink'])
     .nullable()
@@ -77,6 +87,7 @@ const milestoneFormSchema = z.object({
   title: z.string().trim().min(1, 'Milestone title is required'),
   amount: positiveAmount('Amount'),
   deadline: z.string().min(1, 'Deadline is required'),
+  description: z.string().optional(),
 })
 
 export const createProjectFormSchema = z

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { createProjectFormSchema, loginSchema } from './validation'
+import {
+  createProjectFormSchema,
+  loginSchema,
+  updateProfileSchema,
+} from './validation'
 
 describe('loginSchema', () => {
   it('requires a valid email', () => {
@@ -10,6 +14,16 @@ describe('loginSchema', () => {
     })
 
     expect(result.success).toBe(false)
+  })
+})
+
+describe('updateProfileSchema', () => {
+  it('accepts a stored /uploads/ avatar path', () => {
+    const result = updateProfileSchema.safeParse({
+      avatarUrl: '/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png',
+    })
+
+    expect(result.success).toBe(true)
   })
 })
 

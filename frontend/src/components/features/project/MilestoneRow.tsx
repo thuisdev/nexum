@@ -7,6 +7,7 @@ export type MilestoneRowData = {
   title: string
   amount: string
   deadline: string
+  description?: string
 }
 
 export type MilestoneRowErrors = {

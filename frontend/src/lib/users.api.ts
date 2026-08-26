@@ -16,9 +16,7 @@ export const patchMe = async (credentials: UpdateProfileInput) => {
 export const uploadAvatar = async (file: File) => {
   const form = new FormData()
   form.append('avatar', file)
-  const res = await api.post('/users/me/avatar', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const res = await api.post('/users/me/avatar', form)
   return res.data
 }
 

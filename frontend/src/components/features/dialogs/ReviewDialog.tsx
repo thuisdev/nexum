@@ -50,6 +50,8 @@ export function ReviewDialog({
     onClose()
   }
 
+  const ratingMissing = rating < 1
+
   return (
     <Modal
       open={open}
@@ -61,13 +63,17 @@ export function ReviewDialog({
           onConfirm={() => onSubmit(rating, comment)}
           confirmLabel="Submit review"
           loading={loading}
+          confirmDisabled={ratingMissing}
         />
       }
     >
       <p className="text-sm text-ink-500">
         Share how the project went. Reviews are public on profiles.
       </p>
-      <FormField label="Rating">
+      <FormField
+        label="Rating"
+        helper="Select 1 to 5 stars"
+      >
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((value) => (
             <StarButton

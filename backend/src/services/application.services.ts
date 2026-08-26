@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import type { ApplyToProjectInput } from '../schemas/application.schema.js';
-import { serializeProject } from './project.services.js';
+import { notifyInviteCancelled, serializeProject } from './project.services.js';
 
 const freelancerPublicSelect = {
   id: true,
@@ -293,6 +293,15 @@ export const acceptApplication = async (
         message: `Your application for "${application.project.title}" was accepted`,
       },
     });
+
+    const previousInviteeId = application.project.invitedFreelancerId;
+    if (previousInviteeId && previousInviteeId !== application.freelancerId) {
+      await notifyInviteCancelled(tx, {
+        userId: previousInviteeId,
+        projectId: application.projectId,
+        title: application.project.title,
+      });
+    }
 
     for (const row of pendingOthers) {
       await tx.notification.create({

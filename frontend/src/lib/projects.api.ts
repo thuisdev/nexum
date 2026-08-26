@@ -25,7 +25,7 @@ export function mapCreateProjectPayload(
     milestones: form.milestones.map((milestone, index) => ({
       orderIndex: index,
       title: milestone.title,
-      description: milestone.title,
+      description: milestone.description?.trim() || milestone.title,
       amount: milestone.amount,
       deadline: milestone.deadline,
     })),
@@ -136,9 +136,7 @@ export const submitMilestone = async (
   if (file) {
     form.append('file', file)
   }
-  const res = await api.post<Project>(`/milestones/${milestoneId}/submit`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const res = await api.post<Project>(`/milestones/${milestoneId}/submit`, form)
   return res.data
 }
 

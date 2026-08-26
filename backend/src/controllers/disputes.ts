@@ -104,6 +104,13 @@ export const handleOpenDispute = async (
       return;
     }
 
+    if (dispute === 'no_arbiter') {
+      res.status(409).json({
+        error: 'No arbiter is available to review this dispute',
+      });
+      return;
+    }
+
     res.status(201).json(dispute);
   } catch (error) {
     next(error);

@@ -57,7 +57,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       password: credentails.password
     });
     localStorage.setItem(TOKEN_KEY, data.token);
-    setUser(data.user);
+    try {
+      const res = await getMe();
+      setUser(res.data);
+    } catch (error) {
+      localStorage.removeItem(TOKEN_KEY);
+      throw error;
+    }
   };
 
   const register = async (credentials: RegisterCredentials) => {

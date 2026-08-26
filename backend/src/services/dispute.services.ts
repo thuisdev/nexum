@@ -5,7 +5,11 @@ import type {
   OpenDisputeInput,
   ResolveDisputeInput,
 } from '../schemas/dispute.schema.js';
-import { releaseMilestonePayout } from './milestone.services.js';
+import { splitSimulatedPayout } from '../lib/splitPayout.js';
+import {
+  refundMilestone,
+  releaseMilestonePayout,
+} from './milestone.services.js';
 
 const openDisputeStatuses: DisputeStatus[] = [
   DisputeStatus.OPEN,
@@ -130,18 +134,20 @@ export const openDispute = async (
     return 'dispute_already_open' as const;
   }
 
-  if (isClient && !['IN_PROGRESS', 'SUBMITTED'].includes(milestone.status)) {
-    return 'client_cannot_dispute' as const;
-  }
-
-  if (isFreelancer && !['IN_PROGRESS', 'SUBMITTED'].includes(milestone.status)) {
-    return 'freelancer_cannot_dispute' as const;
+  if (!['IN_PROGRESS', 'SUBMITTED'].includes(milestone.status)) {
+    return isFreelancer && !isClient
+      ? ('freelancer_cannot_dispute' as const)
+      : ('client_cannot_dispute' as const);
   }
 
   const arbiter = await prisma.user.findFirst({
     where: { role: 'ARBITER' },
     orderBy: { createdAt: 'asc' },
   });
+
+  if (!arbiter) {
+    return 'no_arbiter' as const;
+  }
 
   const dispute = await prisma.$transaction(async (tx) => {
     await tx.milestone.update({
@@ -154,7 +160,7 @@ export const openDispute = async (
         milestoneId: milestone.id,
         raisedBy: userId,
         reason: input.reason,
-        arbiterId: arbiter?.id,
+        arbiterId: arbiter.id,
       },
       include: {
         milestone: {
@@ -163,21 +169,19 @@ export const openDispute = async (
       },
     });
 
-    if (arbiter) {
-      await tx.project.update({
-        where: { id: projectId },
-        data: { arbiterId: arbiter.id },
-      });
+    await tx.project.update({
+      where: { id: projectId },
+      data: { arbiterId: arbiter.id },
+    });
 
-      await tx.notification.create({
-        data: {
-          userId: arbiter.id,
-          projectId,
-          type: 'MILESTONE_DISPUTED',
-          message: `Dispute opened on "${project.title}" — ${milestone.title}`,
-        },
-      });
-    }
+    await tx.notification.create({
+      data: {
+        userId: arbiter.id,
+        projectId,
+        type: 'MILESTONE_DISPUTED',
+        message: `Dispute opened on "${project.title}" — ${milestone.title}`,
+      },
+    });
 
     const counterpartyId = isClient ? project.freelancerId : project.clientId;
     if (counterpartyId) {
@@ -251,27 +255,44 @@ export const resolveDispute = async (
   const project = dispute.milestone.project;
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.dispute.update({
-      where: { id: disputeId },
+    const claimed = await tx.dispute.updateMany({
+      where: {
+        id: disputeId,
+        status: { in: [...openDisputeStatuses] },
+      },
       data: {
         status: input.outcome,
         resolution: input.resolution,
         resolvedAt: new Date(),
       },
-      include: {
-        milestone: {
-          select: { id: true, title: true, status: true, orderIndex: true },
-        },
-      },
     });
 
+    if (claimed.count === 0) {
+      return 'already_resolved' as const;
+    }
+
     if (input.outcome === 'RESOLVED_CLIENT') {
-      await tx.milestone.update({
-        where: { id: dispute.milestoneId },
-        data: { status: 'IN_PROGRESS' },
+      const refund = await refundMilestone(tx, dispute.milestone, userId);
+      if (refund === 'already_released') {
+        throw new Error('Dispute resolve lost the refund claim');
+      }
+    } else if (input.outcome === 'SPLIT') {
+      const { freelancerShare } = splitSimulatedPayout(dispute.milestone.amount);
+      const payout = await releaseMilestonePayout(tx, dispute.milestone, userId, {
+        amount: freelancerShare,
+        split: true,
+        expectedStatuses: ['DISPUTED'],
       });
+      if (payout === 'already_released') {
+        throw new Error('Dispute resolve lost the payout claim');
+      }
     } else {
-      await releaseMilestonePayout(tx, dispute.milestone, userId);
+      const payout = await releaseMilestonePayout(tx, dispute.milestone, userId, {
+        expectedStatuses: ['DISPUTED'],
+      });
+      if (payout === 'already_released') {
+        throw new Error('Dispute resolve lost the payout claim');
+      }
     }
 
     const notifyIds = [project.clientId, project.freelancerId].filter(
@@ -297,12 +318,26 @@ export const resolveDispute = async (
         metadata: {
           disputeId,
           outcome: input.outcome,
+          ...(input.outcome === 'RESOLVED_CLIENT'
+            ? { refundedAmount: dispute.milestone.amount.toString() }
+            : {}),
         },
       },
     });
 
-    return result;
+    return tx.dispute.findUniqueOrThrow({
+      where: { id: disputeId },
+      include: {
+        milestone: {
+          select: { id: true, title: true, status: true, orderIndex: true },
+        },
+      },
+    });
   });
+
+  if (updated === 'already_resolved') {
+    return 'already_resolved' as const;
+  }
 
   return serializeDispute(updated);
 };
