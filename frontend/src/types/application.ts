@@ -23,6 +23,7 @@ export interface FreelancerApplication extends Application {
     totalBudget: string
     currency: string
     status: string
+    escrowStatus: string
     skills: string[]
     milestoneCount: number
     createdAt: string

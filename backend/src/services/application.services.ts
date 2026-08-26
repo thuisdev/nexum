@@ -192,6 +192,7 @@ export const listMyApplications = async (freelancerId: string) => {
       totalBudget: application.project.totalBudget.toString(),
       currency: application.project.currency,
       status: application.project.status,
+      escrowStatus: application.project.escrowStatus,
       skills: application.project.skills,
       milestoneCount: application.project.milestones.length,
       createdAt: application.project.createdAt.toISOString(),
