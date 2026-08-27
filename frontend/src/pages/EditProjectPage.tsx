@@ -160,7 +160,8 @@ export default function EditProjectPage() {
     return (
       <AppSection narrow>
         <InlineAlert variant="error">
-          This project can only be edited before a freelancer is assigned.
+          This project can only be edited while it is still a draft, before
+          escrow is funded, and before a freelancer is assigned.
         </InlineAlert>
         <Button
           variant="ghost"
