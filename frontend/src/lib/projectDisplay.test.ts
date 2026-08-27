@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { displayName, mapProjectStatus, projectDraftMeta } from './projectDisplay'
+import { displayName, mapMilestoneStatus, mapProjectStatus, projectDraftMeta } from './projectDisplay'
 import type { Project } from '@/types/project'
 
 describe('displayName', () => {
@@ -19,6 +19,16 @@ describe('mapProjectStatus', () => {
   it('maps known statuses', () => {
     expect(mapProjectStatus('IN_PROGRESS')).toBe('IN_PROGRESS')
     expect(mapProjectStatus('COMPLETED')).toBe('COMPLETED')
+  })
+})
+
+describe('mapMilestoneStatus', () => {
+  it('maps a refunded milestone instead of falling back to pending', () => {
+    expect(mapMilestoneStatus('REFUNDED')).toBe('REFUNDED')
+  })
+
+  it('does not invent a revision status', () => {
+    expect(mapMilestoneStatus('REVISION')).toBe('PENDING')
   })
 })
 
