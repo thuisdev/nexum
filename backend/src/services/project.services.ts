@@ -534,6 +534,7 @@ export const getProjectActivity = async (
         : (() => {
             const metadata = { ...(log.metadata as Record<string, unknown>) };
             delete metadata.freelancerEmail;
+            delete metadata.freelancerId;
             return metadata;
           })(),
     createdAt: log.createdAt.toISOString(),
