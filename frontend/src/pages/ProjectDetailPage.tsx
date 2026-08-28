@@ -78,7 +78,7 @@ import type { Application } from '@/types/application'
 import axios from 'axios'
 import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
 
-const COMPLETED_MILESTONE_STATUSES = new Set(['PAID'])
+const COMPLETED_MILESTONE_STATUSES = new Set(['PAID', 'REFUNDED'])
 
 function isCompletedMilestone(status: string) {
   return COMPLETED_MILESTONE_STATUSES.has(status)
