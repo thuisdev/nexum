@@ -15,6 +15,18 @@ describe('loginSchema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('trims and lowercases email', () => {
+    const result = loginSchema.safeParse({
+      email: '  Client@Example.COM  ',
+      password: '12345678',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.email).toBe('client@example.com')
+    }
+  })
 })
 
 describe('updateProfileSchema', () => {
