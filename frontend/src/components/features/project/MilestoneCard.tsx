@@ -37,7 +37,12 @@ export function MilestoneCard({
   className,
 }: MilestoneCardProps) {
   const showSubmission =
-    submission && (status === 'SUBMITTED' || status === 'PAID' || status === 'APPROVED')
+    submission &&
+    (status === 'SUBMITTED' ||
+      status === 'PAID' ||
+      status === 'APPROVED' ||
+      status === 'DISPUTED' ||
+      status === 'REFUNDED')
 
   return (
     <div
