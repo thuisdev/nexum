@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  isProjectSkill,
+  MAX_PROJECT_SKILLS,
+} from '../constants/projectSkills.js';
 
 /** Money as string ("1000.00") or number — stored as decimal string after parse. */
 const moneySchema = z
@@ -67,10 +71,10 @@ const projectSkillsSchema = z
       .string()
       .trim()
       .min(1, 'Skill cannot be empty')
-      .max(40, 'Skill is too long'),
+      .refine(isProjectSkill, 'Choose a skill from the list'),
   )
   .min(1, 'At least one skill is required')
-  .max(4, 'Select up to 4 skills');
+  .max(MAX_PROJECT_SKILLS, `Select up to ${MAX_PROJECT_SKILLS} skills`);
 
 /** Body for POST /api/projects */
 export const createProjectSchema = z

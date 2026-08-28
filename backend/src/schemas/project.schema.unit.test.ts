@@ -43,4 +43,14 @@ describe('updateProjectSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('rejects skills that are not on the job board list', () => {
+    const result = updateProjectSchema.safeParse({ skills: ['NotASkill'] });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts listed project skills', () => {
+    const result = updateProjectSchema.safeParse({ skills: ['Frontend'] });
+    expect(result.success).toBe(true);
+  });
 });

@@ -197,7 +197,6 @@ export default function CreateProjectPage() {
           <SkillPicker
             value={skills}
             onChange={setSkills}
-            allowCustom
             maxSkills={MAX_PROJECT_SKILLS}
             error={errors.skills}
           />

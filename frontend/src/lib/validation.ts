@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MAX_PROJECT_SKILLS } from './projectSkills'
+import { MAX_PROJECT_SKILLS, isProjectSkill } from './projectSkills'
 
 const projectSkillsSchema = z
   .array(
@@ -7,7 +7,7 @@ const projectSkillsSchema = z
       .string()
       .trim()
       .min(1, 'Skill cannot be empty')
-      .max(40, 'Skill is too long'),
+      .refine(isProjectSkill, 'Choose a skill from the list'),
   )
   .min(1, 'Select at least one skill')
   .max(MAX_PROJECT_SKILLS, `Select up to ${MAX_PROJECT_SKILLS} skills`)
