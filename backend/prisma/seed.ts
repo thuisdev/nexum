@@ -13,7 +13,7 @@ const DEMO_PASSWORD = '12345678';
 
 async function upsertUser(input: {
   email: string;
-  role: 'CLIENT' | 'FREELANCER' | 'ARBITER';
+  role: 'CLIENT' | 'FREELANCER' | 'ARBITER' | 'ADMIN';
   displayName: string;
   name: string;
   bio?: string;
@@ -76,6 +76,14 @@ async function main() {
     displayName: 'arbiter.eth',
     name: 'Demo Arbiter',
     bio: 'Resolves escrow disputes on the platform.',
+  });
+
+  await upsertUser({
+    email: 'admin@example.com',
+    role: 'ADMIN',
+    displayName: 'admin.eth',
+    name: 'Demo Admin',
+    bio: 'Platform admin — can review and resolve any open dispute.',
   });
 
   const publicProject = await prisma.project.upsert({
@@ -223,6 +231,7 @@ async function main() {
   console.log('  freelancer@example.com  — FREELANCER (pending invite)');
   console.log('  freelancer2@example.com — FREELANCER (pending application)');
   console.log('  arbiter@example.com     — ARBITER');
+  console.log('  admin@example.com       — ADMIN');
   console.log('');
   console.log(`Public job board project: ${publicProject.id}`);
 }

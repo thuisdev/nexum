@@ -62,6 +62,7 @@ After seeding (`npm run db:seed`), use password **`12345678`** for all accounts:
 | `freelancer@example.com` | Freelancer | Pending invite on private project |
 | `freelancer2@example.com` | Freelancer | Pending application on public project |
 | `arbiter@example.com` | Arbiter | For dispute resolution |
+| `admin@example.com` | Admin | Can review and resolve any open dispute |
 
 Stable seeded project IDs:
 
