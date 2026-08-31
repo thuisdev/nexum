@@ -39,7 +39,7 @@ function formatRole(role: string) {
 
 function SettingsForm({ user }: { user: User }) {
   const navigate = useNavigate()
-  const { update } = useAuth()
+  const { update, applyUser } = useAuth()
   const isClient = user.role === 'CLIENT'
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
@@ -89,6 +89,7 @@ function SettingsForm({ user }: { user: User }) {
       const updated = await uploadAvatar(file)
       setAvatarUrl(updated.avatarUrl ?? null)
       setAvatarDirty(true)
+      applyUser(updated)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not upload image'))
     } finally {
