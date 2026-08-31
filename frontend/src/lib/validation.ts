@@ -7,7 +7,10 @@ const projectSkillsSchema = z
       .string()
       .trim()
       .min(1, 'Skill cannot be empty')
-      .refine(isProjectSkill, 'Choose a skill from the list'),
+      .refine(
+        (value): boolean => isProjectSkill(value),
+        'Choose a skill from the list',
+      ),
   )
   .min(1, 'Select at least one skill')
   .max(MAX_PROJECT_SKILLS, `Select up to ${MAX_PROJECT_SKILLS} skills`)
