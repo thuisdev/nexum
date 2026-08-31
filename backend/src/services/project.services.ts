@@ -497,6 +497,19 @@ export const appendMilestones = async (
   };
 };
 
+const publicHiddenActorActions = new Set([
+  'APPLICATION_SUBMITTED',
+  'FREELANCER_ACCEPTED',
+]);
+
+const publicActor = {
+  id: 'public',
+  displayName: 'A freelancer',
+  name: null,
+  isVerified: false,
+  avatarUrl: null,
+} as const;
+
 export const getProjectActivity = async (
   projectId: string,
   userId: string,
@@ -538,7 +551,10 @@ export const getProjectActivity = async (
             return metadata;
           })(),
     createdAt: log.createdAt.toISOString(),
-    actor: log.actor,
+    actor:
+      !isDirectViewer && publicHiddenActorActions.has(log.action)
+        ? publicActor
+        : log.actor,
   }));
 };
 
