@@ -63,12 +63,20 @@ export const registerSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>
 
 export const updateProfileSchema = z.object({
-  name: z.string().trim().min(1, 'Name cannot be empty').optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name cannot be empty')
+    .optional()
+    .or(z.literal(''))
+    .nullable(),
   displayName: z
     .string()
     .trim()
     .min(1, 'Display name cannot be empty')
-    .optional(),
+    .optional()
+    .or(z.literal(''))
+    .nullable(),
   bio: z.string().trim().optional(),
   skills: z.array(z.string().trim().min(1)).optional(),
   avatarUrl: z

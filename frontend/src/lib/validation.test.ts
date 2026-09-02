@@ -37,6 +37,15 @@ describe('updateProfileSchema', () => {
 
     expect(result.success).toBe(true)
   })
+
+  it('allows clearing optional name fields', () => {
+    const result = updateProfileSchema.safeParse({
+      name: '',
+      displayName: '',
+    })
+
+    expect(result.success).toBe(true)
+  })
 })
 
 describe('createProjectFormSchema', () => {

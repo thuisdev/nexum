@@ -13,8 +13,8 @@ const avatarUrlSchema = z
   .optional();
 
 export const updateUserSchema = z.object({
-  name: z.string().trim().min(1).optional(),
-  displayName: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).nullable().optional(),
+  displayName: z.string().trim().min(1).nullable().optional(),
   bio: z.string().trim().optional(),
   skills: z.array(z.string().trim().min(1)).optional(),
   avatarUrl: avatarUrlSchema,

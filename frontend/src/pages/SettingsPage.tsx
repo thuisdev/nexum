@@ -68,8 +68,8 @@ function SettingsForm({ user }: { user: User }) {
     setError(null)
     try {
       await update({
-        ...(data.name?.trim() && { name: data.name.trim() }),
-        ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
+        name: data.name?.trim() ? data.name.trim() : null,
+        displayName: data.displayName?.trim() ? data.displayName.trim() : null,
         bio: data.bio?.trim() ?? '',
         skills: data.skills ?? [],
         ...(avatarDirty ? { avatarUrl, avatarColor: avatarColor as AvatarColor | null } : {}),

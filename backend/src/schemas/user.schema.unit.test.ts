@@ -26,4 +26,17 @@ describe('updateUserSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('accepts null to clear optional name fields', () => {
+    const result = updateUserSchema.safeParse({
+      name: null,
+      displayName: null,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.name).toBeNull();
+      expect(result.data.displayName).toBeNull();
+    }
+  });
 });
