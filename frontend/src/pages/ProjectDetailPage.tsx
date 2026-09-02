@@ -190,7 +190,7 @@ export default function ProjectDetailPage() {
 
         void markProjectNotificationsRead(id).catch(() => undefined)
 
-        if (user.role === 'FREELANCER' || user.role === 'ADMIN') {
+        if (user.role === 'FREELANCER') {
           try {
             const app = await getMyApplication(id)
             if (!isCurrent()) return
@@ -458,8 +458,7 @@ export default function ProjectDetailPage() {
     (project?.status ?? preview?.status) === 'FUNDED' &&
     (project?.escrowStatus ?? preview?.escrowStatus) === 'FUNDED' &&
     !(project?.freelancerId ?? false)
-  const isFreelancerUser =
-    user?.role === 'FREELANCER' || user?.role === 'ADMIN'
+  const isFreelancerUser = user?.role === 'FREELANCER'
   const canGuestApply = Boolean(mode === 'preview' && !user && isPublicProject && isOpenFundedJob)
 
   const canApply = Boolean(
