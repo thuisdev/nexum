@@ -58,6 +58,11 @@ export const router = createBrowserRouter([
             element: <RoleRoute allowedRoles={['CLIENT', 'ADMIN']} />,
             children: [
               { path: ROUTES.clientDashboard, element: withSuspense(ClientDashboard) },
+            ]
+          },
+          {
+            element: <RoleRoute allowedRoles={['CLIENT']} />,
+            children: [
               { path: ROUTES.createProject, element: withSuspense(CreateProjectPage) },
               { path: '/projects/:id/edit', element: withSuspense(EditProjectPage) },
             ]

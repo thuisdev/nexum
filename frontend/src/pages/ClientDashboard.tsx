@@ -19,12 +19,15 @@ import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { listProjects } from '@/lib/projects.api'
 import { projectToClientCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
+import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
 
 type ClientFilter = 'all' | 'drafts' | 'active'
 
 export default function ClientDashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const canCreate = user?.role === 'CLIENT'
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -136,9 +139,11 @@ export default function ClientDashboard() {
         <PageHeader
           title="Your projects"
           action={
-            <Button onClick={() => navigate(ROUTES.createProject)}>
-              New project
-            </Button>
+            canCreate ? (
+              <Button onClick={() => navigate(ROUTES.createProject)}>
+                New project
+              </Button>
+            ) : undefined
           }
         />
 
@@ -201,12 +206,18 @@ export default function ClientDashboard() {
         <div className="px-4 md:px-0">
           <EmptyState
             title="No projects yet"
-            description="Create your first project, define milestones, and invite a freelancer."
+            description={
+              canCreate
+                ? 'Create your first project, define milestones, and invite a freelancer.'
+                : 'No client projects to show.'
+            }
             action={
-              <EmptyStateButton
-                label="New project"
-                onClick={() => navigate(ROUTES.createProject)}
-              />
+              canCreate ? (
+                <EmptyStateButton
+                  label="New project"
+                  onClick={() => navigate(ROUTES.createProject)}
+                />
+              ) : undefined
             }
           />
         </div>
