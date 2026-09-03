@@ -1,4 +1,4 @@
-import { Gavel, Scale } from 'lucide-react'
+import { Gavel } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
@@ -43,8 +43,12 @@ export default function ArbiterDashboard() {
 
       <DashboardSummary
         stats={[
-          { id: 'open', label: 'Open disputes', value: String(disputes.length), icon: Gavel },
-          { id: 'resolved', label: 'Resolved', value: '0', icon: Scale },
+          {
+            id: 'open',
+            label: 'Open disputes',
+            value: loading ? '—' : String(disputes.length),
+            icon: Gavel,
+          },
         ]}
       />
 
