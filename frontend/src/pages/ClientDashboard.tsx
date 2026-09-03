@@ -113,7 +113,9 @@ export default function ClientDashboard() {
 
   const renderClientProjectCard = (project: Project) => {
     const card = projectToClientCardProps(project)
+    const isOwner = user?.id === project.clientId
     const canInvite =
+      isOwner &&
       (project.status === 'DRAFT' || project.status === 'FUNDED') &&
       !project.freelancerId
 
@@ -126,7 +128,7 @@ export default function ClientDashboard() {
         showInvite={canInvite}
         onCardClick={() => navigate(ROUTES.project(project.id))}
         onInvite={() => setInviteProjectId(project.id)}
-        showReviewApplicants={card.showReviewApplicants}
+        showReviewApplicants={Boolean(isOwner && card.showReviewApplicants)}
         applicantCount={card.applicantCount}
         onReviewApplicants={() => setReviewProject(project)}
       />
