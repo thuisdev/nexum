@@ -24,10 +24,27 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     listArbiterDisputes()
-      .then(setDisputes)
-      .catch((err) => setError(getApiErrorMessage(err, 'Could not load disputes')))
-      .finally(() => setLoading(false))
+      .then((data) => {
+        if (!cancelled) {
+          setDisputes(data)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Could not load disputes'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   return (
