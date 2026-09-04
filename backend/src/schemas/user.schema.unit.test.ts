@@ -39,4 +39,15 @@ describe('updateUserSchema', () => {
       expect(result.data.displayName).toBeNull();
     }
   });
+
+  it('rejects oversized bio and skill lists', () => {
+    expect(
+      updateUserSchema.safeParse({ bio: 'x'.repeat(501) }).success,
+    ).toBe(false);
+    expect(
+      updateUserSchema.safeParse({
+        skills: Array.from({ length: 11 }, (_, i) => `skill-${i}`),
+      }).success,
+    ).toBe(false);
+  });
 });

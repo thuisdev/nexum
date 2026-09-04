@@ -62,6 +62,10 @@ export const registerSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>
 
+export const MAX_PROFILE_BIO = 500
+export const MAX_PROFILE_SKILLS = 10
+export const MAX_PROFILE_SKILL_LENGTH = 40
+
 export const updateProfileSchema = z.object({
   name: z
     .string()
@@ -77,8 +81,24 @@ export const updateProfileSchema = z.object({
     .optional()
     .or(z.literal(''))
     .nullable(),
-  bio: z.string().trim().optional(),
-  skills: z.array(z.string().trim().min(1)).optional(),
+  bio: z
+    .string()
+    .trim()
+    .max(MAX_PROFILE_BIO, `Bio must be at most ${MAX_PROFILE_BIO} characters`)
+    .optional(),
+  skills: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1)
+        .max(
+          MAX_PROFILE_SKILL_LENGTH,
+          `Each skill must be at most ${MAX_PROFILE_SKILL_LENGTH} characters`,
+        ),
+    )
+    .max(MAX_PROFILE_SKILLS, `Select up to ${MAX_PROFILE_SKILLS} skills`)
+    .optional(),
   avatarUrl: z
     .string()
     .trim()

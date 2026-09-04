@@ -46,6 +46,17 @@ describe('updateProfileSchema', () => {
 
     expect(result.success).toBe(true)
   })
+
+  it('rejects oversized bio and skill lists', () => {
+    expect(
+      updateProfileSchema.safeParse({ bio: 'x'.repeat(501) }).success,
+    ).toBe(false)
+    expect(
+      updateProfileSchema.safeParse({
+        skills: Array.from({ length: 11 }, (_, i) => `skill-${i}`),
+      }).success,
+    ).toBe(false)
+  })
 })
 
 describe('createProjectFormSchema', () => {
