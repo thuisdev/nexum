@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma.js';
 import { registerSchema, loginSchema } from '../schemas/auth.schema.js';
-import { hashPassword, comparePassword } from '../services/auth.services.js';
+import { hashPassword, comparePassword, DUMMY_PASSWORD_HASH } from '../services/auth.services.js';
 
 /** POST /api/auth/register — create account (no token issued). */
 export const registerHandler = async (
@@ -78,18 +78,13 @@ export const loginHandler = async (
 
     const { email, password } = result.data;
 
-    // 2. Load user + verify password (same error for unknown email / wrong password)
+    // 2. Load user + verify password (same error and bcrypt work for unknown email / wrong password)
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
     const isValid = await comparePassword({
       password,
-      hashedPassword: user.passwordHash,
+      hashedPassword: user?.passwordHash ?? DUMMY_PASSWORD_HASH,
     });
-    if (!isValid) {
+    if (!user || !isValid) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
