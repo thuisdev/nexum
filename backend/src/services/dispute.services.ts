@@ -150,10 +150,28 @@ export const openDispute = async (
   }
 
   const dispute = await prisma.$transaction(async (tx) => {
-    await tx.milestone.update({
-      where: { id: milestone.id },
+    const openOnProject = await tx.dispute.findFirst({
+      where: {
+        milestone: { projectId },
+        status: { in: [...openDisputeStatuses] },
+      },
+    });
+
+    if (openOnProject) {
+      return 'dispute_already_open' as const;
+    }
+
+    const claimed = await tx.milestone.updateMany({
+      where: {
+        id: milestone.id,
+        status: { in: ['IN_PROGRESS', 'SUBMITTED'] },
+      },
       data: { status: 'DISPUTED' },
     });
+
+    if (claimed.count === 0) {
+      return 'dispute_already_open' as const;
+    }
 
     const created = await tx.dispute.create({
       data: {
@@ -209,6 +227,10 @@ export const openDispute = async (
 
     return created;
   });
+
+  if (dispute === 'dispute_already_open') {
+    return dispute;
+  }
 
   return serializeDispute(dispute);
 };
