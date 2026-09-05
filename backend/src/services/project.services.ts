@@ -928,14 +928,22 @@ export const fundProject = async (projectId: string, clientId: string) => {
   const hasFreelancer = Boolean(project.freelancerId);
 
   const updated = await prisma.$transaction(async (tx) => {
-    await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        status: 'DRAFT',
+        escrowStatus: 'NOT_FUNDED',
+      },
       data: {
         status: hasFreelancer ? 'IN_PROGRESS' : 'FUNDED',
         escrowStatus: 'FUNDED',
         fundedAt: new Date(),
       },
     });
+
+    if (claimed.count === 0) {
+      return 'already_funded' as const;
+    }
 
     if (hasFreelancer) {
       await tx.milestone.updateMany({
@@ -960,6 +968,10 @@ export const fundProject = async (projectId: string, clientId: string) => {
       include: { milestones: true },
     });
   });
+
+  if (updated === 'already_funded') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };
