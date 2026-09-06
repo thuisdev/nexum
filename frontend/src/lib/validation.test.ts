@@ -79,4 +79,24 @@ describe('createProjectFormSchema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('rejects currencies other than USDC', () => {
+    const result = createProjectFormSchema.safeParse({
+      title: 'Test project',
+      description: 'Description',
+      budget: '500',
+      currency: 'EUR',
+      visibility: 'public',
+      skills: ['Frontend'],
+      milestones: [
+        {
+          title: 'All',
+          amount: '500',
+          deadline: '2026-12-01',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(false)
+  })
 })

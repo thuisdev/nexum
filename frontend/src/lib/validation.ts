@@ -130,7 +130,10 @@ export const createProjectFormSchema = z
     title: z.string().trim().min(1, 'Project title is required'),
     description: z.string().trim().min(1, 'Description is required'),
     budget: positiveAmount('Budget'),
-    currency: z.string().min(1, 'Currency is required'),
+    currency: z
+      .string()
+      .min(1, 'Currency is required')
+      .refine((value): boolean => value === 'USDC', 'Currency must be USDC'),
     visibility: z.enum(['public', 'private']),
     skills: projectSkillsSchema,
     milestones: z

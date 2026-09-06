@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { updateProjectSchema } from './project.schema.js';
+import { createProjectSchema, updateProjectSchema } from './project.schema.js';
 
 const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
 
@@ -52,5 +52,24 @@ describe('updateProjectSchema', () => {
   it('accepts listed project skills', () => {
     const result = updateProjectSchema.safeParse({ skills: ['Frontend'] });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects currencies other than USDC', () => {
+    const result = updateProjectSchema.safeParse({ currency: 'EUR' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('createProjectSchema', () => {
+  it('rejects currencies other than USDC', () => {
+    const result = createProjectSchema.safeParse({
+      title: 'Job',
+      description: 'Description',
+      totalBudget: '500.00',
+      currency: 'EUR',
+      skills: ['Frontend'],
+      milestones: [milestone],
+    });
+    expect(result.success).toBe(false);
   });
 });

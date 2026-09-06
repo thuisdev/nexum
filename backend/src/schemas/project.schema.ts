@@ -23,6 +23,8 @@ const milestoneInputSchema = z.object({
   deadline: z.coerce.date({ error: 'Invalid deadline date' }),
 });
 
+const projectCurrencySchema = z.enum(['USDC']);
+
 const milestonesRefinement = (
   data: { totalBudget: string; milestones: { orderIndex: number; amount: string }[] },
   ctx: z.RefinementCtx,
@@ -82,7 +84,7 @@ export const createProjectSchema = z
     title: z.string().trim().min(1, 'Title is required'),
     description: z.string().trim().min(1, 'Description is required'),
     totalBudget: moneySchema,
-    currency: z.string().trim().min(1).default('USDC'),
+    currency: projectCurrencySchema.default('USDC'),
     isPublic: z.boolean().default(false),
     skills: projectSkillsSchema,
     milestones: z
@@ -101,7 +103,7 @@ export const updateProjectSchema = z
       .min(1, 'Description is required')
       .optional(),
     totalBudget: moneySchema.optional(),
-    currency: z.string().trim().min(1).optional(),
+    currency: projectCurrencySchema.optional(),
     isPublic: z.boolean().optional(),
     skills: projectSkillsSchema.optional(),
     milestones: z.array(milestoneInputSchema).min(1).optional(),
