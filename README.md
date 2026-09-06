@@ -136,7 +136,7 @@ npx prisma migrate dev
 npm run db:seed
 ```
 
-Set `JWT_SECRET` in `.env`. Default Postgres port is **5433** (see `DATABASE_URL` in `.env.example`).
+Set `JWT_SECRET` in `.env`. Default Postgres port is **5433** (see `DATABASE_URL` in `.env.example`). `CORS_ORIGIN` is already `http://localhost:5173` so the Vite app can call the API.
 
 ### 2. Backend
 
@@ -350,16 +350,25 @@ The API is a long-running Express server with file uploads. Host it on a **Node 
 |----------|---------|
 | `DATABASE_URL` | Postgres connection string |
 | `JWT_SECRET` | Random 32+ byte secret |
-| `CORS_ORIGIN` | `https://your-app.vercel.app` |
+| `CORS_ORIGIN` | `https://your-app.vercel.app` (**required** in production) |
 | `PORT` | `4000` |
 
 3. Run migrations on deploy: `npx prisma migrate deploy`
 4. Seed once on empty DB: `npm run db:seed`
 5. Health check: `GET /api/health`
 
+`CORS_ORIGIN` is an **API** env var (Railway / Render / Fly), not a Vercel one. Vercel needs `VITE_API_URL`; the API needs `CORS_ORIGIN` set to that Vercel origin (no trailing slash).
+
+If `CORS_ORIGIN` is set, only that origin may call the API from a browser. If it is **missing**:
+
+- **local / test** (`NODE_ENV` is not `production`) — any origin is allowed, so Vite and tests keep working
+- **production** — CORS is closed. The live frontend cannot call the API until you set `CORS_ORIGIN`
+
+That fail-closed default is intentional: a missing env must not silently allow every website.
+
 ### Production notes
 
-- Set `CORS_ORIGIN` to your Vercel frontend URL
+- Set `CORS_ORIGIN` on the API host to your Vercel frontend URL before the first production deploy
 - File uploads use local disk on the backend host — use persistent storage or object storage for production
 - Re-run `db:seed` only on empty databases (seed uses upserts)
 
