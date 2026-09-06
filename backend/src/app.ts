@@ -13,13 +13,25 @@ import statsRouter from './routes/stats.routes.js';
 import applicationsRouter from './routes/applications.routes.js';
 import { uploadDirPath } from './lib/upload.js';
 
+/** Reflect any origin in local/test; fail closed in production unless CORS_ORIGIN is set. */
+export function resolveCorsOrigin(
+  corsOrigin: string | undefined,
+  nodeEnv: string | undefined,
+): string | boolean {
+  if (corsOrigin) {
+    return corsOrigin;
+  }
+
+  return nodeEnv === 'production' ? false : true;
+}
+
 export function createApp() {
   const app = express();
 
   app.use(helmet());
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN ?? true,
+      origin: resolveCorsOrigin(process.env.CORS_ORIGIN, process.env.NODE_ENV),
     }),
   );
   app.use(morgan(process.env.NODE_ENV === 'test' ? 'tiny' : 'dev'));
