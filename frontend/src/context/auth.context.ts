@@ -10,6 +10,7 @@ export type AuthContextValue = {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   update: (credentials: UpdateProfileInput) => Promise<User>;
+  applyUser: (user: User) => void;
   logout: () => void;
 };
 

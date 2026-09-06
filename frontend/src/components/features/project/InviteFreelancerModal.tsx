@@ -22,6 +22,13 @@ export function InviteFreelancerModal({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const handleClose = () => {
+    setIdentifier('')
+    setError(null)
+    setLoading(false)
+    onClose()
+  }
+
   const handleInvite = async () => {
     if (!identifier.trim()) {
       setError('Email or display name is required')
@@ -33,9 +40,8 @@ export function InviteFreelancerModal({
 
     try {
       await inviteFreelancer(projectId, identifier.trim())
-      setIdentifier('')
       onSuccess?.()
-      onClose()
+      handleClose()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not send invite'))
     } finally {
@@ -46,11 +52,11 @@ export function InviteFreelancerModal({
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       title="Invite freelancer"
       footer={
         <ModalActions
-          onCancel={onClose}
+          onCancel={handleClose}
           onConfirm={handleInvite}
           confirmLabel="Send invite"
           loading={loading}

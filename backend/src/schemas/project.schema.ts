@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  isProjectSkill,
+  MAX_PROJECT_SKILLS,
+} from '../constants/projectSkills.js';
 
 /** Money as string ("1000.00") or number — stored as decimal string after parse. */
 const moneySchema = z
@@ -18,6 +22,8 @@ const milestoneInputSchema = z.object({
   amount: moneySchema,
   deadline: z.coerce.date({ error: 'Invalid deadline date' }),
 });
+
+const projectCurrencySchema = z.enum(['USDC']);
 
 const milestonesRefinement = (
   data: { totalBudget: string; milestones: { orderIndex: number; amount: string }[] },
@@ -67,10 +73,10 @@ const projectSkillsSchema = z
       .string()
       .trim()
       .min(1, 'Skill cannot be empty')
-      .max(40, 'Skill is too long'),
+      .refine(isProjectSkill, 'Choose a skill from the list'),
   )
   .min(1, 'At least one skill is required')
-  .max(4, 'Select up to 4 skills');
+  .max(MAX_PROJECT_SKILLS, `Select up to ${MAX_PROJECT_SKILLS} skills`);
 
 /** Body for POST /api/projects */
 export const createProjectSchema = z
@@ -78,7 +84,7 @@ export const createProjectSchema = z
     title: z.string().trim().min(1, 'Title is required'),
     description: z.string().trim().min(1, 'Description is required'),
     totalBudget: moneySchema,
-    currency: z.string().trim().min(1).default('USDC'),
+    currency: projectCurrencySchema.default('USDC'),
     isPublic: z.boolean().default(false),
     skills: projectSkillsSchema,
     milestones: z
@@ -97,7 +103,7 @@ export const updateProjectSchema = z
       .min(1, 'Description is required')
       .optional(),
     totalBudget: moneySchema.optional(),
-    currency: z.string().trim().min(1).optional(),
+    currency: projectCurrencySchema.optional(),
     isPublic: z.boolean().optional(),
     skills: projectSkillsSchema.optional(),
     milestones: z.array(milestoneInputSchema).min(1).optional(),

@@ -14,5 +14,7 @@ export const PROJECT_SKILLS = [
 
 export type ProjectSkill = (typeof PROJECT_SKILLS)[number];
 
+export const MAX_PROJECT_SKILLS = 4;
+
 export const isProjectSkill = (value: string): value is ProjectSkill =>
   (PROJECT_SKILLS as readonly string[]).includes(value);

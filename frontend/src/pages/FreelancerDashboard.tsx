@@ -15,7 +15,7 @@ import {
 import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { listMyApplications, withdrawApplication } from '@/lib/applications.api'
 import { acceptInvite, declineInvite, listProjects } from '@/lib/projects.api'
-import { displayName, formatRelativeTime, projectToFreelancerCardProps } from '@/lib/projectDisplay'
+import { displayName, formatRelativeTime, projectEscrowFunded, projectToFreelancerCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
@@ -246,7 +246,7 @@ export default function FreelancerDashboard() {
               tags={application.project.skills}
               timeAgo={formatRelativeTime(application.createdAt)}
               milestoneCount={application.project.milestoneCount}
-              escrowFunded={false}
+              escrowFunded={projectEscrowFunded(application.project)}
               freelancerState="in_progress"
               onCardClick={() => navigate(ROUTES.project(application.project.id))}
               submitLabel="Withdraw"

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MAX_PROJECT_SKILLS } from './projectSkills'
+import { MAX_PROJECT_SKILLS, isProjectSkill } from './projectSkills'
 
 const projectSkillsSchema = z
   .array(
@@ -7,7 +7,10 @@ const projectSkillsSchema = z
       .string()
       .trim()
       .min(1, 'Skill cannot be empty')
-      .max(40, 'Skill is too long'),
+      .refine(
+        (value): boolean => isProjectSkill(value),
+        'Choose a skill from the list',
+      ),
   )
   .min(1, 'Select at least one skill')
   .max(MAX_PROJECT_SKILLS, `Select up to ${MAX_PROJECT_SKILLS} skills`)
@@ -25,6 +28,8 @@ const positiveAmount = (label: string) =>
 export const loginSchema = z.object({
   email: z
     .string()
+    .trim()
+    .toLowerCase()
     .min(1, 'Email is required')
     .email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -36,6 +41,8 @@ export const registerSchema = z.object({
   role: z.enum(['CLIENT', 'FREELANCER']),
   email: z
     .string()
+    .trim()
+    .toLowerCase()
     .min(1, 'Email is required')
     .email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -55,15 +62,43 @@ export const registerSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>
 
+export const MAX_PROFILE_BIO = 500
+export const MAX_PROFILE_SKILLS = 10
+export const MAX_PROFILE_SKILL_LENGTH = 40
+
 export const updateProfileSchema = z.object({
-  name: z.string().trim().min(1, 'Name cannot be empty').optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name cannot be empty')
+    .optional()
+    .or(z.literal(''))
+    .nullable(),
   displayName: z
     .string()
     .trim()
     .min(1, 'Display name cannot be empty')
+    .optional()
+    .or(z.literal(''))
+    .nullable(),
+  bio: z
+    .string()
+    .trim()
+    .max(MAX_PROFILE_BIO, `Bio must be at most ${MAX_PROFILE_BIO} characters`)
     .optional(),
-  bio: z.string().trim().optional(),
-  skills: z.array(z.string().trim().min(1)).optional(),
+  skills: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1)
+        .max(
+          MAX_PROFILE_SKILL_LENGTH,
+          `Each skill must be at most ${MAX_PROFILE_SKILL_LENGTH} characters`,
+        ),
+    )
+    .max(MAX_PROFILE_SKILLS, `Select up to ${MAX_PROFILE_SKILLS} skills`)
+    .optional(),
   avatarUrl: z
     .string()
     .trim()
@@ -95,7 +130,10 @@ export const createProjectFormSchema = z
     title: z.string().trim().min(1, 'Project title is required'),
     description: z.string().trim().min(1, 'Description is required'),
     budget: positiveAmount('Budget'),
-    currency: z.string().min(1, 'Currency is required'),
+    currency: z
+      .string()
+      .min(1, 'Currency is required')
+      .refine((value): boolean => value === 'USDC', 'Currency must be USDC'),
     visibility: z.enum(['public', 'private']),
     skills: projectSkillsSchema,
     milestones: z

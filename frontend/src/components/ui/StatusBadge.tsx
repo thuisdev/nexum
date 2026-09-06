@@ -13,7 +13,6 @@ export type StatusBadgeStatus =
   | 'COMPLETED'
   | 'PAID'
   | 'REJECTED'
-  | 'REVISION'
   | 'CANCELLED'
   | 'DISPUTED'
   | 'REFUNDED'
@@ -54,7 +53,6 @@ const statusStyles: Record<
   },
   PAID: { bg: 'bg-emerald-700', text: 'text-white', label: 'PAID' },
   REJECTED: { bg: 'bg-red-100', text: 'text-red-700', label: 'REJECTED' },
-  REVISION: { bg: 'bg-red-100', text: 'text-red-700', label: 'REVISION' },
   CANCELLED: { bg: 'bg-red-100', text: 'text-red-700', label: 'CANCELLED' },
   DISPUTED: { bg: 'bg-red-100', text: 'text-red-700', label: 'DISPUTED' },
   REFUNDED: { bg: 'bg-ink-100', text: 'text-ink-600', label: 'REFUNDED' },

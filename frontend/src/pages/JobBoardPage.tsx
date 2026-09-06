@@ -30,7 +30,7 @@ export default function JobBoardPage() {
   const [error, setError] = useState<string | null>(null)
   const [statLine, setStatLine] = useState<string | undefined>()
 
-  const canApply = user?.role === 'FREELANCER' || user?.role === 'ADMIN'
+  const canApply = user?.role === 'FREELANCER'
 
   useEffect(() => {
     let cancelled = false

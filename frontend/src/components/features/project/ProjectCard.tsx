@@ -271,18 +271,12 @@ export function ProjectCard({
                 ))}
               </div>
             )}
-            {freelancerState === 'invited' ? (
-              <div className="flex items-center gap-2">
-                <EscrowLockBadge funded={escrowFunded} />
-                {milestoneCount !== undefined && (
-                  <MilestoneCount count={milestoneCount} />
-                )}
-              </div>
-            ) : (
-              milestoneCount !== undefined && (
+            <div className="flex items-center gap-2">
+              <EscrowLockBadge funded={escrowFunded} />
+              {milestoneCount !== undefined && (
                 <MilestoneCount count={milestoneCount} />
-              )
-            )}
+              )}
+            </div>
             {freelancerState === 'in_progress' &&
             showProgress &&
               milestonesDone !== undefined &&

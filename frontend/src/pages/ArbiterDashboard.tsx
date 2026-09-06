@@ -1,4 +1,4 @@
-import { Gavel, Scale } from 'lucide-react'
+import { Gavel } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
@@ -24,10 +24,27 @@ export default function ArbiterDashboard() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     listArbiterDisputes()
-      .then(setDisputes)
-      .catch((err) => setError(getApiErrorMessage(err, 'Could not load disputes')))
-      .finally(() => setLoading(false))
+      .then((data) => {
+        if (!cancelled) {
+          setDisputes(data)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Could not load disputes'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   return (
@@ -43,8 +60,12 @@ export default function ArbiterDashboard() {
 
       <DashboardSummary
         stats={[
-          { id: 'open', label: 'Open disputes', value: String(disputes.length), icon: Gavel },
-          { id: 'resolved', label: 'Resolved', value: '0', icon: Scale },
+          {
+            id: 'open',
+            label: 'Open disputes',
+            value: loading ? '—' : String(disputes.length),
+            icon: Gavel,
+          },
         ]}
       />
 

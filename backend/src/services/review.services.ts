@@ -61,36 +61,48 @@ export const createProjectReview = async (
     return 'already_reviewed' as const;
   }
 
-  const review = await prisma.review.create({
-    data: {
-      projectId,
-      authorId,
-      subjectId,
-      rating: input.rating,
-      comment: input.comment?.trim() || null,
-    },
-    include: {
-      author: { select: authorSelect },
-      project: { select: { title: true } },
-    },
-  });
+  try {
+    const review = await prisma.review.create({
+      data: {
+        projectId,
+        authorId,
+        subjectId,
+        rating: input.rating,
+        comment: input.comment?.trim() || null,
+      },
+      include: {
+        author: { select: authorSelect },
+        project: { select: { title: true } },
+      },
+    });
 
-  const authorName =
-    review.author.displayName ?? review.author.name ?? 'Someone';
+    const authorName =
+      review.author.displayName ?? review.author.name ?? 'Someone';
 
-  await prisma.notification.create({
-    data: {
-      userId: subjectId,
-      projectId,
-      type: 'REVIEW_RECEIVED',
-      message: `${authorName} left you a ${input.rating}-star review on "${review.project.title}"`,
-    },
-  });
+    await prisma.notification.create({
+      data: {
+        userId: subjectId,
+        projectId,
+        type: 'REVIEW_RECEIVED',
+        message: `${authorName} left you a ${input.rating}-star review on "${review.project.title}"`,
+      },
+    });
 
-  return {
-    ...serializeReview(review),
-    author: review.author,
-  };
+    return {
+      ...serializeReview(review),
+      author: review.author,
+    };
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'P2002'
+    ) {
+      return 'already_reviewed' as const;
+    }
+    throw error;
+  }
 };
 
 /** Current user's review on a project, if any. */

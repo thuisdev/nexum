@@ -53,7 +53,7 @@ router.delete(
 router.get(
   '/:id/applications',
   checkAuth,
-  requireRole('CLIENT', 'ADMIN'),
+  requireRole('CLIENT'),
   handleListProjectApplications,
 );
 router.get(

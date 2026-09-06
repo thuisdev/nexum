@@ -497,6 +497,19 @@ export const appendMilestones = async (
   };
 };
 
+const publicHiddenActorActions = new Set([
+  'APPLICATION_SUBMITTED',
+  'FREELANCER_ACCEPTED',
+]);
+
+const publicActor = {
+  id: 'public',
+  displayName: 'A freelancer',
+  name: null,
+  isVerified: false,
+  avatarUrl: null,
+} as const;
+
 export const getProjectActivity = async (
   projectId: string,
   userId: string,
@@ -534,10 +547,14 @@ export const getProjectActivity = async (
         : (() => {
             const metadata = { ...(log.metadata as Record<string, unknown>) };
             delete metadata.freelancerEmail;
+            delete metadata.freelancerId;
             return metadata;
           })(),
     createdAt: log.createdAt.toISOString(),
-    actor: log.actor,
+    actor:
+      !isDirectViewer && publicHiddenActorActions.has(log.action)
+        ? publicActor
+        : log.actor,
   }));
 };
 
@@ -911,14 +928,22 @@ export const fundProject = async (projectId: string, clientId: string) => {
   const hasFreelancer = Boolean(project.freelancerId);
 
   const updated = await prisma.$transaction(async (tx) => {
-    await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        status: 'DRAFT',
+        escrowStatus: 'NOT_FUNDED',
+      },
       data: {
         status: hasFreelancer ? 'IN_PROGRESS' : 'FUNDED',
         escrowStatus: 'FUNDED',
         fundedAt: new Date(),
       },
     });
+
+    if (claimed.count === 0) {
+      return 'already_funded' as const;
+    }
 
     if (hasFreelancer) {
       await tx.milestone.updateMany({
@@ -943,6 +968,10 @@ export const fundProject = async (projectId: string, clientId: string) => {
       include: { milestones: true },
     });
   });
+
+  if (updated === 'already_funded') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };

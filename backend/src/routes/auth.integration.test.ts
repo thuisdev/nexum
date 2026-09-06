@@ -54,4 +54,14 @@ describe.skipIf(!hasDatabase)('auth integration', () => {
 
     expect(response.status).toBe(401);
   });
+
+  it('rejects unknown emails with the same error', async () => {
+    const response = await request(app).post('/api/auth/login').send({
+      email: 'nobody@example.com',
+      password,
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid credentials');
+  });
 });

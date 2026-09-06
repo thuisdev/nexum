@@ -26,4 +26,28 @@ describe('updateUserSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('accepts null to clear optional name fields', () => {
+    const result = updateUserSchema.safeParse({
+      name: null,
+      displayName: null,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.name).toBeNull();
+      expect(result.data.displayName).toBeNull();
+    }
+  });
+
+  it('rejects oversized bio and skill lists', () => {
+    expect(
+      updateUserSchema.safeParse({ bio: 'x'.repeat(501) }).success,
+    ).toBe(false);
+    expect(
+      updateUserSchema.safeParse({
+        skills: Array.from({ length: 11 }, (_, i) => `skill-${i}`),
+      }).success,
+    ).toBe(false);
+  });
 });

@@ -2,7 +2,7 @@ import axios from 'axios'
 import { api } from './axiosInteceptor'
 
 import type { UpdateProfileInput } from './validation'
-import type { PublicUserProfile } from '@/types/user'
+import type { PublicUserProfile, User } from '@/types/user'
 
 const publicApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -16,7 +16,7 @@ export const patchMe = async (credentials: UpdateProfileInput) => {
 export const uploadAvatar = async (file: File) => {
   const form = new FormData()
   form.append('avatar', file)
-  const res = await api.post('/users/me/avatar', form)
+  const res = await api.post<User>('/users/me/avatar', form)
   return res.data
 }
 

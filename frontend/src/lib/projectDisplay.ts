@@ -21,7 +21,12 @@ export function formatRelativeTime(iso: string) {
 }
 
 export function formatDeadline(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(iso)
+
+  return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -150,8 +155,6 @@ export function mapMilestoneStatus(status: string): StatusBadgeStatus {
       return 'APPROVED'
     case 'PAID':
       return 'PAID'
-    case 'REVISION':
-      return 'REVISION'
     case 'DISPUTED':
       return 'DISPUTED'
     case 'REFUNDED':

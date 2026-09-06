@@ -1,5 +1,5 @@
 import { ListChecks } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppSection } from '@/components/layout/AppSection'
 import { Button } from '@/components/ui/Button'
@@ -78,7 +78,7 @@ import type { Application } from '@/types/application'
 import axios from 'axios'
 import { ReviewApplicationsModal } from '@/components/features/applications/ReviewApplicationsModal'
 
-const COMPLETED_MILESTONE_STATUSES = new Set(['PAID'])
+const COMPLETED_MILESTONE_STATUSES = new Set(['PAID', 'REFUNDED'])
 
 function isCompletedMilestone(status: string) {
   return COMPLETED_MILESTONE_STATUSES.has(status)
@@ -162,8 +162,12 @@ export default function ProjectDetailPage() {
   const [showCompletedMilestones, setShowCompletedMilestones] = useState(false)
   const [myReview, setMyReview] = useState<ProjectReview | null>(null)
   const [myApplication, setMyApplication] = useState<Application | null>(null)
+  const reloadGen = useRef(0)
   const reloadProject = useCallback(async () => {
     if (!id || authLoading) return
+
+    const gen = ++reloadGen.current
+    const isCurrent = () => gen === reloadGen.current
 
     setLoading(true)
     setError(null)
@@ -171,23 +175,28 @@ export default function ProjectDetailPage() {
     if (user) {
       try {
         const full = await getProject(id)
+        if (!isCurrent()) return
         setProject(full)
         setPreview(null)
         setMode('full')
         try {
           const logs = await getProjectActivity(id)
+          if (!isCurrent()) return
           setActivity(logs)
         } catch {
+          if (!isCurrent()) return
           setActivity([])
         }
 
         void markProjectNotificationsRead(id).catch(() => undefined)
 
-        if (user.role === 'FREELANCER' || user.role === 'ADMIN') {
+        if (user.role === 'FREELANCER') {
           try {
             const app = await getMyApplication(id)
+            if (!isCurrent()) return
             setMyApplication(app)
           } catch {
+            if (!isCurrent()) return
             setMyApplication(null)
           }
         } else {
@@ -197,8 +206,10 @@ export default function ProjectDetailPage() {
         if (full.status === 'COMPLETED') {
           try {
             const review = await getMyProjectReview(id)
+            if (!isCurrent()) return
             setMyReview(review)
           } catch {
+            if (!isCurrent()) return
             setMyReview(null)
           }
         } else {
@@ -208,6 +219,7 @@ export default function ProjectDetailPage() {
         setLoading(false)
         return
       } catch (err) {
+        if (!isCurrent()) return
         if (
           !axios.isAxiosError(err) ||
           (err.response?.status !== 403 && err.response?.status !== 404)
@@ -222,6 +234,7 @@ export default function ProjectDetailPage() {
 
     try {
       const data = await getProjectPreview(id)
+      if (!isCurrent()) return
       setPreview(data)
       setProject(null)
       setActivity([])
@@ -229,8 +242,10 @@ export default function ProjectDetailPage() {
       if (user?.role === 'FREELANCER') {
         try {
           const app = await getMyApplication(id)
+          if (!isCurrent()) return
           setMyApplication(app)
         } catch {
+          if (!isCurrent()) return
           setMyApplication(null)
         }
       } else {
@@ -238,6 +253,7 @@ export default function ProjectDetailPage() {
       }
       setMode('preview')
     } catch {
+      if (!isCurrent()) return
       setError(
         user
           ? 'This project is private or does not exist.'
@@ -245,13 +261,16 @@ export default function ProjectDetailPage() {
       )
       setMode('error')
     } finally {
-      setLoading(false)
+      if (isCurrent()) setLoading(false)
     }
   }, [id, user, authLoading])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch updates page state
     void reloadProject()
+    return () => {
+      reloadGen.current += 1
+    }
   }, [reloadProject])
 
   useEffect(() => {
@@ -439,8 +458,7 @@ export default function ProjectDetailPage() {
     (project?.status ?? preview?.status) === 'FUNDED' &&
     (project?.escrowStatus ?? preview?.escrowStatus) === 'FUNDED' &&
     !(project?.freelancerId ?? false)
-  const isFreelancerUser =
-    user?.role === 'FREELANCER' || user?.role === 'ADMIN'
+  const isFreelancerUser = user?.role === 'FREELANCER'
   const canGuestApply = Boolean(mode === 'preview' && !user && isPublicProject && isOpenFundedJob)
 
   const canApply = Boolean(

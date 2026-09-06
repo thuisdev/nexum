@@ -15,6 +15,18 @@ describe('loginSchema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('trims and lowercases email', () => {
+    const result = loginSchema.safeParse({
+      email: '  Client@Example.COM  ',
+      password: '12345678',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.email).toBe('client@example.com')
+    }
+  })
 })
 
 describe('updateProfileSchema', () => {
@@ -24,6 +36,26 @@ describe('updateProfileSchema', () => {
     })
 
     expect(result.success).toBe(true)
+  })
+
+  it('allows clearing optional name fields', () => {
+    const result = updateProfileSchema.safeParse({
+      name: '',
+      displayName: '',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects oversized bio and skill lists', () => {
+    expect(
+      updateProfileSchema.safeParse({ bio: 'x'.repeat(501) }).success,
+    ).toBe(false)
+    expect(
+      updateProfileSchema.safeParse({
+        skills: Array.from({ length: 11 }, (_, i) => `skill-${i}`),
+      }).success,
+    ).toBe(false)
   })
 })
 
@@ -39,6 +71,26 @@ describe('createProjectFormSchema', () => {
       milestones: [
         {
           title: 'Only half',
+          amount: '500',
+          deadline: '2026-12-01',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects currencies other than USDC', () => {
+    const result = createProjectFormSchema.safeParse({
+      title: 'Test project',
+      description: 'Description',
+      budget: '500',
+      currency: 'EUR',
+      visibility: 'public',
+      skills: ['Frontend'],
+      milestones: [
+        {
+          title: 'All',
           amount: '500',
           deadline: '2026-12-01',
         },

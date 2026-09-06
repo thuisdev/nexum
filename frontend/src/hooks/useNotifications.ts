@@ -5,7 +5,7 @@ import {
 } from '@/lib/notifications.api'
 import { formatRelativeTime } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Notification } from '@/types/notification'
 
@@ -13,25 +13,47 @@ export function useNotifications(enabled = true) {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const fetchGen = useRef(0)
+
+  if (!enabled && notifications.length > 0) {
+    setNotifications([])
+  }
+  if (!enabled && loading) {
+    setLoading(false)
+  }
+
+  const load = useCallback(async (gen: number) => {
+    try {
+      const data = await listNotifications()
+      if (gen !== fetchGen.current) return
+      setNotifications(data)
+    } catch {
+      if (gen !== fetchGen.current) return
+      setNotifications([])
+    } finally {
+      if (gen === fetchGen.current) setLoading(false)
+    }
+  }, [])
 
   const refresh = useCallback(async () => {
     if (!enabled) return
+    const gen = ++fetchGen.current
     setLoading(true)
-    try {
-      const data = await listNotifications()
-      setNotifications(data)
-    } catch {
-      setNotifications([])
-    } finally {
-      setLoading(false)
-    }
-  }, [enabled])
+    await load(gen)
+  }, [enabled, load])
 
   useEffect(() => {
-    if (!enabled) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch notifications on mount
-    void refresh()
-  }, [refresh, enabled])
+    if (!enabled) {
+      fetchGen.current += 1
+      return
+    }
+
+    const gen = ++fetchGen.current
+    void load(gen)
+    return () => {
+      fetchGen.current += 1
+    }
+  }, [enabled, load])
 
   const visibleNotifications = enabled ? notifications : []
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length

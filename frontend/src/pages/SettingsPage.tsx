@@ -24,7 +24,12 @@ import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { CLIENT_INDUSTRIES, MAX_CLIENT_INDUSTRIES } from '@/lib/clientIndustries'
 import { displayName } from '@/lib/projectDisplay'
 import { uploadAvatar } from '@/lib/users.api'
-import { updateProfileSchema, type UpdateProfileInput } from '@/lib/validation'
+import {
+  MAX_PROFILE_BIO,
+  MAX_PROFILE_SKILLS,
+  updateProfileSchema,
+  type UpdateProfileInput,
+} from '@/lib/validation'
 import { ROUTES } from '@/router/routes'
 import type { User } from '@/types/user'
 import { cn } from '@/lib/utils'
@@ -39,7 +44,7 @@ function formatRole(role: string) {
 
 function SettingsForm({ user }: { user: User }) {
   const navigate = useNavigate()
-  const { update } = useAuth()
+  const { update, applyUser } = useAuth()
   const isClient = user.role === 'CLIENT'
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
@@ -68,8 +73,8 @@ function SettingsForm({ user }: { user: User }) {
     setError(null)
     try {
       await update({
-        ...(data.name?.trim() && { name: data.name.trim() }),
-        ...(data.displayName?.trim() && { displayName: data.displayName.trim() }),
+        name: data.name?.trim() ? data.name.trim() : null,
+        displayName: data.displayName?.trim() ? data.displayName.trim() : null,
         bio: data.bio?.trim() ?? '',
         skills: data.skills ?? [],
         ...(avatarDirty ? { avatarUrl, avatarColor: avatarColor as AvatarColor | null } : {}),
@@ -89,6 +94,7 @@ function SettingsForm({ user }: { user: User }) {
       const updated = await uploadAvatar(file)
       setAvatarUrl(updated.avatarUrl ?? null)
       setAvatarDirty(true)
+      applyUser(updated)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not upload image'))
     } finally {
@@ -224,6 +230,7 @@ function SettingsForm({ user }: { user: User }) {
                 ? 'Describe your organization and the kind of work you hire for'
                 : 'Describe your experience and how you work'
             }
+            error={errors.bio?.message}
           >
             <Textarea
               id="bio"
@@ -232,6 +239,8 @@ function SettingsForm({ user }: { user: User }) {
                   ? 'What you build, team size, typical projects…'
                   : 'Short intro for your public profile…'
               }
+              maxLength={MAX_PROFILE_BIO}
+              error={!!errors.bio}
               {...register('bio')}
             />
           </FormField>
@@ -255,7 +264,7 @@ function SettingsForm({ user }: { user: User }) {
                   onChange={field.onChange}
                   allowCustom
                   presets={isClient ? CLIENT_INDUSTRIES : undefined}
-                  maxSkills={isClient ? MAX_CLIENT_INDUSTRIES : undefined}
+                  maxSkills={isClient ? MAX_CLIENT_INDUSTRIES : MAX_PROFILE_SKILLS}
                   customPlaceholder={isClient ? 'Custom industry' : 'Custom skill'}
                   error={errors.skills?.message}
                 />
