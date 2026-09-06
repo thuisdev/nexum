@@ -5,7 +5,7 @@ import {
 } from '@/lib/notifications.api'
 import { formatRelativeTime } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Notification } from '@/types/notification'
 
@@ -13,24 +13,36 @@ export function useNotifications(enabled = true) {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const fetchGen = useRef(0)
 
   const refresh = useCallback(async () => {
     if (!enabled) return
+    const gen = ++fetchGen.current
     setLoading(true)
     try {
       const data = await listNotifications()
+      if (gen !== fetchGen.current) return
       setNotifications(data)
     } catch {
+      if (gen !== fetchGen.current) return
       setNotifications([])
     } finally {
-      setLoading(false)
+      if (gen === fetchGen.current) setLoading(false)
     }
   }, [enabled])
 
   useEffect(() => {
-    if (!enabled) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch notifications on mount
+    if (!enabled) {
+      fetchGen.current += 1
+      setNotifications([])
+      setLoading(false)
+      return
+    }
+
     void refresh()
+    return () => {
+      fetchGen.current += 1
+    }
   }, [refresh, enabled])
 
   const visibleNotifications = enabled ? notifications : []
