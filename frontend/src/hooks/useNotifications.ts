@@ -15,10 +15,14 @@ export function useNotifications(enabled = true) {
   const [loading, setLoading] = useState(false)
   const fetchGen = useRef(0)
 
-  const refresh = useCallback(async () => {
-    if (!enabled) return
-    const gen = ++fetchGen.current
-    setLoading(true)
+  if (!enabled && notifications.length > 0) {
+    setNotifications([])
+  }
+  if (!enabled && loading) {
+    setLoading(false)
+  }
+
+  const load = useCallback(async (gen: number) => {
     try {
       const data = await listNotifications()
       if (gen !== fetchGen.current) return
@@ -29,21 +33,27 @@ export function useNotifications(enabled = true) {
     } finally {
       if (gen === fetchGen.current) setLoading(false)
     }
-  }, [enabled])
+  }, [])
+
+  const refresh = useCallback(async () => {
+    if (!enabled) return
+    const gen = ++fetchGen.current
+    setLoading(true)
+    await load(gen)
+  }, [enabled, load])
 
   useEffect(() => {
     if (!enabled) {
       fetchGen.current += 1
-      setNotifications([])
-      setLoading(false)
       return
     }
 
-    void refresh()
+    const gen = ++fetchGen.current
+    void load(gen)
     return () => {
       fetchGen.current += 1
     }
-  }, [refresh, enabled])
+  }, [enabled, load])
 
   const visibleNotifications = enabled ? notifications : []
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length
