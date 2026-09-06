@@ -150,6 +150,8 @@ export const openDispute = async (
   }
 
   const dispute = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
+
     const openOnProject = await tx.dispute.findFirst({
       where: {
         milestone: { projectId },
