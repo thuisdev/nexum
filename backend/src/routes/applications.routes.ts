@@ -13,13 +13,13 @@ router.get('/me', checkAuth, requireRole('FREELANCER'), handleListMyApplications
 router.post(
   '/:id/accept',
   checkAuth,
-  requireRole('CLIENT', 'ADMIN'),
+  requireRole('CLIENT'),
   handleAcceptApplication,
 );
 router.post(
   '/:id/reject',
   checkAuth,
-  requireRole('CLIENT', 'ADMIN'),
+  requireRole('CLIENT'),
   handleRejectApplication,
 );
 
