@@ -6,7 +6,6 @@ import DashboardRedirect from '@/pages/DashboardRedirect'
 import RoleRoute from './guards/RoleRoute'
 import GuestRoute from './guards/GuestRoute'
 import LandingPage from '@/pages/LandingPage'
-import { landingLoader } from '@/router/landingLoader'
 import {
   LoginPage,
   RegisterPage,
@@ -31,7 +30,7 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     HydrateFallback: PageLoader,
     children: [
-      { path: ROUTES.home, loader: landingLoader, element: <LandingPage /> },
+      { path: ROUTES.home, element: <LandingPage /> },
       { path: ROUTES.jobs, element: withSuspense(JobBoardPage) },
       { path: ROUTES.howItWorks, element: withSuspense(ComingSoonPage) },
       { path: ROUTES.pricing, element: withSuspense(ComingSoonPage) },

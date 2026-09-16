@@ -1,4 +1,5 @@
-import { useLoaderData, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { Eyebrow, Trustline } from '@/components/ui/Trustline'
@@ -12,8 +13,11 @@ import {
   StepCard,
 } from '@/components/features'
 import { ROUTES } from '@/router/routes'
-import { formatUsdcStat } from '@/lib/stats.api'
-import { type LandingLoaderData } from '@/router/landingLoader'
+import {
+  formatUsdcStat,
+  getPlatformStats,
+  type PlatformStats,
+} from '@/lib/stats.api'
 
 const HERO_MILESTONES = [
   { id: '1', title: 'Wireframes', amount: '200', status: 'pending' as const },
@@ -67,7 +71,23 @@ const STEPS = [
 export default function LandingPage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
-  const { stats } = useLoaderData() as LandingLoaderData
+  const [stats, setStats] = useState<PlatformStats | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    getPlatformStats()
+      .then((data) => {
+        if (!cancelled) setStats(data)
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const trustStats = stats
     ? [
