@@ -6,6 +6,11 @@ export const listNotifications = async () => {
   return res.data
 }
 
+export const countUnreadNotifications = async () => {
+  const res = await api.get<{ count: number }>('/notifications/unread-count')
+  return res.data.count
+}
+
 export const markNotificationRead = async (notificationId: string) => {
   const res = await api.patch<{ id: string; readAt: string | null }>(
     `/notifications/${notificationId}/read`,
