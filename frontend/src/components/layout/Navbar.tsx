@@ -9,13 +9,14 @@ import { UserMenu, UserMenuTrigger } from '@/components/layout/UserMenu'
 import { ROUTES } from '@/router/routes'
 import { cn } from '@/lib/utils'
 import { useNotifications } from '@/hooks/useNotifications'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 export type NavbarProps = {
   landing?: boolean
 }
 
 export default function Navbar({ landing = false }: NavbarProps) {
-  const { isLoggedIn, user, logout } = useAuth()
+  const { isLoggedIn, isLoading: authLoading, user, logout } = useAuth()
   const { items: notificationItems, unreadCount, loading: notificationsLoading, refresh: refreshNotifications } =
     useNotifications(isLoggedIn)
   const navigate = useNavigate()
@@ -93,7 +94,12 @@ export default function Navbar({ landing = false }: NavbarProps) {
               Jobs
             </Link>
 
-            {isLoggedIn ? (
+            {authLoading ? (
+              <div className="flex items-center gap-3" aria-hidden>
+                <Skeleton className="size-5 rounded-full" />
+                <Skeleton className="size-7 rounded-full" />
+              </div>
+            ) : isLoggedIn ? (
               <>
                 <Link to={ROUTES.dashboard} className={navLinkClass(ROUTES.dashboard)}>
                   Dashboard
@@ -172,6 +178,7 @@ export default function Navbar({ landing = false }: NavbarProps) {
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         isLoggedIn={isLoggedIn}
+        authLoading={authLoading}
         userId={user?.id}
         userName={user?.displayName ?? user?.name}
         avatarUrl={user?.avatarUrl}

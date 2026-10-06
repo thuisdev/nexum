@@ -1,4 +1,5 @@
-import { useLoaderData, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { Eyebrow, Trustline } from '@/components/ui/Trustline'
@@ -12,8 +13,12 @@ import {
   StepCard,
 } from '@/components/features'
 import { ROUTES } from '@/router/routes'
-import { formatUsdcStat } from '@/lib/stats.api'
-import { type LandingLoaderData } from '@/router/landingLoader'
+import { TOKEN_KEY } from '@/lib/constants'
+import {
+  formatUsdcStat,
+  getPlatformStats,
+  type PlatformStats,
+} from '@/lib/stats.api'
 
 const HERO_MILESTONES = [
   { id: '1', title: 'Wireframes', amount: '200', status: 'pending' as const },
@@ -66,8 +71,24 @@ const STEPS = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
-  const { isLoggedIn } = useAuth()
-  const { stats } = useLoaderData() as LandingLoaderData
+  const { isLoggedIn, isLoading: authLoading } = useAuth()
+  const [stats, setStats] = useState<PlatformStats | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    getPlatformStats()
+      .then((data) => {
+        if (!cancelled) setStats(data)
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const trustStats = stats
     ? [
@@ -87,8 +108,12 @@ export default function LandingPage() {
     ? `${formatUsdcStat(stats.usdcInEscrow)} USDC currently in escrow`
     : 'USDC held in escrow before work starts'
 
-  const goStart = () =>
-    navigate(isLoggedIn ? ROUTES.dashboard : ROUTES.register)
+  const goStart = () => {
+    const hasSession =
+      isLoggedIn ||
+      (authLoading && Boolean(localStorage.getItem(TOKEN_KEY)))
+    navigate(hasSession ? ROUTES.dashboard : ROUTES.register)
+  }
   const goJobs = () => navigate(ROUTES.jobs)
 
   return (

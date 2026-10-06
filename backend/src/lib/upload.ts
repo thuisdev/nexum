@@ -60,6 +60,8 @@ const AVATAR_MIME = new Set([
 
 const AVATAR_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 
+const INLINE_UPLOAD_EXT = AVATAR_EXT;
+
 export function isAllowedSubmitFile(mimetype: string, originalname: string) {
   const ext = path.extname(originalname).toLowerCase();
   return SUBMIT_MIME.has(mimetype) && SUBMIT_EXT.has(ext);
@@ -100,3 +102,15 @@ export const uploadDirPath = uploadDir;
 
 /** Public URL path stored in DB (served via express.static). */
 export const toPublicFileUrl = (filename: string) => `/uploads/${filename}`;
+
+/** Avatars must load on the Vercel origin; other files download instead of executing. */
+export function applyUploadStaticHeaders(
+  res: { setHeader: (name: string, value: string) => void },
+  filePath: string,
+) {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  const ext = path.extname(filePath).toLowerCase();
+  if (!INLINE_UPLOAD_EXT.has(ext)) {
+    res.setHeader('Content-Disposition', 'attachment');
+  }
+}

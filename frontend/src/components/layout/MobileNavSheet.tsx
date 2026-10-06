@@ -10,6 +10,7 @@ export type MobileNavSheetProps = {
   open: boolean
   onClose: () => void
   isLoggedIn: boolean
+  authLoading?: boolean
   userId?: string
   userName?: string | null
   avatarUrl?: string | null
@@ -22,6 +23,7 @@ export function MobileNavSheet({
   open,
   onClose,
   isLoggedIn,
+  authLoading = false,
   userId,
   userName,
   avatarUrl,
@@ -84,7 +86,7 @@ export function MobileNavSheet({
           >
             Jobs
           </button>
-          {isLoggedIn ? (
+          {authLoading ? null : isLoggedIn ? (
             <>
               <button
                 type="button"
@@ -128,7 +130,7 @@ export function MobileNavSheet({
         </nav>
 
         <div className="mt-auto flex flex-col gap-2">
-          {isLoggedIn ? (
+          {authLoading ? null : isLoggedIn ? (
             <>
               <button
                 type="button"

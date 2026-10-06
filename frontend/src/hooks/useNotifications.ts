@@ -1,4 +1,5 @@
 import {
+  countUnreadNotifications,
   deleteNotification,
   listNotifications,
   markNotificationRead,
@@ -12,11 +13,15 @@ import type { Notification } from '@/types/notification'
 export function useNotifications(enabled = true) {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const fetchGen = useRef(0)
 
   if (!enabled && notifications.length > 0) {
     setNotifications([])
+  }
+  if (!enabled && unreadCount !== 0) {
+    setUnreadCount(0)
   }
   if (!enabled && loading) {
     setLoading(false)
@@ -27,9 +32,11 @@ export function useNotifications(enabled = true) {
       const data = await listNotifications()
       if (gen !== fetchGen.current) return
       setNotifications(data)
+      setUnreadCount(data.filter((item) => !item.readAt).length)
     } catch {
       if (gen !== fetchGen.current) return
       setNotifications([])
+      setUnreadCount(0)
     } finally {
       if (gen === fetchGen.current) setLoading(false)
     }
@@ -49,14 +56,22 @@ export function useNotifications(enabled = true) {
     }
 
     const gen = ++fetchGen.current
-    void load(gen)
+    void countUnreadNotifications()
+      .then((count) => {
+        if (gen !== fetchGen.current) return
+        setUnreadCount(count)
+      })
+      .catch(() => {
+        if (gen !== fetchGen.current) return
+        setUnreadCount(0)
+      })
+
     return () => {
       fetchGen.current += 1
     }
-  }, [enabled, load])
+  }, [enabled])
 
   const visibleNotifications = enabled ? notifications : []
-  const unreadCount = visibleNotifications.filter((n) => !n.readAt).length
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.readAt) {
@@ -69,6 +84,7 @@ export function useNotifications(enabled = true) {
               : item,
           ),
         )
+        setUnreadCount((count) => Math.max(0, count - 1))
       } catch {
         // still navigate if possible
       }
@@ -85,9 +101,13 @@ export function useNotifications(enabled = true) {
   }
 
   const handleDelete = async (notificationId: string) => {
+    const target = notifications.find((item) => item.id === notificationId)
     try {
       await deleteNotification(notificationId)
       setNotifications((prev) => prev.filter((item) => item.id !== notificationId))
+      if (target && !target.readAt) {
+        setUnreadCount((count) => Math.max(0, count - 1))
+      }
     } catch {
       // ignore
     }

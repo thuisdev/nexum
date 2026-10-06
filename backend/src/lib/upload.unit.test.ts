@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { isAllowedAvatarFile, isAllowedSubmitFile } from './upload.js';
+import {
+  applyUploadStaticHeaders,
+  isAllowedAvatarFile,
+  isAllowedSubmitFile,
+} from './upload.js';
 
 describe('isAllowedSubmitFile', () => {
   it('allows pdf and zip deliverables', () => {
@@ -26,5 +30,37 @@ describe('isAllowedAvatarFile', () => {
 
   it('rejects svg even when labelled as an image', () => {
     expect(isAllowedAvatarFile('image/svg+xml', 'me.svg')).toBe(false);
+  });
+});
+
+describe('applyUploadStaticHeaders', () => {
+  it('lets avatars be embedded from another origin', () => {
+    const headers: Record<string, string> = {};
+    applyUploadStaticHeaders(
+      {
+        setHeader: (name, value) => {
+          headers[name] = value;
+        },
+      },
+      '/tmp/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png',
+    );
+
+    expect(headers['Cross-Origin-Resource-Policy']).toBe('cross-origin');
+    expect(headers['Content-Disposition']).toBeUndefined();
+  });
+
+  it('forces download for non-image deliverables', () => {
+    const headers: Record<string, string> = {};
+    applyUploadStaticHeaders(
+      {
+        setHeader: (name, value) => {
+          headers[name] = value;
+        },
+      },
+      '/tmp/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf',
+    );
+
+    expect(headers['Cross-Origin-Resource-Policy']).toBe('cross-origin');
+    expect(headers['Content-Disposition']).toBe('attachment');
   });
 });

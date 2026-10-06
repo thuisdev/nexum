@@ -5,6 +5,7 @@ import {
   markNotificationRead,
   deleteNotification,
   markProjectNotificationsRead,
+  countUnreadNotifications,
 } from '../services/notification.services.js';
 
 /** GET /api/notifications */
@@ -16,6 +17,20 @@ export const handleListNotifications = async (
   try {
     const notifications = await listNotifications(req.userId!);
     res.json(notifications);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/notifications/unread-count */
+export const handleCountUnreadNotifications = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const count = await countUnreadNotifications(req.userId!);
+    res.json({ count });
   } catch (error) {
     next(error);
   }
