@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { Prisma } from '../generated/prisma/client.js';
+import type { Role } from '../generated/prisma/enums.js';
 import { prisma } from '../lib/prisma.js';
 import type { SubmitMilestoneInput } from '../schemas/milestone.schema.js';
 
@@ -347,4 +348,52 @@ export const approveMilestone = async (
   }
 
   return { projectId, payoutTxRef: payout.payoutTxRef } as const;
+};
+
+/** Latest deliverable for a project member — not a public job viewer. */
+export const getMilestoneAttachment = async (
+  milestoneId: string,
+  userId: string,
+  userRole: Role,
+) => {
+  const milestone = await prisma.milestone.findUnique({
+    where: { id: milestoneId },
+    include: {
+      submissions: {
+        orderBy: { version: 'desc' },
+        take: 1,
+        select: { fileUrl: true },
+      },
+      project: {
+        select: {
+          clientId: true,
+          freelancerId: true,
+          invitedFreelancerId: true,
+          arbiterId: true,
+        },
+      },
+    },
+  });
+
+  if (!milestone) {
+    return null;
+  }
+
+  const isMember =
+    userRole === 'ADMIN' ||
+    milestone.project.clientId === userId ||
+    milestone.project.freelancerId === userId ||
+    milestone.project.invitedFreelancerId === userId ||
+    (userRole === 'ARBITER' && milestone.project.arbiterId === userId);
+
+  if (!isMember) {
+    return 'forbidden' as const;
+  }
+
+  const fileUrl = milestone.submissions[0]?.fileUrl;
+  if (!fileUrl) {
+    return 'no_file' as const;
+  }
+
+  return { fileUrl };
 };

@@ -38,6 +38,7 @@ import {
   createProjectReview,
   declineInvite,
   deleteProject,
+  downloadMilestoneAttachment,
   fundProject,
   getMyProjectReview,
   getProject,
@@ -69,7 +70,6 @@ import {
   resolveClientCardStatus,
   resolveDisputeCta,
   resolveFreelancerCardStatus,
-  uploadFileUrl,
 } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
@@ -641,6 +641,15 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const handleDownloadAttachment = async (milestoneId: string) => {
+    try {
+      setError(null)
+      await downloadMilestoneAttachment(milestoneId)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not download attachment'))
+    }
+  }
+
   const submitTarget = submitMilestoneId
     ? project?.milestones.find((m) => m.id === submitMilestoneId)
     : null
@@ -686,7 +695,14 @@ export default function ProjectDetailPage() {
         deadline={formatDeadline(milestone.deadline)}
         status={mapMilestoneStatus(milestone.status)}
         submission={milestone.latestSubmission}
-        fileDownloadUrl={uploadFileUrl(milestone.latestSubmission?.fileUrl)}
+        hasAttachment={Boolean(milestone.latestSubmission?.fileUrl)}
+        onDownloadAttachment={
+          milestone.latestSubmission?.fileUrl
+            ? () => {
+                void handleDownloadAttachment(milestone.id)
+              }
+            : undefined
+        }
         paidAt={milestone.paidAt}
         {...cardAction}
       />

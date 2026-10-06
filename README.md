@@ -148,7 +148,7 @@ npm run dev
 
 - API: `http://localhost:4000`
 - Health: `GET /api/health`
-- Uploads: `backend/uploads/` served at `/uploads/*`
+- Uploads: avatars at `GET /uploads/:filename` (only stored avatar files). Milestone attachments: `GET /api/milestones/:id/attachment` (signed-in project members).
 
 ### 3. Frontend
 

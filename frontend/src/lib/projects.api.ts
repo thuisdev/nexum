@@ -140,6 +140,22 @@ export const submitMilestone = async (
   return res.data
 }
 
+export const downloadMilestoneAttachment = async (milestoneId: string) => {
+  const res = await api.get(`/milestones/${milestoneId}/attachment`, {
+    responseType: 'blob',
+  })
+  const disposition = String(res.headers['content-disposition'] ?? '')
+  const match = /filename="([^"]+)"/.exec(disposition)
+  const url = URL.createObjectURL(res.data as Blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = match?.[1] ?? 'attachment'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export const deleteProject = async (projectId: string) => {
   const res = await api.delete<{ id: string }>(`/projects/${projectId}`)
   return res.data

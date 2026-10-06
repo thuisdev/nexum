@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import {
   handleApproveMilestone,
+  handleDownloadMilestoneAttachment,
   handleSubmitMilestone,
 } from '../controllers/milestones.js';
 import { checkAuth, requireRole } from '../middleware/auth.middleware.js';
@@ -15,6 +16,12 @@ router.post(
   requireRole('FREELANCER'),
   submitUpload.single('file'),
   handleSubmitMilestone,
+);
+
+router.get(
+  '/:id/attachment',
+  checkAuth,
+  handleDownloadMilestoneAttachment,
 );
 
 router.post(

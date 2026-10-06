@@ -100,8 +100,67 @@ export const avatarUpload = multer({
 
 export const uploadDirPath = uploadDir;
 
-/** Public URL path stored in DB (served via express.static). */
+/** Path stored in DB. Avatars are public; deliverables are not. */
 export const toPublicFileUrl = (filename: string) => `/uploads/${filename}`;
+
+/** Reject path traversal and anything that is not a single stored filename. */
+export function safeUploadFilename(filename: string): string | null {
+  if (
+    !filename ||
+    filename.includes('..') ||
+    filename.includes('/') ||
+    filename.includes('\\') ||
+    !/^[A-Za-z0-9._-]+$/.test(filename)
+  ) {
+    return null;
+  }
+
+  return filename;
+}
+
+export function filenameFromStoredUrl(fileUrl: string): string | null {
+  const prefix = '/uploads/';
+  if (!fileUrl.startsWith(prefix)) {
+    return null;
+  }
+
+  return safeUploadFilename(fileUrl.slice(prefix.length));
+}
+
+export function absoluteUploadPath(filename: string): string | null {
+  const safe = safeUploadFilename(filename);
+  if (!safe) {
+    return null;
+  }
+
+  return path.join(uploadDir, safe);
+}
+
+type UploadResponse = {
+  setHeader: (name: string, value: string) => void;
+  sendFile: (filePath: string) => void;
+  download: (filePath: string, name: string) => void;
+};
+
+export function sendStoredUpload(
+  res: UploadResponse,
+  filename: string,
+  asAttachment: boolean,
+): boolean {
+  const filePath = absoluteUploadPath(filename);
+  if (!filePath || !fs.existsSync(filePath)) {
+    return false;
+  }
+
+  applyUploadStaticHeaders(res, filePath);
+  if (asAttachment) {
+    res.download(filePath, filename);
+  } else {
+    res.sendFile(filePath);
+  }
+
+  return true;
+}
 
 /** Avatars must load on the Vercel origin; other files download instead of executing. */
 export function applyUploadStaticHeaders(

@@ -16,7 +16,8 @@ export type MilestoneCardProps = {
   actionVariant?: 'primary' | 'approve'
   onAction?: () => void
   submission?: MilestoneSubmission | null
-  fileDownloadUrl?: string | null
+  hasAttachment?: boolean
+  onDownloadAttachment?: () => void
   paidAt?: string | null
   className?: string
 }
@@ -32,7 +33,8 @@ export function MilestoneCard({
   actionVariant = 'primary',
   onAction,
   submission,
-  fileDownloadUrl,
+  hasAttachment,
+  onDownloadAttachment,
   paidAt,
   className,
 }: MilestoneCardProps) {
@@ -92,16 +94,15 @@ export function MilestoneCard({
           <p className="whitespace-pre-wrap text-sm leading-5 text-ink-800">
             {submission.content}
           </p>
-          {fileDownloadUrl && (
-            <a
-              href={fileDownloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+          {hasAttachment && onDownloadAttachment && (
+            <button
+              type="button"
+              onClick={onDownloadAttachment}
               className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700"
             >
               <Download className="size-3.5" aria-hidden />
               Download attachment
-            </a>
+            </button>
           )}
         </div>
       )}

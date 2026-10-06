@@ -1,9 +1,10 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { toPublicFileUrl } from '../lib/upload.js';
+import { filenameFromStoredUrl, sendStoredUpload, toPublicFileUrl } from '../lib/upload.js';
 import { getProjectById } from '../services/project.services.js';
 import {
   approveMilestone,
+  getMilestoneAttachment,
   submitMilestone,
 } from '../services/milestone.services.js';
 import { submitMilestoneSchema } from '../schemas/milestone.schema.js';
@@ -141,6 +142,43 @@ export const handleApproveMilestone = async (
     if (!project) return;
 
     res.json({ ...project, payoutTxRef: outcome.payoutTxRef });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/milestones/:id/attachment — project members only. */
+export const handleDownloadMilestoneAttachment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const outcome = await getMilestoneAttachment(
+      String(req.params.id),
+      req.userId!,
+      req.userRole!,
+    );
+
+    if (outcome === null) {
+      res.status(404).json({ error: 'Milestone not found' });
+      return;
+    }
+
+    if (outcome === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (outcome === 'no_file') {
+      res.status(404).json({ error: 'No attachment' });
+      return;
+    }
+
+    const filename = filenameFromStoredUrl(outcome.fileUrl);
+    if (!filename || !sendStoredUpload(res, filename, true)) {
+      res.status(404).json({ error: 'No attachment' });
+    }
   } catch (error) {
     next(error);
   }
