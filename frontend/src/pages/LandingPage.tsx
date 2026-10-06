@@ -13,6 +13,7 @@ import {
   StepCard,
 } from '@/components/features'
 import { ROUTES } from '@/router/routes'
+import { TOKEN_KEY } from '@/lib/constants'
 import {
   formatUsdcStat,
   getPlatformStats,
@@ -70,7 +71,7 @@ const STEPS = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, isLoading: authLoading } = useAuth()
   const [stats, setStats] = useState<PlatformStats | null>(null)
 
   useEffect(() => {
@@ -107,8 +108,12 @@ export default function LandingPage() {
     ? `${formatUsdcStat(stats.usdcInEscrow)} USDC currently in escrow`
     : 'USDC held in escrow before work starts'
 
-  const goStart = () =>
-    navigate(isLoggedIn ? ROUTES.dashboard : ROUTES.register)
+  const goStart = () => {
+    const hasSession =
+      isLoggedIn ||
+      (authLoading && Boolean(localStorage.getItem(TOKEN_KEY)))
+    navigate(hasSession ? ROUTES.dashboard : ROUTES.register)
+  }
   const goJobs = () => navigate(ROUTES.jobs)
 
   return (
