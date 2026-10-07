@@ -73,7 +73,7 @@ export const handleSubmitMilestone = async (
 
     if (outcome === 'invalid_status') {
       res.status(409).json({
-        error: 'Milestone must be IN_PROGRESS to submit',
+        error: 'Milestone must be IN_PROGRESS or SUBMITTED to submit',
       });
       return;
     }

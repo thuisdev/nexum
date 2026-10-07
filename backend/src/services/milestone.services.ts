@@ -226,7 +226,7 @@ export const refundMilestone = async (
   return { projectId } as const;
 };
 
-/** Freelancer submits work on an IN_PROGRESS milestone. */
+/** Freelancer submits or replaces work while the milestone is still awaiting review. */
 export const submitMilestone = async (
   milestoneId: string,
   freelancerId: string,
@@ -250,30 +250,45 @@ export const submitMilestone = async (
     return 'project_not_active' as const;
   }
 
-  if (milestone.status !== 'IN_PROGRESS') {
+  if (
+    milestone.status !== 'IN_PROGRESS' &&
+    milestone.status !== 'SUBMITTED'
+  ) {
     return 'invalid_status' as const;
   }
 
-  const existingCount = await prisma.submission.count({
-    where: { milestoneId },
-  });
-
   const projectId = milestone.projectId;
 
-  await prisma.$transaction(async (tx) => {
+  const outcome = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.milestone.updateMany({
+      where: {
+        id: milestoneId,
+        status: { in: ['IN_PROGRESS', 'SUBMITTED'] },
+      },
+      data: { status: 'SUBMITTED' },
+    });
+
+    if (claimed.count === 0) {
+      return 'invalid_status' as const;
+    }
+
+    const latest = await tx.submission.findFirst({
+      where: { milestoneId },
+      orderBy: { version: 'desc' },
+      select: { fileUrl: true, version: true },
+    });
+
+    const storedFileUrl = fileUrl ?? latest?.fileUrl ?? null;
+    const nextVersion = (latest?.version ?? 0) + 1;
+
     await tx.submission.create({
       data: {
         milestoneId,
         submittedBy: freelancerId,
         content: input.content,
-        fileUrl,
-        version: existingCount + 1,
+        fileUrl: storedFileUrl,
+        version: nextVersion,
       },
-    });
-
-    await tx.milestone.update({
-      where: { id: milestoneId },
-      data: { status: 'SUBMITTED' },
     });
 
     await tx.activityLog.create({
@@ -284,7 +299,8 @@ export const submitMilestone = async (
         metadata: {
           milestoneId,
           milestoneTitle: milestone.title,
-          hasFile: Boolean(fileUrl),
+          hasFile: Boolean(storedFileUrl),
+          version: nextVersion,
         },
       },
     });
@@ -294,12 +310,17 @@ export const submitMilestone = async (
         userId: milestone.project.clientId,
         projectId,
         type: 'MILESTONE_SUBMITTED',
-        message: `Work submitted for milestone "${milestone.title}"`,
+        message:
+          nextVersion === 1
+            ? `Work submitted for milestone "${milestone.title}"`
+            : `Updated work submitted for milestone "${milestone.title}"`,
       },
     });
+
+    return { projectId } as const;
   });
 
-  return { projectId } as const;
+  return outcome;
 };
 
 /** Client approves a SUBMITTED milestone — simulated payout, advances workflow. */

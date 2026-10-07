@@ -15,6 +15,7 @@ export type SubmitWorkDialogProps = {
   onNoteChange: (value: string) => void
   file: File | null
   onFileChange: (file: File | null) => void
+  isUpdate?: boolean
 }
 
 export function SubmitWorkDialog({
@@ -27,6 +28,7 @@ export function SubmitWorkDialog({
   onNoteChange,
   file,
   onFileChange,
+  isUpdate = false,
 }: SubmitWorkDialogProps) {
   const charCount = note.trim().length
   const canSubmit = charCount >= MIN_CONTENT_LENGTH
@@ -35,12 +37,12 @@ export function SubmitWorkDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Submit work — ${milestoneTitle}`}
+      title={`${isUpdate ? 'Update submission' : 'Submit work'} — ${milestoneTitle}`}
       footer={
         <ModalActions
           onCancel={onClose}
           onConfirm={onSubmit}
-          confirmLabel="Submit"
+          confirmLabel={isUpdate ? 'Update' : 'Submit'}
           loading={loading}
           confirmDisabled={!canSubmit}
         />

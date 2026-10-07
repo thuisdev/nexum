@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { displayName, formatDeadline, mapMilestoneStatus, mapProjectStatus, projectDraftMeta } from './projectDisplay'
-import type { Project } from '@/types/project'
+import {
+  canSubmitMilestone,
+  displayName,
+  formatDeadline,
+  mapMilestoneStatus,
+  mapProjectStatus,
+  projectDraftMeta,
+} from './projectDisplay'
+import type { Milestone, Project } from '@/types/project'
 
 describe('displayName', () => {
   it('prefers displayName over name', () => {
@@ -67,5 +74,49 @@ describe('projectDraftMeta', () => {
     } as Project
 
     expect(projectDraftMeta(project)).toContain('job board')
+  })
+})
+
+describe('canSubmitMilestone', () => {
+  const project = {
+    freelancerId: 'freelancer-1',
+    status: 'IN_PROGRESS',
+  } as Project
+
+  it('allows the assigned freelancer to submit while in progress', () => {
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'IN_PROGRESS' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(true)
+  })
+
+  it('allows a new version while the milestone is still submitted', () => {
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'SUBMITTED' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not allow submit after payout or dispute', () => {
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'PAID' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(false)
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'DISPUTED' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(false)
   })
 })

@@ -92,8 +92,8 @@ Milestones are ordered by `orderIndex`. Only **one** milestone should be active 
 
 ### Submission rules
 
-- Only the assigned **freelancer** on an `IN_PROGRESS` milestone may submit.
-- `content` minimum 50 characters; `fileUrl` optional (PDF, ZIP, raster image, or text; max 10 MB).
+- Only the assigned **freelancer** on an `IN_PROGRESS` or `SUBMITTED` milestone may submit.
+- `content` minimum 50 characters; `fileUrl` optional (PDF, ZIP, raster image, or text; max 10 MB). Omitting a file on re-submit keeps the previous attachment.
 - Re-submit is a new `Submission` row with incremented `version` (milestone stays `SUBMITTED`).
 
 ---
@@ -144,7 +144,7 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 | Fund project | **Client** | `DRAFT`, not yet funded | `POST …/fund` | Escrow → `FUNDED`; project → `FUNDED` or `IN_PROGRESS` |
 | Apply (job board) | **Freelancer** | Public, escrow `FUNDED`, no freelancer | `POST …/apply` | — |
 | Accept application | **Client** | Pending application, project still open | `POST …/applications/:id/accept` | Same assignment as invite accept |
-| Submit work | **Freelancer** | Milestone `IN_PROGRESS` | `POST …/milestones/:id/submit` | → `SUBMITTED` |
+| Submit work | **Freelancer** | Milestone `IN_PROGRESS` or `SUBMITTED` | `POST …/milestones/:id/submit` | → `SUBMITTED` (new version if already submitted) |
 | Approve & release | **Client** | Milestone `SUBMITTED` | `POST …/milestones/:id/approve` | → `PAID` (no `APPROVED` row) |
 | Open dispute | **Client** or **Freelancer** | Active/submitted milestone, no other open dispute, an arbiter exists | `POST …/disputes` | Milestone → `DISPUTED` |
 | Resolve dispute | **Arbiter** or **Admin** | Dispute `OPEN` / `IN_REVIEW` | `POST …/disputes/:id/resolve` | See outcomes above |
@@ -154,7 +154,7 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 
 | Surface | Role | Primary | Hidden when |
 |---------|------|---------|-------------|
-| MilestoneCard | Freelancer | Submit work | status ≠ `IN_PROGRESS` |
+| MilestoneCard | Freelancer | Submit work / Update submission | not `IN_PROGRESS` or `SUBMITTED` |
 | MilestoneCard | Client | Review & approve | status ≠ `SUBMITTED` |
 | Project detail | Client | Fund project | not `DRAFT` |
 | Project detail | Client | Invite freelancer | freelancer already set, or not `DRAFT`/`FUNDED` |
@@ -185,6 +185,7 @@ stateDiagram-v2
     PENDING --> IN_PROGRESS: Activated
     IN_PROGRESS --> SUBMITTED: Freelancer submits
     IN_PROGRESS --> DISPUTED: Either party disputes
+    SUBMITTED --> SUBMITTED: Freelancer updates
     SUBMITTED --> PAID: Client approves
     SUBMITTED --> DISPUTED: Either party disputes
     DISPUTED --> PAID: Freelancer-win or SPLIT

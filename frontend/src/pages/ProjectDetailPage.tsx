@@ -663,9 +663,15 @@ export default function ProjectDetailPage() {
 
     if (canSubmitMilestone(project, milestone, user.id)) {
       return {
-        actionLabel: 'Submit work',
+        actionLabel:
+          milestone.status === 'SUBMITTED'
+            ? 'Update submission'
+            : 'Submit work',
         actionVariant: 'primary' as const,
-        onAction: () => setSubmitMilestoneId(milestone.id),
+        onAction: () => {
+          setSubmitNote(milestone.latestSubmission?.content ?? '')
+          setSubmitMilestoneId(milestone.id)
+        },
       }
     }
 
@@ -1064,6 +1070,7 @@ export default function ProjectDetailPage() {
             onNoteChange={setSubmitNote}
             file={submitFile}
             onFileChange={setSubmitFile}
+            isUpdate={submitTarget.status === 'SUBMITTED'}
           />
         )}
 

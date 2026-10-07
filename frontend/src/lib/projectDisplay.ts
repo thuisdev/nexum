@@ -317,7 +317,7 @@ export function canSubmitMilestone(
   return (
     project.freelancerId === userId &&
     project.status === 'IN_PROGRESS' &&
-    milestone.status === 'IN_PROGRESS'
+    (milestone.status === 'IN_PROGRESS' || milestone.status === 'SUBMITTED')
   )
 }
 
