@@ -29,8 +29,10 @@ export function InviteFreelancerModal({
     onClose()
   }
 
+  const identifierMissing = !identifier.trim()
+
   const handleInvite = async () => {
-    if (!identifier.trim()) {
+    if (identifierMissing) {
       setError('Email or display name is required')
       return
     }
@@ -60,6 +62,7 @@ export function InviteFreelancerModal({
           onConfirm={handleInvite}
           confirmLabel="Send invite"
           loading={loading}
+          confirmDisabled={identifierMissing}
         />
       }
     >
@@ -70,7 +73,10 @@ export function InviteFreelancerModal({
         <Input
           placeholder="freelancer@example.com or bob.eth"
           value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+          onChange={(e) => {
+            setIdentifier(e.target.value)
+            if (error) setError(null)
+          }}
           error={!!error}
         />
       </FormField>
