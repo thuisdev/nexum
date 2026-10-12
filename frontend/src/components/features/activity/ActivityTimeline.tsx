@@ -16,6 +16,7 @@ const actionLabels: Record<string, string> = {
   MILESTONES_ADDED: 'added milestones',
   MILESTONE_SUBMITTED: 'submitted work',
   MILESTONE_APPROVED: 'approved a milestone',
+  MILESTONE_CHANGES_REQUESTED: 'requested changes',
   MILESTONE_PAID: 'released payment',
   MILESTONE_REFUNDED: 'refunded a milestone',
   DISPUTE_RESOLVED: 'resolved a dispute',

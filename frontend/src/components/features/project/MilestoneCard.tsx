@@ -15,6 +15,8 @@ export type MilestoneCardProps = {
   actionLabel?: string
   actionVariant?: 'primary' | 'approve'
   onAction?: () => void
+  secondaryLabel?: string
+  onSecondaryAction?: () => void
   submission?: MilestoneSubmission | null
   hasAttachment?: boolean
   onDownloadAttachment?: () => void
@@ -32,6 +34,8 @@ export function MilestoneCard({
   actionLabel,
   actionVariant = 'primary',
   onAction,
+  secondaryLabel,
+  onSecondaryAction,
   submission,
   hasAttachment,
   onDownloadAttachment,
@@ -71,15 +75,28 @@ export function MilestoneCard({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {actionLabel && onAction ? (
-            <Button
-              size="sm"
-              variant={actionVariant}
-              fullWidth
-              className="md:w-auto"
-              onClick={onAction}
-            >
-              {actionLabel}
-            </Button>
+            <>
+              {secondaryLabel && onSecondaryAction ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  fullWidth
+                  className="md:w-auto"
+                  onClick={onSecondaryAction}
+                >
+                  {secondaryLabel}
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant={actionVariant}
+                fullWidth
+                className="md:w-auto"
+                onClick={onAction}
+              >
+                {actionLabel}
+              </Button>
+            </>
           ) : (
             <StatusBadge status={status} />
           )}

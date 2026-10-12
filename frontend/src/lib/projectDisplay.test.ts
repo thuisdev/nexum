@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canReturnMilestone,
   canSubmitMilestone,
   displayName,
   formatDeadline,
@@ -118,5 +119,17 @@ describe('canSubmitMilestone', () => {
         'freelancer-1',
       ),
     ).toBe(false)
+  })
+})
+
+describe('canReturnMilestone', () => {
+  it('lets the client send submitted work back without a dispute', () => {
+    expect(
+      canReturnMilestone(
+        { clientId: 'client-1', status: 'IN_PROGRESS' } as Project,
+        { status: 'SUBMITTED' } as Milestone,
+        'client-1',
+      ),
+    ).toBe(true)
   })
 })

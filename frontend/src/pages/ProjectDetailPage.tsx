@@ -21,6 +21,7 @@ import {
   type ProjectOverflowItem,
 } from '@/components/features'
 import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
+import { RequestChangesDialog } from '@/components/features/dialogs/RequestChangesDialog'
 import { ReviewDialog } from '@/components/features/dialogs/ReviewDialog'
 import { DisputeDialog } from '@/components/features/dialogs/DisputeDialog'
 import {
@@ -46,6 +47,7 @@ import {
   getProjectPreview,
   openDispute,
   resolveDispute,
+  returnMilestone,
   submitMilestone,
   type ProjectReview,
 } from '@/lib/projects.api'
@@ -154,6 +156,7 @@ export default function ProjectDetailPage() {
   const [submitNote, setSubmitNote] = useState('')
   const [submitFile, setSubmitFile] = useState<File | null>(null)
   const [approveMilestoneId, setApproveMilestoneId] = useState<string | null>(null)
+  const [returnMilestoneId, setReturnMilestoneId] = useState<string | null>(null)
   const [applyOpen, setApplyOpen] = useState(false)
   const [applyPitch, setApplyPitch] = useState('')
   const [declineOpen, setDeclineOpen] = useState(false)
@@ -601,6 +604,10 @@ export default function ProjectDetailPage() {
     setApproveMilestoneId(null)
   }
 
+  const closeReturnDialog = () => {
+    setReturnMilestoneId(null)
+  }
+
   const handleSubmitWork = async () => {
     if (!submitMilestoneId || submitNote.trim().length < 50) return
     setActionLoading(true)
@@ -641,6 +648,24 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const handleReturnWork = async () => {
+    if (!returnMilestoneId) return
+    setActionLoading(true)
+    try {
+      const full = await returnMilestone(returnMilestoneId)
+      setProject(full)
+      if (id) {
+        const logs = await getProjectActivity(id)
+        setActivity(logs)
+      }
+      closeReturnDialog()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not request changes'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleDownloadAttachment = async (milestoneId: string) => {
     try {
       setError(null)
@@ -656,6 +681,10 @@ export default function ProjectDetailPage() {
 
   const approveTarget = approveMilestoneId
     ? project?.milestones.find((m) => m.id === approveMilestoneId)
+    : null
+
+  const returnTarget = returnMilestoneId
+    ? project?.milestones.find((m) => m.id === returnMilestoneId)
     : null
 
   const resolveMilestoneCardAction = (milestone: Milestone) => {
@@ -680,6 +709,8 @@ export default function ProjectDetailPage() {
         actionLabel: 'Approve',
         actionVariant: 'approve' as const,
         onAction: () => setApproveMilestoneId(milestone.id),
+        secondaryLabel: 'Request changes',
+        onSecondaryAction: () => setReturnMilestoneId(milestone.id),
       }
     }
 
@@ -1082,6 +1113,16 @@ export default function ProjectDetailPage() {
             loading={actionLoading}
             amount={approveTarget.amount}
             recipient={displayName(project.freelancer)}
+          />
+        )}
+
+        {returnTarget && (
+          <RequestChangesDialog
+            open={Boolean(returnMilestoneId)}
+            onClose={closeReturnDialog}
+            onConfirm={() => void handleReturnWork()}
+            loading={actionLoading}
+            milestoneTitle={returnTarget.title}
           />
         )}
 

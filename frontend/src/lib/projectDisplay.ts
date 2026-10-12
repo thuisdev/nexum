@@ -309,6 +309,14 @@ export function canApproveMilestone(
   )
 }
 
+export function canReturnMilestone(
+  project: Project,
+  milestone: Milestone,
+  userId: string,
+) {
+  return canApproveMilestone(project, milestone, userId)
+}
+
 export function canSubmitMilestone(
   project: Project,
   milestone: Milestone,

@@ -126,6 +126,11 @@ export const approveMilestone = async (milestoneId: string) => {
   return res.data
 }
 
+export const returnMilestone = async (milestoneId: string) => {
+  const res = await api.post<Project>(`/milestones/${milestoneId}/return`)
+  return res.data
+}
+
 export const submitMilestone = async (
   milestoneId: string,
   content: string,
