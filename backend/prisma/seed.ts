@@ -28,6 +28,7 @@ async function upsertUser(input: {
       name: input.name,
       bio: input.bio,
       skills: input.skills ?? [],
+      isVerified: true,
     },
     create: {
       email: input.email,
@@ -37,6 +38,7 @@ async function upsertUser(input: {
       name: input.name,
       bio: input.bio,
       skills: input.skills ?? [],
+      isVerified: true,
     },
   });
 }
