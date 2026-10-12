@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Prisma } from '../generated/prisma/client.js';
 import type { Role } from '../generated/prisma/enums.js';
 import { DisputeStatus } from '../generated/prisma/enums.js';
@@ -397,14 +399,22 @@ export const cancelProject = async (projectId: string, clientId: string) => {
       });
     }
 
+    const refundTxRef = `SIM-${randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+
     await tx.activityLog.create({
       data: {
         projectId,
         actorId: clientId,
         action: 'PROJECT_CANCELLED',
-        metadata: { escrowStatus: 'REFUNDED' },
+        metadata: {
+          escrowStatus: 'REFUNDED',
+          refundTxRef,
+          amount: project.totalBudget.toString(),
+        },
       },
     });
+
+    // Phase 2: on-chain refund to client when no freelancer was assigned (SC)
 
     return tx.project.findUniqueOrThrow({
       where: { id: projectId },
