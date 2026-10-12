@@ -371,6 +371,71 @@ export const approveMilestone = async (
   return { projectId, payoutTxRef: payout.payoutTxRef } as const;
 };
 
+/** Client sends SUBMITTED work back — no payout, freelancer can submit again. */
+export const returnMilestone = async (milestoneId: string, clientId: string) => {
+  const milestone = await prisma.milestone.findUnique({
+    where: { id: milestoneId },
+    include: { project: true },
+  });
+
+  if (!milestone) {
+    return null;
+  }
+
+  if (milestone.project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (milestone.project.status !== 'IN_PROGRESS') {
+    return 'project_not_active' as const;
+  }
+
+  if (milestone.status !== 'SUBMITTED') {
+    return 'invalid_status' as const;
+  }
+
+  const projectId = milestone.projectId;
+  const freelancerId = milestone.project.freelancerId;
+
+  const outcome = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.milestone.updateMany({
+      where: { id: milestoneId, status: 'SUBMITTED' },
+      data: { status: 'IN_PROGRESS' },
+    });
+
+    if (claimed.count === 0) {
+      return 'invalid_status' as const;
+    }
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'MILESTONE_CHANGES_REQUESTED',
+        metadata: {
+          milestoneId,
+          milestoneTitle: milestone.title,
+        },
+      },
+    });
+
+    if (freelancerId) {
+      await tx.notification.create({
+        data: {
+          userId: freelancerId,
+          projectId,
+          type: 'MILESTONE_CHANGES_REQUESTED',
+          message: `Changes requested on "${milestone.title}"`,
+        },
+      });
+    }
+
+    return { projectId } as const;
+  });
+
+  return outcome;
+};
+
 /** Latest deliverable for a project member — not a public job viewer. */
 export const getMilestoneAttachment = async (
   milestoneId: string,

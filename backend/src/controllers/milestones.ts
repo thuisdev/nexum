@@ -5,6 +5,7 @@ import { getProjectById } from '../services/project.services.js';
 import {
   approveMilestone,
   getMilestoneAttachment,
+  returnMilestone,
   submitMilestone,
 } from '../services/milestone.services.js';
 import { submitMilestoneSchema } from '../schemas/milestone.schema.js';
@@ -142,6 +143,53 @@ export const handleApproveMilestone = async (
     if (!project) return;
 
     res.json({ ...project, payoutTxRef: outcome.payoutTxRef });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/milestones/:id/return — client sends work back without payout. */
+export const handleReturnMilestone = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const outcome = await returnMilestone(String(req.params.id), req.userId!);
+
+    if (outcome === null) {
+      res.status(404).json({ error: 'Milestone not found' });
+      return;
+    }
+
+    if (outcome === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (outcome === 'invalid_status') {
+      res.status(409).json({
+        error: 'Milestone must be SUBMITTED to request changes',
+      });
+      return;
+    }
+
+    if (outcome === 'project_not_active') {
+      res.status(409).json({
+        error: 'Project must be IN_PROGRESS to request changes',
+      });
+      return;
+    }
+
+    const project = await loadProjectResponse(
+      outcome.projectId,
+      req.userId!,
+      req.userRole!,
+      res,
+    );
+    if (!project) return;
+
+    res.json(project);
   } catch (error) {
     next(error);
   }
