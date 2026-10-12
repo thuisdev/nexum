@@ -166,6 +166,11 @@ export const deleteProject = async (projectId: string) => {
   return res.data
 }
 
+export const cancelProject = async (projectId: string) => {
+  const res = await api.post<Project>(`/projects/${projectId}/cancel`)
+  return res.data
+}
+
 export const openDispute = async (
   projectId: string,
   payload: { milestoneId: string; reason: string },

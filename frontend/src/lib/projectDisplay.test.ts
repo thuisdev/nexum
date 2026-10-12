@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canCancelProject,
   canReturnMilestone,
   canSubmitMilestone,
   displayName,
@@ -117,6 +118,36 @@ describe('canSubmitMilestone', () => {
         project,
         { status: 'DISPUTED' } as Milestone,
         'freelancer-1',
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('canCancelProject', () => {
+  it('lets the client cancel a funded job before anyone is assigned', () => {
+    expect(
+      canCancelProject(
+        {
+          clientId: 'client-1',
+          freelancerId: null,
+          status: 'FUNDED',
+          escrowStatus: 'FUNDED',
+        } as Project,
+        'client-1',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not cancel after a freelancer is assigned', () => {
+    expect(
+      canCancelProject(
+        {
+          clientId: 'client-1',
+          freelancerId: 'freelancer-1',
+          status: 'IN_PROGRESS',
+          escrowStatus: 'FUNDED',
+        } as Project,
+        'client-1',
       ),
     ).toBe(false)
   })

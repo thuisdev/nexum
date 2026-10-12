@@ -36,6 +36,7 @@ import {
   acceptInvite,
   approveMilestone,
   cancelInvite,
+  cancelProject,
   createProjectReview,
   declineInvite,
   deleteProject,
@@ -59,6 +60,7 @@ import {
 import { markProjectNotificationsRead } from '@/lib/notifications.api'
 import {
   canApproveMilestone,
+  canCancelProject,
   canDeleteProject,
   canEditProject,
   canOpenApplicationsReview,
@@ -149,6 +151,7 @@ export default function ProjectDetailPage() {
   )
   const [actionLoading, setActionLoading] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
   const [disputeOpen, setDisputeOpen] = useState(false)
   const [resolveOpen, setResolveOpen] = useState(false)
   const [viewDisputeOpen, setViewDisputeOpen] = useState(false)
@@ -408,6 +411,9 @@ export default function ProjectDetailPage() {
   const canDelete =
     mode === 'full' && project && user && canDeleteProject(project, user.id)
 
+  const canCancel =
+    mode === 'full' && project && user && canCancelProject(project, user.id)
+
   const disputeCta =
     mode === 'full' && project && user
       ? resolveDisputeCta(project, user.id, user.role)
@@ -554,6 +560,21 @@ export default function ProjectDetailPage() {
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not delete project'))
       setDeleteOpen(false)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleCancelProject = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      const full = await cancelProject(id)
+      setProject(full)
+      setCancelOpen(false)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not cancel project'))
+      setCancelOpen(false)
     } finally {
       setActionLoading(false)
     }
@@ -764,8 +785,16 @@ export default function ProjectDetailPage() {
         onClick: () => setDeleteOpen(true),
       })
     }
+    if (canCancel) {
+      items.push({
+        id: 'cancel',
+        label: 'Cancel project',
+        tone: 'danger',
+        onClick: () => setCancelOpen(true),
+      })
+    }
     return items
-  }, [canDelete, canEdit, id, navigate])
+  }, [canCancel, canDelete, canEdit, id, navigate])
 
   const workflowActions = (
     <>
@@ -1050,6 +1079,26 @@ export default function ProjectDetailPage() {
           <p className="text-base leading-6 text-ink-900">
             This permanently removes the project and all milestones. This can&apos;t
             be undone.
+          </p>
+        </Modal>
+
+        <Modal
+          open={cancelOpen}
+          onClose={() => setCancelOpen(false)}
+          title="Cancel project?"
+          footer={
+            <ModalActions
+              onCancel={() => setCancelOpen(false)}
+              onConfirm={() => void handleCancelProject()}
+              confirmLabel="Cancel project"
+              confirmVariant="danger"
+              loading={actionLoading}
+            />
+          }
+        >
+          <p className="text-base leading-6 text-ink-900">
+            This takes the job off the board and marks escrow as refunded. No
+            freelancer is assigned yet, so no milestone payout is due.
           </p>
         </Modal>
 

@@ -327,6 +327,98 @@ export const deleteProject = async (projectId: string, clientId: string) => {
   return { id: projectId };
 };
 
+/** Cancel a funded job that nobody accepted — simulated escrow refund. */
+export const cancelProject = async (projectId: string, clientId: string) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'freelancer_assigned' as const;
+  }
+
+  if (project.status !== 'FUNDED' || project.escrowStatus !== 'FUNDED') {
+    return 'not_cancellable' as const;
+  }
+
+  const outcome = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        status: 'FUNDED',
+        escrowStatus: 'FUNDED',
+        freelancerId: null,
+      },
+      data: {
+        status: 'CANCELLED',
+        escrowStatus: 'REFUNDED',
+        invitedFreelancerId: null,
+      },
+    });
+
+    if (claimed.count === 0) {
+      return 'not_cancellable' as const;
+    }
+
+    const pendingApplications = await tx.application.findMany({
+      where: { projectId, status: 'PENDING' },
+      select: { freelancerId: true },
+    });
+
+    if (pendingApplications.length > 0) {
+      await tx.application.updateMany({
+        where: { projectId, status: 'PENDING' },
+        data: { status: 'REJECTED' },
+      });
+
+      for (const row of pendingApplications) {
+        await tx.notification.create({
+          data: {
+            userId: row.freelancerId,
+            projectId,
+            type: 'APPLICATION_REJECTED',
+            message: `Project "${project.title}" was cancelled`,
+          },
+        });
+      }
+    }
+
+    if (project.invitedFreelancerId) {
+      await notifyInviteCancelled(tx, {
+        userId: project.invitedFreelancerId,
+        projectId,
+        title: project.title,
+      });
+    }
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'PROJECT_CANCELLED',
+        metadata: { escrowStatus: 'REFUNDED' },
+      },
+    });
+
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
+  });
+
+  if (outcome === 'not_cancellable') {
+    return outcome;
+  }
+
+  return serializeProject(outcome);
+};
+
 const draftEditable = (project: { status: string; escrowStatus: string }) =>
   project.status === 'DRAFT' && project.escrowStatus === 'NOT_FUNDED';
 

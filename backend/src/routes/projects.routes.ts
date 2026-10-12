@@ -10,6 +10,7 @@ import {
   handleAcceptInvite,
   handleAppendMilestones,
   handleCancelInvite,
+  handleCancelProject,
   handleCreateProject,
   handleDeclineInvite,
   handleDeleteProject,
@@ -63,6 +64,7 @@ router.get(
   handleGetMyApplication,
 );
 router.post('/:id/fund', checkAuth, requireRole('CLIENT'), handleFundProject);
+router.post('/:id/cancel', checkAuth, requireRole('CLIENT'), handleCancelProject);
 router.post('/:id/review', checkAuth, handleCreateProjectReview);
 router.get('/:id/my-review', checkAuth, handleGetMyProjectReview);
 router.post('/:id/milestones', checkAuth, requireRole('CLIENT'), handleAppendMilestones);

@@ -13,6 +13,7 @@ const actionLabels: Record<string, string> = {
   APPLICATION_ACCEPTED: 'accepted an application',
   APPLICATION_REJECTED: 'declined an application',
   PROJECT_FUNDED: 'funded the escrow',
+  PROJECT_CANCELLED: 'cancelled the project',
   MILESTONES_ADDED: 'added milestones',
   MILESTONE_SUBMITTED: 'submitted work',
   MILESTONE_APPROVED: 'approved a milestone',

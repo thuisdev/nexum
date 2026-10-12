@@ -295,6 +295,15 @@ export function canDeleteProject(project: Project, userId: string) {
   return canFullEditProject(project, userId)
 }
 
+export function canCancelProject(project: Project, userId: string) {
+  return (
+    project.clientId === userId &&
+    !project.freelancerId &&
+    project.status === 'FUNDED' &&
+    project.escrowStatus === 'FUNDED'
+  )
+}
+
 const DISPUTABLE_MILESTONE_STATUSES = ['IN_PROGRESS', 'SUBMITTED'] as const
 
 export function canApproveMilestone(

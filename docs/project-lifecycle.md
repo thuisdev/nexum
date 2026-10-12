@@ -44,7 +44,7 @@ Prefunded public jobs stay `FUNDED` until a freelancer is assigned, then become 
 | **FUNDED** | Client funded; no freelancer yet (job board) | `FUNDED` | `IN_PROGRESS` |
 | **IN_PROGRESS** | Freelancer assigned and work is active | `FUNDED` until every milestone is terminal | `COMPLETED` |
 | **COMPLETED** | Every milestone is `PAID` or `REFUNDED` | `RELEASED` if any was paid, else `REFUNDED` | — |
-| **CANCELLED** | Exists on the enum | — | **Not implemented** (unfunded drafts are **deleted**, not cancelled) |
+| **CANCELLED** | Client cancelled a funded job before a freelancer was assigned | `REFUNDED` | Unfunded drafts are still **deleted** |
 
 ### Transitions (detail)
 
@@ -56,10 +56,13 @@ Prefunded public jobs stay `FUNDED` until a freelancer is assigned, then become 
 | `DRAFT` | `FUNDED` | Fund (`POST …/fund`) with **no** freelancer — job stays listed | **Client** |
 | `DRAFT` | `IN_PROGRESS` | Fund with freelancer already assigned — M0 → `IN_PROGRESS` | **Client** |
 | `FUNDED` | `IN_PROGRESS` | Application or invite accept on a prefunded job — M0 → `IN_PROGRESS` | **Client** / **Freelancer** |
+| `FUNDED` | `CANCELLED` | `POST …/cancel` while no freelancer is assigned | **Client** |
 | `IN_PROGRESS` | `IN_PROGRESS` | A milestone becomes `PAID` or `REFUNDED`; others remain | *System* |
 | `IN_PROGRESS` | `COMPLETED` | Last remaining milestone is `PAID` or `REFUNDED` | *System* |
 
 Full edit / delete: only while `DRAFT`, `escrowStatus = NOT_FUNDED`, and `freelancerId` is null.
+
+Cancel funded listing: `POST /api/projects/:id/cancel` while `FUNDED`, escrow `FUNDED`, and `freelancerId` is null. Escrow → `REFUNDED`. Pending applications are rejected; a pending invite is cancelled.
 
 ---
 
@@ -143,6 +146,7 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 | Invite freelancer | **Client** | `DRAFT` or `FUNDED`, no freelancer | `POST …/invite` | — |
 | Accept / decline invite | **Freelancer** | Pending invite | `POST …/accept` or `…/decline` | `freelancerId` set on accept |
 | Fund project | **Client** | `DRAFT`, not yet funded | `POST …/fund` | Escrow → `FUNDED`; project → `FUNDED` or `IN_PROGRESS` |
+| Cancel funded job | **Client** | `FUNDED`, no freelancer | `POST …/cancel` | → `CANCELLED`; escrow → `REFUNDED` |
 | Apply (job board) | **Freelancer** | Public, escrow `FUNDED`, no freelancer | `POST …/apply` | — |
 | Accept application | **Client** | Pending application, project still open | `POST …/applications/:id/accept` | Same assignment as invite accept |
 | Submit work | **Freelancer** | Milestone `IN_PROGRESS` or `SUBMITTED` | `POST …/milestones/:id/submit` | → `SUBMITTED` (new version if already submitted) |
@@ -175,6 +179,7 @@ stateDiagram-v2
     DRAFT --> FUNDED: Fund without freelancer
     DRAFT --> IN_PROGRESS: Fund with freelancer
     FUNDED --> IN_PROGRESS: Freelancer assigned
+    FUNDED --> CANCELLED: Client cancels unassigned job
     IN_PROGRESS --> IN_PROGRESS: Milestone PAID or REFUNDED, more remain
     IN_PROGRESS --> COMPLETED: All milestones PAID or REFUNDED
 ```
@@ -215,7 +220,7 @@ stateDiagram-v2
 | Payment released | `PAYMENT_RELEASED` | Freelancer |
 | Review received | `REVIEW_RECEIVED` | Subject |
 
-`ActivityLog.action` examples: `PROJECT_CREATED`, `FREELANCER_INVITED`, `FREELANCER_ACCEPTED`, `PROJECT_FUNDED`, `MILESTONE_SUBMITTED`, `MILESTONE_APPROVED`, `MILESTONE_CHANGES_REQUESTED`, `MILESTONE_PAID`, `MILESTONE_DISPUTED`, `MILESTONE_REFUNDED`, `DISPUTE_RESOLVED`, `PROJECT_COMPLETED`.
+`ActivityLog.action` examples: `PROJECT_CREATED`, `FREELANCER_INVITED`, `FREELANCER_ACCEPTED`, `PROJECT_FUNDED`, `PROJECT_CANCELLED`, `MILESTONE_SUBMITTED`, `MILESTONE_APPROVED`, `MILESTONE_CHANGES_REQUESTED`, `MILESTONE_PAID`, `MILESTONE_DISPUTED`, `MILESTONE_REFUNDED`, `DISPUTE_RESOLVED`, `PROJECT_COMPLETED`.
 
 ---
 
@@ -223,7 +228,7 @@ stateDiagram-v2
 
 | Feature | Statuses involved | Notes |
 |---------|-------------------|--------|
-| Project cancel after create | `CANCELLED` | Unfunded drafts are deleted instead |
+| Project cancel after create | `CANCELLED` | Funded unassigned jobs cancel; unfunded drafts are still deleted |
 | Milestone `APPROVED` as a stored status | `APPROVED` | Approve goes `SUBMITTED` → `PAID` |
 | Dispute `IN_REVIEW` as a written status | `IN_REVIEW` | Treated as still-open if present; open writes `OPEN` |
 | Real escrow / wallet | `payoutTxRef` | Phase 2 (Solidity) |
