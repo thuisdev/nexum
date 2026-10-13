@@ -48,6 +48,7 @@ import {
   getProjectPreview,
   openDispute,
   resolveDispute,
+  startDisputeReview,
   returnMilestone,
   submitMilestone,
   type ProjectReview,
@@ -601,6 +602,20 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const handleStartReview = async () => {
+    if (!project?.openDispute) return
+    setActionLoading(true)
+    try {
+      await startDisputeReview(project.openDispute.id)
+      await reloadProject()
+      setResolveOpen(true)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not start dispute review'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleResolveDispute = async (outcome: string, resolution: string) => {
     if (!project?.openDispute || resolution.length < 5) return
     setActionLoading(true)
@@ -1037,7 +1052,7 @@ export default function ProjectDetailPage() {
               openDispute={project?.openDispute}
               onOpenDispute={() => setDisputeOpen(true)}
               onViewDispute={() => setViewDisputeOpen(true)}
-              onResolveDispute={() => setResolveOpen(true)}
+              onResolveDispute={() => void handleStartReview()}
             />
           )}
         </div>

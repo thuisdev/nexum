@@ -5,6 +5,7 @@ import {
   listProjectDisputes,
   openDispute,
   resolveDispute,
+  startDisputeReview,
 } from '../services/dispute.services.js';
 import {
   openDisputeSchema,
@@ -138,6 +139,40 @@ export const handleResolveDispute = async (
       req.userId!,
       req.userRole!,
       result.data,
+    );
+
+    if (dispute === null) {
+      res.status(404).json({ error: 'Dispute not found' });
+      return;
+    }
+
+    if (dispute === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (dispute === 'already_resolved') {
+      res.status(409).json({ error: 'Dispute is already resolved' });
+      return;
+    }
+
+    res.json(dispute);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/projects/disputes/:disputeId/review — arbiter marks OPEN as IN_REVIEW. */
+export const handleStartDisputeReview = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const dispute = await startDisputeReview(
+      String(req.params.disputeId),
+      req.userId!,
+      req.userRole!,
     );
 
     if (dispute === null) {

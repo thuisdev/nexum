@@ -116,7 +116,7 @@ Rules:
 
 - Project must be `FUNDED` or `IN_PROGRESS`.
 - Milestone must be `IN_PROGRESS` or `SUBMITTED` (including when an admin opens).
-- One open dispute per project (`OPEN` or `IN_REVIEW`). Opening writes `OPEN`.
+- One open dispute per project (`OPEN` or `IN_REVIEW`). Opening writes `OPEN`. Assigned arbiter or admin starts review (`POST …/disputes/:id/review`) and writes `IN_REVIEW`.
 - Freelancer and client are notified; the assigned arbiter is notified too.
 - Resolve is claimed with `updateMany` so a double-click cannot pay twice.
 
@@ -152,7 +152,8 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 | Submit work | **Freelancer** | Milestone `IN_PROGRESS` or `SUBMITTED` | `POST …/milestones/:id/submit` | → `SUBMITTED` (new version if already submitted) |
 | Approve & release | **Client** | Milestone `SUBMITTED` | `POST …/milestones/:id/approve` | → `PAID` (no `APPROVED` row) |
 | Request changes | **Client** | Milestone `SUBMITTED` | `POST …/milestones/:id/return` | → `IN_PROGRESS`; no payout |
-| Open dispute | **Client** or **Freelancer** | Active/submitted milestone, no other open dispute, an arbiter exists | `POST …/disputes` | Milestone → `DISPUTED` |
+| Open dispute | **Client** or **Freelancer** | Active/submitted milestone, no other open dispute, an arbiter exists | `POST …/disputes` | Milestone → `DISPUTED`; dispute → `OPEN` |
+| Start dispute review | **Arbiter** or **Admin** | Dispute `OPEN` (idempotent if already `IN_REVIEW`) | `POST …/disputes/:id/review` | Dispute → `IN_REVIEW` |
 | Resolve dispute | **Arbiter** or **Admin** | Dispute `OPEN` / `IN_REVIEW` | `POST …/disputes/:id/resolve` | See outcomes above |
 | Review | Either party | Project `COMPLETED`, one review each | `POST …/reviews` | — |
 
@@ -220,7 +221,7 @@ stateDiagram-v2
 | Payment released | `PAYMENT_RELEASED` | Freelancer |
 | Review received | `REVIEW_RECEIVED` | Subject |
 
-`ActivityLog.action` examples: `PROJECT_CREATED`, `FREELANCER_INVITED`, `FREELANCER_ACCEPTED`, `PROJECT_FUNDED`, `PROJECT_CANCELLED`, `MILESTONE_SUBMITTED`, `MILESTONE_APPROVED`, `MILESTONE_CHANGES_REQUESTED`, `MILESTONE_PAID`, `MILESTONE_DISPUTED`, `MILESTONE_REFUNDED`, `DISPUTE_RESOLVED`, `PROJECT_COMPLETED`.
+`ActivityLog.action` examples: `PROJECT_CREATED`, `FREELANCER_INVITED`, `FREELANCER_ACCEPTED`, `PROJECT_FUNDED`, `PROJECT_CANCELLED`, `MILESTONE_SUBMITTED`, `MILESTONE_APPROVED`, `MILESTONE_CHANGES_REQUESTED`, `MILESTONE_PAID`, `MILESTONE_DISPUTED`, `MILESTONE_REFUNDED`, `DISPUTE_IN_REVIEW`, `DISPUTE_RESOLVED`, `PROJECT_COMPLETED`.
 
 ---
 
@@ -230,7 +231,6 @@ stateDiagram-v2
 |---------|-------------------|--------|
 | Project cancel after create | `CANCELLED` | Funded unassigned jobs cancel; unfunded drafts are still deleted |
 | Milestone `APPROVED` as a stored status | `APPROVED` | Approve goes `SUBMITTED` → `PAID` |
-| Dispute `IN_REVIEW` as a written status | `IN_REVIEW` | Treated as still-open if present; open writes `OPEN` |
 | Real escrow / wallet | `payoutTxRef` | Phase 2 (Solidity) |
 | Client reject without dispute | — | Implemented as request changes (`SUBMITTED` → `IN_PROGRESS`) |
 
@@ -238,6 +238,7 @@ stateDiagram-v2
 
 ## Resolved vs still open
 
+- Opening a dispute writes `OPEN`. The assigned arbiter starting review writes `IN_REVIEW`.
 - Approve **does** skip `APPROVED` and go straight to `PAID` in one transaction.
 - Freelancer may submit again while the milestone is `SUBMITTED` (new version). There is no `REVISION` status.
 - Client can send a submission back to `IN_PROGRESS` with request changes (no dispute, no payout).

@@ -182,6 +182,13 @@ export const openDispute = async (
   return res.data
 }
 
+export const startDisputeReview = async (disputeId: string) => {
+  const res = await api.post<import('@/types/project').ProjectOpenDispute>(
+    `/projects/disputes/${disputeId}/review`,
+  )
+  return res.data
+}
+
 export const resolveDispute = async (
   disputeId: string,
   payload: { outcome: string; resolution: string },

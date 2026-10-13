@@ -43,7 +43,12 @@ const serializeDispute = (dispute: {
   resolution: dispute.resolution,
   createdAt: dispute.createdAt.toISOString(),
   resolvedAt: dispute.resolvedAt?.toISOString() ?? null,
-  milestone: dispute.milestone,
+  milestone: {
+    id: dispute.milestone.id,
+    title: dispute.milestone.title,
+    status: dispute.milestone.status,
+    orderIndex: dispute.milestone.orderIndex,
+  },
 });
 
 export const listProjectDisputes = async (
@@ -235,6 +240,78 @@ export const openDispute = async (
   }
 
   return serializeDispute(dispute);
+};
+
+/** Assigned arbiter starts work — OPEN becomes IN_REVIEW. */
+export const startDisputeReview = async (
+  disputeId: string,
+  userId: string,
+  userRole: Role,
+) => {
+  const dispute = await prisma.dispute.findUnique({
+    where: { id: disputeId },
+    include: {
+      milestone: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          orderIndex: true,
+          projectId: true,
+        },
+      },
+    },
+  });
+
+  if (!dispute) {
+    return null;
+  }
+
+  if (
+    userRole !== 'ADMIN' &&
+    !(userRole === 'ARBITER' && dispute.arbiterId === userId)
+  ) {
+    return 'forbidden' as const;
+  }
+
+  if (!openDisputeStatuses.includes(dispute.status)) {
+    return 'already_resolved' as const;
+  }
+
+  if (dispute.status === DisputeStatus.IN_REVIEW) {
+    return serializeDispute(dispute);
+  }
+
+  const claimed = await prisma.dispute.updateMany({
+    where: { id: disputeId, status: DisputeStatus.OPEN },
+    data: { status: DisputeStatus.IN_REVIEW },
+  });
+
+  if (claimed.count === 1) {
+    await prisma.activityLog.create({
+      data: {
+        projectId: dispute.milestone.projectId,
+        actorId: userId,
+        action: 'DISPUTE_IN_REVIEW',
+        metadata: { disputeId },
+      },
+    });
+  }
+
+  const updated = await prisma.dispute.findUniqueOrThrow({
+    where: { id: disputeId },
+    include: {
+      milestone: {
+        select: { id: true, title: true, status: true, orderIndex: true },
+      },
+    },
+  });
+
+  if (!openDisputeStatuses.includes(updated.status)) {
+    return 'already_resolved' as const;
+  }
+
+  return serializeDispute(updated);
 };
 
 export const resolveDispute = async (

@@ -5,6 +5,7 @@ import {
   handleListProjectDisputes,
   handleOpenDispute,
   handleResolveDispute,
+  handleStartDisputeReview,
 } from '../controllers/disputes.js';
 import {
   handleAcceptInvite,
@@ -71,6 +72,7 @@ router.post('/:id/milestones', checkAuth, requireRole('CLIENT'), handleAppendMil
 router.get('/:id/activity', checkAuth, handleGetProjectActivity);
 router.get('/:id/disputes', checkAuth, handleListProjectDisputes);
 router.post('/:id/disputes', checkAuth, handleOpenDispute);
+router.post('/disputes/:disputeId/review', checkAuth, requireRole('ARBITER', 'ADMIN'), handleStartDisputeReview);
 router.post('/disputes/:disputeId/resolve', checkAuth, requireRole('ARBITER', 'ADMIN'), handleResolveDispute);
 router.get('/:id', checkAuth, handleGetProject);
 router.patch('/:id', checkAuth, requireRole('CLIENT'), handleUpdateProject);
