@@ -217,6 +217,7 @@ stateDiagram-v2
 | Milestone approved | `MILESTONE_APPROVED` | Freelancer |
 | Changes requested | `MILESTONE_CHANGES_REQUESTED` | Freelancer |
 | Dispute raised | `MILESTONE_DISPUTED` | Counterparty + arbiter |
+| Dispute review started | `DISPUTE_IN_REVIEW` | Client and freelancer |
 | Dispute resolved | `DISPUTE_RESOLVED` | Client and freelancer |
 | Payment released | `PAYMENT_RELEASED` | Freelancer |
 | Review received | `REVIEW_RECEIVED` | Subject |

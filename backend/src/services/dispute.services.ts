@@ -258,6 +258,9 @@ export const startDisputeReview = async (
           status: true,
           orderIndex: true,
           projectId: true,
+          project: {
+            select: { clientId: true, freelancerId: true },
+          },
         },
       },
     },
@@ -282,13 +285,33 @@ export const startDisputeReview = async (
     return serializeDispute(dispute);
   }
 
-  const claimed = await prisma.dispute.updateMany({
-    where: { id: disputeId, status: DisputeStatus.OPEN },
-    data: { status: DisputeStatus.IN_REVIEW },
-  });
+  await prisma.$transaction(async (tx) => {
+    const moved = await tx.dispute.updateMany({
+      where: { id: disputeId, status: DisputeStatus.OPEN },
+      data: { status: DisputeStatus.IN_REVIEW },
+    });
 
-  if (claimed.count === 1) {
-    await prisma.activityLog.create({
+    if (moved.count !== 1) {
+      return moved;
+    }
+
+    const notifyIds = [
+      dispute.milestone.project.clientId,
+      dispute.milestone.project.freelancerId,
+    ].filter((id): id is string => Boolean(id) && id !== userId);
+
+    for (const notifyId of notifyIds) {
+      await tx.notification.create({
+        data: {
+          userId: notifyId,
+          projectId: dispute.milestone.projectId,
+          type: 'DISPUTE_IN_REVIEW',
+          message: `An arbiter started reviewing the dispute on "${dispute.milestone.title}"`,
+        },
+      });
+    }
+
+    await tx.activityLog.create({
       data: {
         projectId: dispute.milestone.projectId,
         actorId: userId,
@@ -296,7 +319,9 @@ export const startDisputeReview = async (
         metadata: { disputeId },
       },
     });
-  }
+
+    return moved;
+  });
 
   const updated = await prisma.dispute.findUniqueOrThrow({
     where: { id: disputeId },
