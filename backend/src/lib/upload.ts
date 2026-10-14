@@ -4,7 +4,16 @@ import path from 'node:path';
 
 import multer from 'multer';
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+/** Render's container disk is ephemeral — set UPLOAD_DIR to a persistent mount. */
+export function resolveUploadDir(
+  envDir: string | undefined = process.env.UPLOAD_DIR,
+  cwd = process.cwd(),
+) {
+  const fromEnv = envDir?.trim();
+  return path.resolve(fromEnv ? fromEnv : path.join(cwd, 'uploads'));
+}
+
+const uploadDir = resolveUploadDir();
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });

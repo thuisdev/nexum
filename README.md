@@ -352,6 +352,7 @@ The API is a long-running Express server with file uploads. Host it on a **Node 
 | `JWT_SECRET` | Random 32+ byte secret |
 | `CORS_ORIGIN` | `https://your-app.vercel.app` (**required** in production) |
 | `PORT` | `4000` |
+| `UPLOAD_DIR` | Persistent disk path (e.g. `/var/data/uploads`). Default `./uploads` |
 
 3. Run migrations on deploy: `npx prisma migrate deploy`
 4. Seed once on empty DB: `npm run db:seed`
@@ -369,7 +370,7 @@ That fail-closed default is intentional: a missing env must not silently allow e
 ### Production notes
 
 - Set `CORS_ORIGIN` on the API host to your Vercel frontend URL before the first production deploy
-- File uploads use local disk on the backend host — use persistent storage or object storage for production
+- File uploads use the API host disk. On Render the container disk is wiped on deploy — attach a persistent disk and set `UPLOAD_DIR` to the mount path (e.g. `/var/data/uploads`)
 - Re-run `db:seed` only on empty databases (seed uses upserts)
 
 ---

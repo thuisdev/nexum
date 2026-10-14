@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +7,7 @@ import {
   filenameFromStoredUrl,
   isAllowedAvatarFile,
   isAllowedSubmitFile,
+  resolveUploadDir,
   safeUploadFilename,
 } from './upload.js';
 
@@ -78,6 +81,21 @@ describe('safeUploadFilename', () => {
     expect(safeUploadFilename('../secret.png')).toBeNull();
     expect(safeUploadFilename('..\\secret.png')).toBeNull();
     expect(safeUploadFilename('foo/bar.png')).toBeNull();
+  });
+});
+
+describe('resolveUploadDir', () => {
+  it('uses UPLOAD_DIR when set', () => {
+    expect(resolveUploadDir('/var/data/uploads', '/app')).toBe(
+      path.resolve('/var/data/uploads'),
+    );
+  });
+
+  it('falls back to cwd/uploads', () => {
+    expect(resolveUploadDir('  ', '/app')).toBe(path.resolve('/app/uploads'));
+    expect(resolveUploadDir(undefined, '/app')).toBe(
+      path.resolve('/app/uploads'),
+    );
   });
 });
 
