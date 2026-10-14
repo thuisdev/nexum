@@ -155,6 +155,7 @@ model Project {
   @@index([clientId])
   @@index([freelancerId])
   @@index([invitedFreelancerId])
+  @@index([arbiterId])
   @@index([status])
   @@index([isPublic])
 }
@@ -194,6 +195,9 @@ model Submission {
 
   milestone       Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   submittedByUser User      @relation(fields: [submittedBy], references: [id])
+
+  @@index([milestoneId])
+  @@index([submittedBy])
 }
 
 model Approval {
@@ -207,6 +211,8 @@ model Approval {
 
   milestone      Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   approvedByUser User      @relation(fields: [approvedBy], references: [id])
+
+  @@index([approvedBy])
 }
 
 model Dispute {
@@ -224,6 +230,10 @@ model Dispute {
   milestone    Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   raisedByUser User      @relation("RaisedDisputes", fields: [raisedBy], references: [id])
   arbiter      User?     @relation("ArbiterDisputes", fields: [arbiterId], references: [id])
+
+  @@index([milestoneId])
+  @@index([raisedBy])
+  @@index([arbiterId])
 }
 
 model Notification {
@@ -239,6 +249,7 @@ model Notification {
   project Project? @relation(fields: [projectId], references: [id])
 
   @@index([userId])
+  @@index([projectId])
 }
 
 model ActivityLog {
@@ -253,6 +264,7 @@ model ActivityLog {
   actor   User    @relation(fields: [actorId], references: [id])
 
   @@index([projectId])
+  @@index([actorId])
 }
 
 model Review {
@@ -269,6 +281,8 @@ model Review {
   subject User    @relation("ReviewsReceived", fields: [subjectId], references: [id])
 
   @@unique([projectId, authorId])
+  @@index([authorId])
+  @@index([subjectId])
 }
 
 model Application {
