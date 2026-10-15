@@ -460,12 +460,13 @@ export const updateProject = async (
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    if (input.milestones) {
-      await tx.milestone.deleteMany({ where: { projectId } });
-    }
-
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        status: 'DRAFT',
+        escrowStatus: 'NOT_FUNDED',
+        freelancerId: null,
+      },
       data: {
         ...(input.title !== undefined && { title: input.title }),
         ...(input.description !== undefined && { description: input.description }),
@@ -475,24 +476,26 @@ export const updateProject = async (
         ...(input.currency !== undefined && { currency: input.currency }),
         ...(input.isPublic !== undefined && { isPublic: input.isPublic }),
         ...(input.skills !== undefined && { skills: input.skills }),
-        ...(input.milestones && {
-          milestones: {
-            create: input.milestones.map((milestone) => ({
-              orderIndex: milestone.orderIndex,
-              title: milestone.title,
-              description: milestone.description,
-              amount: new Prisma.Decimal(milestone.amount),
-              deadline: milestone.deadline,
-            })),
-          },
-        }),
-      },
-      include: {
-        milestones: true,
-        client: { select: clientPublicSelect },
-        freelancer: { select: clientPublicSelect },
       },
     });
+
+    if (claimed.count === 0) {
+      return 'not_editable' as const;
+    }
+
+    if (input.milestones) {
+      await tx.milestone.deleteMany({ where: { projectId } });
+      await tx.milestone.createMany({
+        data: input.milestones.map((milestone) => ({
+          projectId,
+          orderIndex: milestone.orderIndex,
+          title: milestone.title,
+          description: milestone.description,
+          amount: new Prisma.Decimal(milestone.amount),
+          deadline: milestone.deadline,
+        })),
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -503,8 +506,19 @@ export const updateProject = async (
       },
     });
 
-    return result;
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: {
+        milestones: true,
+        client: { select: clientPublicSelect },
+        freelancer: { select: clientPublicSelect },
+      },
+    });
   });
+
+  if (updated === 'not_editable') {
+    return updated;
+  }
 
   return {
     ...serializeProject(updated),
