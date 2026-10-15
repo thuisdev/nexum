@@ -14,9 +14,9 @@ A user has a global `Role` (`CLIENT`, `FREELANCER`, `ARBITER`, `ADMIN`), but **p
 
 | Project role | How assigned | Typical actions |
 |--------------|--------------|-----------------|
-| **Client** | `project.clientId` — creator | Create, edit (unfunded draft), invite, fund, approve, open dispute |
+| **Client** | `project.clientId` — creator | Create, edit (unfunded draft), invite, fund, cancel unassigned funded job, approve, request changes, open dispute |
 | **Freelancer** | `project.freelancerId` — invite accept or application accept | Accept/decline invite, apply, submit work, open dispute |
-| **Arbiter** | First `ARBITER` user in the DB, set on `project.arbiterId` when a dispute opens | Resolve open disputes |
+| **Arbiter** | First `ARBITER` user in the DB, set on `project.arbiterId` when a dispute opens | Start review (`IN_REVIEW`), then resolve |
 | **Admin** | Platform role | Same dispute resolve as arbiter; can open a dispute only on `IN_PROGRESS` / `SUBMITTED` like everyone else |
 
 **Rule:** An endpoint must verify the caller is the correct participant on that project (e.g. only `clientId` may fund or approve). Admin is not a silent bypass on milestone status gates.
@@ -230,10 +230,11 @@ stateDiagram-v2
 
 | Feature | Statuses involved | Notes |
 |---------|-------------------|--------|
-| Project cancel after create | `CANCELLED` | Funded unassigned jobs cancel; unfunded drafts are still deleted |
-| Milestone `APPROVED` as a stored status | `APPROVED` | Approve goes `SUBMITTED` → `PAID` |
+| Milestone `APPROVED` as a stored status | `APPROVED` | Intentional: approve goes `SUBMITTED` → `PAID` |
+| Verify / KYC | `VerificationMethod`, `verifiedAt` | Seed sets `isVerified`; no KYC flow yet |
 | Real escrow / wallet | `payoutTxRef` | Phase 2 (Solidity) |
-| Client reject without dispute | — | Implemented as request changes (`SUBMITTED` → `IN_PROGRESS`) |
+
+Unfunded drafts are still **deleted** (not `CANCELLED`). Funded unassigned jobs cancel as above.
 
 ---
 

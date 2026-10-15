@@ -316,11 +316,12 @@ Status rules: [`docs/project-lifecycle.md`](docs/project-lifecycle.md)
 
 ```
 PENDING → IN_PROGRESS → SUBMITTED → PAID
-              ↑                          │
+              ↑              │
+              │              └→ request changes → IN_PROGRESS
               └──── next milestone ──────┘
 ```
 
-Project moves `DRAFT` → `IN_PROGRESS` on fund and `COMPLETED` when all milestones are `PAID`. Escrow is simulated; `Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2.
+Project moves `DRAFT` → `FUNDED` on fund (or `IN_PROGRESS` if a freelancer is already assigned) and `COMPLETED` when every milestone is `PAID` or `REFUNDED`. Escrow is simulated; `Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2.
 
 ---
 
