@@ -325,7 +325,20 @@ export const deleteProject = async (projectId: string, clientId: string) => {
     return 'freelancer_assigned' as const;
   }
 
-  await prisma.project.delete({ where: { id: projectId } });
+  const deleted = await prisma.project.deleteMany({
+    where: {
+      id: projectId,
+      clientId,
+      status: 'DRAFT',
+      escrowStatus: 'NOT_FUNDED',
+      freelancerId: null,
+    },
+  });
+
+  if (deleted.count === 0) {
+    return 'not_deletable' as const;
+  }
+
   return { id: projectId };
 };
 
