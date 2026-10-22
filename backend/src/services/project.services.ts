@@ -586,6 +586,21 @@ export const appendMilestones = async (
     newMilestones.reduce((sum, m) => sum + Number(m.amount), 0);
 
   const updated = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        clientId,
+        status: 'DRAFT',
+        escrowStatus: 'NOT_FUNDED',
+        freelancerId: { not: null },
+      },
+      data: { totalBudget: new Prisma.Decimal(newTotal.toFixed(2)) },
+    });
+
+    if (claimed.count === 0) {
+      return 'not_editable' as const;
+    }
+
     await tx.milestone.createMany({
       data: newMilestones.map((milestone) => ({
         projectId,
@@ -597,16 +612,6 @@ export const appendMilestones = async (
       })),
     });
 
-    const result = await tx.project.update({
-      where: { id: projectId },
-      data: { totalBudget: new Prisma.Decimal(newTotal.toFixed(2)) },
-      include: {
-        milestones: true,
-        client: { select: clientPublicSelect },
-        freelancer: { select: clientPublicSelect },
-      },
-    });
-
     await tx.activityLog.create({
       data: {
         projectId,
@@ -616,8 +621,19 @@ export const appendMilestones = async (
       },
     });
 
-    return result;
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: {
+        milestones: true,
+        client: { select: clientPublicSelect },
+        freelancer: { select: clientPublicSelect },
+      },
+    });
   });
+
+  if (updated === 'not_editable') {
+    return updated;
+  }
 
   return {
     ...serializeProject(updated),
