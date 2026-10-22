@@ -795,9 +795,22 @@ export const inviteFreelancer = async (
   const previousInviteeId = project.invitedFreelancerId;
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        clientId,
+        freelancerId: null,
+        status: { in: ['DRAFT', 'FUNDED'] },
+      },
       data: { invitedFreelancerId: freelancer.id },
+    });
+
+    if (claimed.count === 0) {
+      return 'freelancer_already_assigned' as const;
+    }
+
+    const result = await tx.project.findUniqueOrThrow({
+      where: { id: projectId },
       include: { milestones: true },
     });
 
@@ -831,6 +844,10 @@ export const inviteFreelancer = async (
 
     return result;
   });
+
+  if (updated === 'freelancer_already_assigned') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };
