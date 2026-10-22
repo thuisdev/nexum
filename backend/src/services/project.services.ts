@@ -268,13 +268,12 @@ export const getProjectById = async (
     (openDispute.arbiterId === userId || openDispute.arbiterId === null);
 
   const isOpenPublicJob = isEscrowBackedPublicJob(project);
+  const isParticipant =
+    canAccessProject(project, userId, userRole) ||
+    Boolean(arbiterCanAccess) ||
+    userRole === 'ADMIN';
 
-  if (
-    !canAccessProject(project, userId, userRole) &&
-    !arbiterCanAccess &&
-    userRole !== 'ADMIN' &&
-    !isOpenPublicJob
-  ) {
+  if (!isParticipant && !isOpenPublicJob) {
     return 'forbidden' as const;
   }
 
@@ -282,7 +281,8 @@ export const getProjectById = async (
     ...serializeProject(project),
     client: project.client,
     freelancer: project.freelancer,
-    invitedFreelancer: project.invitedFreelancer,
+    invitedFreelancerId: isParticipant ? project.invitedFreelancerId : null,
+    invitedFreelancer: isParticipant ? project.invitedFreelancer : null,
     ...(userRole === 'CLIENT' &&
     project.clientId === userId &&
     '_count' in project &&
@@ -943,11 +943,18 @@ export const declineInvite = async (
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        invitedFreelancerId: freelancerId,
+        freelancerId: null,
+      },
       data: { invitedFreelancerId: null },
-      include: { milestones: true },
     });
+
+    if (claimed.count === 0) {
+      return 'already_accepted' as const;
+    }
 
     const reasonSnippet = reason?.trim()
       ? `: "${reason.trim().slice(0, 120)}"`
@@ -971,8 +978,15 @@ export const declineInvite = async (
       },
     });
 
-    return result;
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
   });
+
+  if (updated === 'already_accepted') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };
