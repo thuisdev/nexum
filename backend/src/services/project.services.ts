@@ -879,11 +879,20 @@ export const cancelInvite = async (projectId: string, clientId: string) => {
   const invitedFreelancerId = project.invitedFreelancerId;
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        clientId,
+        freelancerId: null,
+        invitedFreelancerId,
+        status: { in: ['DRAFT', 'FUNDED'] },
+      },
       data: { invitedFreelancerId: null },
-      include: { milestones: true },
     });
+
+    if (claimed.count === 0) {
+      return 'freelancer_already_assigned' as const;
+    }
 
     await notifyInviteCancelled(tx, {
       userId: invitedFreelancerId,
@@ -900,8 +909,15 @@ export const cancelInvite = async (projectId: string, clientId: string) => {
       },
     });
 
-    return result;
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
   });
+
+  if (updated === 'freelancer_already_assigned') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };
