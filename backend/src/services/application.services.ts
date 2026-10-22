@@ -441,6 +441,13 @@ export const withdrawApplication = async (
     return 'not_pending' as const;
   }
 
-  await prisma.application.delete({ where: { id: application.id } });
+  const deleted = await prisma.application.deleteMany({
+    where: { id: application.id, status: 'PENDING' },
+  });
+
+  if (deleted.count === 0) {
+    return 'not_pending' as const;
+  }
+
   return { id: application.id };
 };
