@@ -90,6 +90,23 @@ export const applyToProject = async (
   }
 
   const application = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
+
+    const stillOpen = await tx.project.findFirst({
+      where: {
+        id: projectId,
+        isPublic: true,
+        status: 'FUNDED',
+        escrowStatus: 'FUNDED',
+        freelancerId: null,
+      },
+      select: { id: true },
+    });
+
+    if (!stillOpen) {
+      return 'freelancer_already_assigned' as const;
+    }
+
     const result = existing
       ? await tx.application.update({
           where: { id: existing.id },
@@ -125,6 +142,10 @@ export const applyToProject = async (
 
     return result;
   });
+
+  if (application === 'freelancer_already_assigned') {
+    return application;
+  }
 
   return serializeApplication(application);
 };
