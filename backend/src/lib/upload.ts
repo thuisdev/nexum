@@ -81,6 +81,10 @@ export function isAllowedAvatarFile(mimetype: string, originalname: string) {
   return AVATAR_MIME.has(mimetype) && AVATAR_EXT.has(ext);
 }
 
+export function isAvatarUploadFilename(filename: string) {
+  return AVATAR_EXT.has(path.extname(filename).toLowerCase());
+}
+
 /** Optional single file on milestone submit — max 10 MB. */
 export const submitUpload = multer({
   storage,

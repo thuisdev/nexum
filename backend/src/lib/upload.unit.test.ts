@@ -7,6 +7,7 @@ import {
   filenameFromStoredUrl,
   isAllowedAvatarFile,
   isAllowedSubmitFile,
+  isAvatarUploadFilename,
   resolveUploadDir,
   safeUploadFilename,
 } from './upload.js';
@@ -67,6 +68,20 @@ describe('applyUploadStaticHeaders', () => {
 
     expect(headers['Cross-Origin-Resource-Policy']).toBe('cross-origin');
     expect(headers['Content-Disposition']).toBe('attachment');
+  });
+});
+
+describe('isAvatarUploadFilename', () => {
+  it('allows raster avatar extensions', () => {
+    expect(isAvatarUploadFilename('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png')).toBe(
+      true,
+    );
+  });
+
+  it('rejects deliverable extensions', () => {
+    expect(isAvatarUploadFilename('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf')).toBe(
+      false,
+    );
   });
 });
 

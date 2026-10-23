@@ -5,7 +5,7 @@ const avatarUrlSchema = z
   .trim()
   .refine(
     (value) =>
-      /^\/uploads\/[A-Za-z0-9._-]+$/.test(value) ||
+      /^\/uploads\/[A-Za-z0-9._-]+\.(png|jpe?g|webp|gif)$/i.test(value) ||
       z.string().url().safeParse(value).success,
     'Must be a URL or /uploads/ path',
   )

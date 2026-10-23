@@ -19,6 +19,14 @@ describe('updateUserSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('rejects a stored deliverable used as an avatar', () => {
+    const result = updateUserSchema.safeParse({
+      avatarUrl: '/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects path traversal disguised as an upload', () => {
     const result = updateUserSchema.safeParse({
       avatarUrl: '/uploads/../secret.png',

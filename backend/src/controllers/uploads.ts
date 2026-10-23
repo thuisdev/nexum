@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
 import {
+  isAvatarUploadFilename,
   safeUploadFilename,
   sendStoredUpload,
 } from '../lib/upload.js';
@@ -14,7 +15,7 @@ export const handlePublicAvatar = async (
 ) => {
   try {
     const filename = safeUploadFilename(String(req.params.filename ?? ''));
-    if (!filename) {
+    if (!filename || !isAvatarUploadFilename(filename)) {
       res.status(404).json({ error: 'Not found' });
       return;
     }
