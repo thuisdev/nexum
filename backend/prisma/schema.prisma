@@ -198,6 +198,7 @@ model Submission {
 
   @@index([milestoneId])
   @@index([submittedBy])
+  @@unique([milestoneId, version])
 }
 
 model Approval {

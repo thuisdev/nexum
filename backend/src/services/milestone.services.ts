@@ -259,7 +259,9 @@ export const submitMilestone = async (
 
   const projectId = milestone.projectId;
 
-  const outcome = await prisma.$transaction(async (tx) => {
+  let outcome;
+  try {
+    outcome = await prisma.$transaction(async (tx) => {
     const claimed = await tx.milestone.updateMany({
       where: {
         id: milestoneId,
@@ -318,7 +320,16 @@ export const submitMilestone = async (
     });
 
     return { projectId } as const;
-  });
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      return 'invalid_status' as const;
+    }
+    throw error;
+  }
 
   return outcome;
 };
