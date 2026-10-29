@@ -483,8 +483,14 @@ export default function ProjectDetailPage() {
 
   const applicationPending = myApplication?.status === 'PENDING'
 
+  const isReviewParty = Boolean(
+    project &&
+      user &&
+      (user.id === project.clientId || user.id === project.freelancerId),
+  )
+
   const reviewSubject =
-    project && user
+    project && user && isReviewParty
       ? user.id === project.clientId
         ? project.freelancer
         : project.client
