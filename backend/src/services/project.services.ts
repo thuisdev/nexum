@@ -567,26 +567,12 @@ export const appendMilestones = async (
     return 'no_freelancer' as const;
   }
 
-  const hasStartedWork = project.milestones.some((m) => m.status !== 'PENDING');
-  if (hasStartedWork) {
-    return 'milestones_in_progress' as const;
-  }
+  let updated;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
 
-  const startIndex = project.milestones.length;
-  const newMilestones = input.milestones.map((milestone, index) => ({
-    orderIndex: startIndex + index,
-    title: milestone.title,
-    description: milestone.description,
-    amount: milestone.amount,
-    deadline: milestone.deadline,
-  }));
-
-  const newTotal =
-    project.milestones.reduce((sum, m) => sum + Number(m.amount), 0) +
-    newMilestones.reduce((sum, m) => sum + Number(m.amount), 0);
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const claimed = await tx.project.updateMany({
+    const locked = await tx.project.findFirst({
       where: {
         id: projectId,
         clientId,
@@ -594,11 +580,32 @@ export const appendMilestones = async (
         escrowStatus: 'NOT_FUNDED',
         freelancerId: { not: null },
       },
-      data: { totalBudget: new Prisma.Decimal(newTotal.toFixed(2)) },
+      include: { milestones: true },
     });
 
-    if (claimed.count === 0) {
+    if (!locked) {
       return 'not_editable' as const;
+    }
+
+    if (locked.milestones.some((m) => m.status !== 'PENDING')) {
+      return 'milestones_in_progress' as const;
+    }
+
+    const startIndex = locked.milestones.length;
+    const newMilestones = input.milestones.map((milestone, index) => ({
+      orderIndex: startIndex + index,
+      title: milestone.title,
+      description: milestone.description,
+      amount: milestone.amount,
+      deadline: milestone.deadline,
+    }));
+
+    let newTotal = locked.milestones.reduce(
+      (sum, m) => sum.plus(m.amount),
+      new Prisma.Decimal(0),
+    );
+    for (const milestone of newMilestones) {
+      newTotal = newTotal.plus(milestone.amount);
     }
 
     await tx.milestone.createMany({
@@ -610,6 +617,11 @@ export const appendMilestones = async (
         amount: new Prisma.Decimal(milestone.amount),
         deadline: milestone.deadline,
       })),
+    });
+
+    await tx.project.update({
+      where: { id: projectId },
+      data: { totalBudget: newTotal },
     });
 
     await tx.activityLog.create({
@@ -629,9 +641,18 @@ export const appendMilestones = async (
         freelancer: { select: clientPublicSelect },
       },
     });
-  });
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      return 'not_editable' as const;
+    }
+    throw error;
+  }
 
-  if (updated === 'not_editable') {
+  if (updated === 'not_editable' || updated === 'milestones_in_progress') {
     return updated;
   }
 

@@ -181,6 +181,7 @@ model Milestone {
   disputes    Dispute[]
 
   @@index([projectId])
+  @@unique([projectId, orderIndex])
 }
 
 model Submission {
