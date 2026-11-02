@@ -175,6 +175,16 @@ function ProjectDetailContent() {
   const [myReview, setMyReview] = useState<ProjectReview | null>(null)
   const [myApplication, setMyApplication] = useState<Application | null>(null)
   const reloadGen = useRef(0)
+
+  const refreshActivity = async (projectId: string) => {
+    try {
+      setActivity(await getProjectActivity(projectId))
+    } catch {
+      setActivity([])
+    }
+  }
+
+  const reloadProject = useCallback(async () => {
   const reloadProject = useCallback(async () => {
     if (!id || authLoading) return
 
@@ -308,8 +318,7 @@ function ProjectDetailContent() {
       const full = await getProject(id)
       setProject(full)
       setMode('full')
-      const logs = await getProjectActivity(id)
-      setActivity(logs)
+      await refreshActivity(id)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))
     } finally {
@@ -372,8 +381,7 @@ function ProjectDetailContent() {
       const full = await getProject(id)
       setProject(full)
       setMode('full')
-      const logs = await getProjectActivity(id)
-      setActivity(logs)
+      await refreshActivity(id)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not fund project'))
     } finally {
@@ -658,10 +666,7 @@ function ProjectDetailContent() {
         submitFile,
       )
       setProject(full)
-      if (id) {
-        const logs = await getProjectActivity(id)
-        setActivity(logs)
-      }
+      if (id) await refreshActivity(id)
       closeSubmitDialog()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not submit work'))
@@ -676,10 +681,7 @@ function ProjectDetailContent() {
     try {
       const full = await approveMilestone(approveMilestoneId)
       setProject(full)
-      if (id) {
-        const logs = await getProjectActivity(id)
-        setActivity(logs)
-      }
+      if (id) await refreshActivity(id)
       closeApproveDialog()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not approve milestone'))
@@ -694,10 +696,7 @@ function ProjectDetailContent() {
     try {
       const full = await returnMilestone(returnMilestoneId)
       setProject(full)
-      if (id) {
-        const logs = await getProjectActivity(id)
-        setActivity(logs)
-      }
+      if (id) await refreshActivity(id)
       closeReturnDialog()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not request changes'))
