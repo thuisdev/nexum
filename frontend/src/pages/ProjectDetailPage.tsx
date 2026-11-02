@@ -136,6 +136,11 @@ function resolveParties(
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
+  return <ProjectDetailContent key={id} />
+}
+
+function ProjectDetailContent() {
+  const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user, isLoading: authLoading } = useAuth()
@@ -279,11 +284,6 @@ export default function ProjectDetailPage() {
       reloadGen.current += 1
     }
   }, [reloadProject])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when switching projects
-    setShowCompletedMilestones(false)
-  }, [id])
 
   const closeInviteModal = () => {
     setInviteOpen(false)
