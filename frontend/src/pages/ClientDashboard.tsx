@@ -34,7 +34,7 @@ export default function ClientDashboard() {
   const [inviteProjectId, setInviteProjectId] = useState<string | null>(null)
   const [reviewProject, setReviewProject] = useState<Project | null>(null)
   const [filter, setFilter] = useState<ClientFilter>('all')
-  const [showCompleted, setShowCompleted] = useState(false)
+  const [showClosed, setShowClosed] = useState(false)
 
   const refreshProjects = useCallback(async () => {
     setLoading(true)
@@ -84,8 +84,10 @@ export default function ClientDashboard() {
         p.status !== 'COMPLETED' &&
         p.status !== 'CANCELLED',
     ).length
-    const completed = projects.filter((p) => p.status === 'COMPLETED').length
-    return { total: projects.length, drafts, active, completed }
+    const closed = projects.filter(
+      (p) => p.status === 'COMPLETED' || p.status === 'CANCELLED',
+    ).length
+    return { total: projects.length, drafts, active, closed }
   }, [projects])
 
   const filteredProjects = useMemo(() => {
@@ -106,8 +108,11 @@ export default function ClientDashboard() {
     return list
   }, [projects, filter])
 
-  const completedProjects = useMemo(
-    () => projects.filter((p) => p.status === 'COMPLETED'),
+  const closedProjects = useMemo(
+    () =>
+      projects.filter(
+        (p) => p.status === 'COMPLETED' || p.status === 'CANCELLED',
+      ),
     [projects],
   )
 
@@ -225,24 +230,24 @@ export default function ClientDashboard() {
         </div>
       )}
 
-      {!loading && summary.completed > 0 && (
+      {!loading && summary.closed > 0 && (
         <div className="mt-6 flex flex-col gap-4 px-4 md:px-0">
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => setShowCompleted((prev) => !prev)}
+              onClick={() => setShowClosed((prev) => !prev)}
               className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
             >
-              {showCompleted
-                ? 'Hide completed'
-                : `Show completed (${summary.completed})`}
+              {showClosed
+                ? 'Hide closed'
+                : `Show closed (${summary.closed})`}
             </button>
           </div>
-          {showCompleted && (
+          {showClosed && (
             <div className="-mx-4 flex flex-col gap-3 border-t border-ink-100 pt-6 md:mx-0">
-              <SectionLabel className="px-4 md:px-0">Completed</SectionLabel>
+              <SectionLabel className="px-4 md:px-0">Closed</SectionLabel>
               <div className="grid gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
-                {completedProjects.map((project) => renderClientProjectCard(project))}
+                {closedProjects.map((project) => renderClientProjectCard(project))}
               </div>
             </div>
           )}
