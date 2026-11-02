@@ -36,6 +36,7 @@ export const releaseMilestonePayout = async (
 ) => {
   const projectId = milestone.projectId;
   const payoutTxRef = simulatedPayoutRef();
+  const refundTxRef = options.split ? simulatedPayoutRef() : null;
   const now = new Date();
   const payoutAmount = options.amount ?? milestone.amount;
   const isSplit = Boolean(options.split);
@@ -52,6 +53,7 @@ export const releaseMilestonePayout = async (
           split: true,
           milestoneAmount: milestone.amount.toString(),
           refundedAmount: refundedAmount.toString(),
+          refundTxRef,
         }
       : {}),
   };
@@ -77,6 +79,7 @@ export const releaseMilestonePayout = async (
       milestoneId: milestone.id,
       approvedBy,
       payoutTxRef,
+      refundTxRef,
       payoutMethod: isSplit ? 'SIMULATED_SPLIT' : 'SIMULATED',
     },
   });
@@ -126,9 +129,26 @@ export const releaseMilestonePayout = async (
     });
   }
 
+  if (isSplit && refundedAmount && refundTxRef) {
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: approvedBy,
+        action: 'MILESTONE_REFUNDED',
+        metadata: {
+          milestoneId: milestone.id,
+          milestoneTitle: milestone.title,
+          amount: refundedAmount.toString(),
+          refundTxRef,
+          split: true,
+        },
+      },
+    });
+  }
+
   await advanceProjectAfterTerminal(tx, milestone, approvedBy, now, 'PAID');
 
-  return { projectId, payoutTxRef } as const;
+  return { projectId, payoutTxRef, refundTxRef } as const;
 };
 
 const isTerminalStatus = (status: string) =>
@@ -168,11 +188,19 @@ async function advanceProjectAfterTerminal(
       (item) => item.id !== milestone.id && item.status === 'PAID',
     );
 
+  const splitApproval = await tx.approval.findFirst({
+    where: {
+      payoutMethod: 'SIMULATED_SPLIT',
+      milestone: { projectId },
+    },
+    select: { id: true },
+  });
+
   await tx.project.update({
     where: { id: projectId },
     data: {
       status: 'COMPLETED',
-      escrowStatus: anyPaid ? 'RELEASED' : 'REFUNDED',
+      escrowStatus: splitApproval ? 'SPLIT' : anyPaid ? 'RELEASED' : 'REFUNDED',
       completedAt: now,
     },
   });

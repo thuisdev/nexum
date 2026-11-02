@@ -397,13 +397,22 @@ export const resolveDispute = async (
       return 'already_resolved' as const;
     }
 
+    let splitShares: {
+      freelancerShare: string;
+      clientShare: string;
+      payoutTxRef: string;
+      refundTxRef: string;
+    } | null = null;
+
     if (input.outcome === 'RESOLVED_CLIENT') {
       const refund = await refundMilestone(tx, dispute.milestone, userId);
       if (refund === 'already_released') {
         throw new Error('Dispute resolve lost the refund claim');
       }
     } else if (input.outcome === 'SPLIT') {
-      const { freelancerShare } = splitSimulatedPayout(dispute.milestone.amount);
+      const { freelancerShare, clientShare } = splitSimulatedPayout(
+        dispute.milestone.amount,
+      );
       const payout = await releaseMilestonePayout(tx, dispute.milestone, userId, {
         amount: freelancerShare,
         split: true,
@@ -412,6 +421,15 @@ export const resolveDispute = async (
       if (payout === 'already_released') {
         throw new Error('Dispute resolve lost the payout claim');
       }
+      if (!payout.refundTxRef) {
+        throw new Error('Split payout did not record a client refund');
+      }
+      splitShares = {
+        freelancerShare: freelancerShare.toString(),
+        clientShare: clientShare.toString(),
+        payoutTxRef: payout.payoutTxRef,
+        refundTxRef: payout.refundTxRef,
+      };
     } else {
       const payout = await releaseMilestonePayout(tx, dispute.milestone, userId, {
         expectedStatuses: ['DISPUTED'],
@@ -447,6 +465,7 @@ export const resolveDispute = async (
           ...(input.outcome === 'RESOLVED_CLIENT'
             ? { refundedAmount: dispute.milestone.amount.toString() }
             : {}),
+          ...(splitShares ?? {}),
         },
       },
     });

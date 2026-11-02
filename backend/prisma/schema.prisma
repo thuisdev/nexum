@@ -84,6 +84,7 @@ enum EscrowStatus {
   FUNDED
   RELEASED
   REFUNDED
+  SPLIT
 }
 
 // MODELS
@@ -207,6 +208,7 @@ model Approval {
   milestoneId  String  @unique
   approvedBy   String
   payoutTxRef  String?
+  refundTxRef  String?
   payoutMethod String? @default("SIMULATED")
 
   approvedAt DateTime @default(now())

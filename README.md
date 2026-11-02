@@ -321,7 +321,7 @@ PENDING → IN_PROGRESS → SUBMITTED → PAID
               └──── next milestone ──────┘
 ```
 
-Project moves `DRAFT` → `FUNDED` on fund (or `IN_PROGRESS` if a freelancer is already assigned) and `COMPLETED` when every milestone is `PAID` or `REFUNDED`. Escrow is simulated; `Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2.
+Project moves `DRAFT` → `FUNDED` on fund (or `IN_PROGRESS` if a freelancer is already assigned) and `COMPLETED` when every milestone is `PAID` or `REFUNDED`. Escrow is simulated; `Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2. A split also writes `Approval.refundTxRef` for the client half and closes escrow as `SPLIT`.
 
 ---
 

@@ -138,6 +138,7 @@ export function projectEscrowFunded(
   return (
     project.escrowStatus === 'FUNDED' ||
     project.escrowStatus === 'RELEASED' ||
+    project.escrowStatus === 'SPLIT' ||
     project.status === 'IN_PROGRESS' ||
     project.status === 'COMPLETED'
   )

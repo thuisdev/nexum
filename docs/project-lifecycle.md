@@ -43,7 +43,7 @@ Prefunded public jobs stay `FUNDED` until a freelancer is assigned, then become 
 | **DRAFT** | Created; not yet funded | `NOT_FUNDED` | `FUNDED` or `IN_PROGRESS` (on fund) |
 | **FUNDED** | Client funded; no freelancer yet (job board) | `FUNDED` | `IN_PROGRESS` |
 | **IN_PROGRESS** | Freelancer assigned and work is active | `FUNDED` until every milestone is terminal | `COMPLETED` |
-| **COMPLETED** | Every milestone is `PAID` or `REFUNDED` | `RELEASED` if any was paid, else `REFUNDED` | — |
+| **COMPLETED** | Every milestone is `PAID` or `REFUNDED` | `SPLIT` if any payout was a split; else `RELEASED` if any was paid; else `REFUNDED` | — |
 | **CANCELLED** | Client cancelled a funded job before a freelancer was assigned | `REFUNDED` | Unfunded drafts are still **deleted** |
 
 ### Transitions (detail)
@@ -110,7 +110,7 @@ Implemented in Phase 1 (simulated money). Opening requires at least one user wit
 |--------|-----------|-------------------|
 | `RESOLVED_FREELANCER` | `PAID` | Full milestone amount to freelancer |
 | `RESOLVED_CLIENT` | `REFUNDED` | Full amount treated as returned to client |
-| `SPLIT` | `PAID` (split metadata) | Half to freelancer (rounded down); leftover cent stays with the client |
+| `SPLIT` | `PAID` + client refund ledger | Half to freelancer (rounded down) as `Approval.payoutTxRef`; remainder as `Approval.refundTxRef`. Leftover cent stays with the client |
 
 Rules:
 
@@ -120,7 +120,7 @@ Rules:
 - Freelancer and client are notified; the assigned arbiter is notified too.
 - Resolve is claimed with `updateMany` so a double-click cannot pay twice.
 
-Escrow does **not** jump to `RELEASED` after a single paid milestone. It stays `FUNDED` until **every** milestone is `PAID` or `REFUNDED`.
+Escrow does **not** jump to `RELEASED` after a single paid milestone. It stays `FUNDED` until **every** milestone is `PAID` or `REFUNDED`. A completed project with any `SIMULATED_SPLIT` approval is `SPLIT`, not `RELEASED`.
 
 ---
 
@@ -132,8 +132,9 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 |--------|------|
 | `NOT_FUNDED` | Draft, no deposit |
 | `FUNDED` | Client funded; budget locked — **including** after some (but not all) milestones are paid or refunded |
-| `RELEASED` | Project completed and at least one milestone was `PAID` |
+| `RELEASED` | Project completed and at least one milestone was `PAID`, none as a split |
 | `REFUNDED` | Project completed and every milestone was `REFUNDED` |
+| `SPLIT` | Project completed and at least one milestone was paid as a split |
 
 ---
 

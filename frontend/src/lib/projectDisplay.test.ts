@@ -9,6 +9,7 @@ import {
   mapMilestoneStatus,
   mapProjectStatus,
   projectDraftMeta,
+  projectEscrowFunded,
 } from './projectDisplay'
 import type { Milestone, Project } from '@/types/project'
 
@@ -150,6 +151,14 @@ describe('canCancelProject', () => {
         'client-1',
       ),
     ).toBe(false)
+  })
+})
+
+describe('projectEscrowFunded', () => {
+  it('treats a split close as escrow that already held funds', () => {
+    expect(
+      projectEscrowFunded({ escrowStatus: 'SPLIT', status: 'COMPLETED' }),
+    ).toBe(true)
   })
 })
 
