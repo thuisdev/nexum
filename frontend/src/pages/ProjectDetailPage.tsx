@@ -232,10 +232,8 @@ function ProjectDetailContent() {
         return
       } catch (err) {
         if (!isCurrent()) return
-        if (
-          !axios.isAxiosError(err) ||
-          (err.response?.status !== 403 && err.response?.status !== 404)
-        ) {
+        const status = axios.isAxiosError(err) ? err.response?.status : undefined
+        if (status !== 401 && status !== 403 && status !== 404) {
           setError(getApiErrorMessage(err, 'Could not load project'))
           setMode('error')
           setLoading(false)
