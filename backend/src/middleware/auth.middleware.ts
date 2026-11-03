@@ -2,9 +2,10 @@ import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 import type { Role } from '../generated/prisma/enums.js';
+import { prisma } from '../lib/prisma.js';
 
-/** Verify Bearer JWT and attach userId + userRole to the request. */
-export const checkAuth = (
+/** Verify Bearer JWT and attach userId + current DB role to the request. */
+export const checkAuth = async (
   req: Request,
   res: Response,
   next: NextFunction,
@@ -23,15 +24,31 @@ export const checkAuth = (
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      id: string;
-      role: string;
+      id?: string;
     };
 
+    if (!decoded.id) {
+      return res.status(401).json({ error: 'Access denied' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { role: true },
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Access denied' });
+    }
+
     req.userId = decoded.id;
-    req.userRole = decoded.role as Role;
+    req.userRole = user.role;
     next();
-  } catch {
-    return res.status(401).json({ error: 'Access denied' });
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ error: 'Access denied' });
+    }
+
+    next(error);
   }
 };
 
