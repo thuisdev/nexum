@@ -45,6 +45,7 @@ export function MilestoneCard({
   const showSubmission =
     submission &&
     (status === 'SUBMITTED' ||
+      status === 'IN_PROGRESS' ||
       status === 'PAID' ||
       status === 'APPROVED' ||
       status === 'DISPUTED' ||
@@ -106,7 +107,7 @@ export function MilestoneCard({
       {showSubmission && (
         <div className="rounded-lg border border-ink-100 bg-ink-50 p-3 text-left">
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-500">
-            Submission
+            {status === 'IN_PROGRESS' ? 'Previous submission' : 'Submission'}
           </p>
           <p className="whitespace-pre-wrap text-sm leading-5 text-ink-800">
             {submission.content}
