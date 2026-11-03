@@ -4,6 +4,7 @@ import {
   canCancelProject,
   canReturnMilestone,
   canSubmitMilestone,
+  canWithdrawApplication,
   displayName,
   formatDeadline,
   mapMilestoneStatus,
@@ -121,6 +122,16 @@ describe('canSubmitMilestone', () => {
         'freelancer-1',
       ),
     ).toBe(false)
+  })
+})
+
+describe('canWithdrawApplication', () => {
+  it('hides withdraw while an invite is open', () => {
+    expect(canWithdrawApplication('PENDING', true)).toBe(false)
+  })
+
+  it('lets a freelancer withdraw a pending application without an invite', () => {
+    expect(canWithdrawApplication('PENDING', false)).toBe(true)
   })
 })
 

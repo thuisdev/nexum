@@ -339,6 +339,14 @@ export function canSubmitMilestone(
   )
 }
 
+/** Invite wins over a leftover pending application. */
+export function canWithdrawApplication(
+  applicationStatus: string | null | undefined,
+  isInvited: boolean,
+) {
+  return applicationStatus === 'PENDING' && !isInvited
+}
+
 /** Base URL for uploaded files (strip trailing /api from VITE_API_URL). */
 export function uploadFileUrl(fileUrl: string | null | undefined) {
   if (!fileUrl) return null

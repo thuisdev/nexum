@@ -66,6 +66,7 @@ import {
   canEditProject,
   canOpenApplicationsReview,
   canSubmitMilestone,
+  canWithdrawApplication,
   displayName,
   formatDeadline,
   mapMilestoneStatus,
@@ -487,7 +488,10 @@ function ProjectDetailContent() {
       (!myApplication || myApplication.status === 'REJECTED'),
   )
 
-  const applicationPending = myApplication?.status === 'PENDING'
+  const applicationPending = canWithdrawApplication(
+    myApplication?.status,
+    Boolean(isInvitedFreelancer),
+  )
 
   const isReviewParty = Boolean(
     project &&
