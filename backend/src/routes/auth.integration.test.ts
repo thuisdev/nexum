@@ -44,6 +44,16 @@ describe.skipIf(!hasDatabase)('auth integration', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.token).toBeTypeOf('string');
+    expect(response.body.user).toMatchObject({
+      id: userId,
+      email,
+      role: 'FREELANCER',
+      displayName: 'integration.eth',
+    });
+    expect(response.body.user).toHaveProperty('avatarUrl');
+    expect(response.body.user).toHaveProperty('avatarColor');
+    expect(response.body.user).toHaveProperty('bio');
+    expect(response.body.user).toHaveProperty('skills');
   });
 
   it('rejects invalid credentials', async () => {
