@@ -57,6 +57,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       password: credentails.password
     });
     localStorage.setItem(TOKEN_KEY, data.token);
+    if (data.user?.id) {
+      setUser(data.user);
+      return;
+    }
     try {
       const res = await getMe();
       setUser(res.data);
