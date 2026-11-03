@@ -5,7 +5,10 @@ import type {
   OpenDisputeInput,
   ResolveDisputeInput,
 } from '../schemas/dispute.schema.js';
-import { splitSimulatedPayout } from '../lib/splitPayout.js';
+import {
+  canSplitSimulatedPayout,
+  splitSimulatedPayout,
+} from '../lib/splitPayout.js';
 import {
   refundMilestone,
   releaseMilestonePayout,
@@ -376,6 +379,13 @@ export const resolveDispute = async (
 
   if (!openDisputeStatuses.includes(dispute.status)) {
     return 'already_resolved' as const;
+  }
+
+  if (
+    input.outcome === 'SPLIT' &&
+    !canSplitSimulatedPayout(dispute.milestone.amount)
+  ) {
+    return 'split_too_small' as const;
   }
 
   const project = dispute.milestone.project;

@@ -156,6 +156,14 @@ export const handleResolveDispute = async (
       return;
     }
 
+    if (dispute === 'split_too_small') {
+      res.status(409).json({
+        error:
+          'This milestone is too small to split. Choose freelancer or client.',
+      });
+      return;
+    }
+
     res.json(dispute);
   } catch (error) {
     next(error);

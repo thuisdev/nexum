@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { Prisma } from '../generated/prisma/client.js';
-import { splitSimulatedPayout } from './splitPayout.js';
+import {
+  canSplitSimulatedPayout,
+  splitSimulatedPayout,
+} from './splitPayout.js';
 
 describe('splitSimulatedPayout', () => {
   it('splits even amounts in half', () => {
@@ -21,5 +24,10 @@ describe('splitSimulatedPayout', () => {
     expect(freelancerShare.toString()).toBe('50');
     expect(clientShare.toString()).toBe('50.01');
     expect(freelancerShare.plus(clientShare).toString()).toBe('100.01');
+  });
+
+  it('rejects a split that would pay the freelancer 0.00', () => {
+    expect(canSplitSimulatedPayout(new Prisma.Decimal('0.01'))).toBe(false);
+    expect(canSplitSimulatedPayout(new Prisma.Decimal('0.02'))).toBe(true);
   });
 });

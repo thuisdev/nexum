@@ -110,7 +110,7 @@ Implemented in Phase 1 (simulated money). Opening requires at least one user wit
 |--------|-----------|-------------------|
 | `RESOLVED_FREELANCER` | `PAID` | Full milestone amount to freelancer |
 | `RESOLVED_CLIENT` | `REFUNDED` | Full amount treated as returned to client |
-| `SPLIT` | `PAID` + client refund ledger | Half to freelancer (rounded down) as `Approval.payoutTxRef`; remainder as `Approval.refundTxRef`. Leftover cent stays with the client |
+| `SPLIT` | `PAID` + client refund ledger | Half to freelancer (rounded down) as `Approval.payoutTxRef`; remainder as `Approval.refundTxRef`. Leftover cent stays with the client. Rejected with 409 if the freelancer share would be `0.00` |
 
 Rules:
 
