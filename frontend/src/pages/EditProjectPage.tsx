@@ -78,6 +78,11 @@ function validateForm(data: CreateProjectFormInput): FormErrors {
 
 export default function EditProjectPage() {
   const { id } = useParams<{ id: string }>()
+  return <EditProjectContent key={id} />
+}
+
+function EditProjectContent() {
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
 
