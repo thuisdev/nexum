@@ -77,6 +77,11 @@ function CompletedProjectCard({
 
 export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>()
+  return <UserProfileContent key={id} />
+}
+
+function UserProfileContent() {
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
   const isOwner = user?.id === id
