@@ -185,7 +185,19 @@ function ProjectDetailContent() {
     }
   }
 
-  const reloadProject = useCallback(async () => {
+  const refreshProjectAfterMutate = async () => {
+    if (!id) return
+    try {
+      const full = await getProject(id)
+      setProject(full)
+      setPreview(null)
+      setMode('full')
+    } catch {
+      // write already succeeded
+    }
+    await refreshActivity(id)
+  }
+
   const reloadProject = useCallback(async () => {
     if (!id || authLoading) return
 
@@ -316,10 +328,7 @@ function ProjectDetailContent() {
     try {
       await acceptInvite(id)
       void markProjectNotificationsRead(id).catch(() => undefined)
-      const full = await getProject(id)
-      setProject(full)
-      setMode('full')
-      await refreshActivity(id)
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))
     } finally {
@@ -379,10 +388,7 @@ function ProjectDetailContent() {
     setActionLoading(true)
     try {
       await fundProject(id)
-      const full = await getProject(id)
-      setProject(full)
-      setMode('full')
-      await refreshActivity(id)
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not fund project'))
     } finally {
