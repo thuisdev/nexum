@@ -454,7 +454,7 @@ function ProjectDetailContent() {
     setActionLoading(true)
     try {
       await cancelInvite(id)
-      await reloadProject()
+      await refreshProjectAfterMutate()
       setError(null)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not cancel invite'))
@@ -616,7 +616,7 @@ function ProjectDetailContent() {
         reason,
       })
       setDisputeOpen(false)
-      await reloadProject()
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not open dispute'))
     } finally {
@@ -629,7 +629,7 @@ function ProjectDetailContent() {
     setActionLoading(true)
     try {
       await startDisputeReview(project.openDispute.id)
-      await reloadProject()
+      await refreshProjectAfterMutate()
       setResolveOpen(true)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not start dispute review'))
@@ -644,7 +644,7 @@ function ProjectDetailContent() {
     try {
       await resolveDispute(project.openDispute.id, { outcome, resolution })
       setResolveOpen(false)
-      await reloadProject()
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not resolve dispute'))
     } finally {
@@ -1075,7 +1075,7 @@ function ProjectDetailContent() {
             open={inviteOpen}
             projectId={id}
             onClose={closeInviteModal}
-            onSuccess={() => void reloadProject()}
+            onSuccess={() => void refreshProjectAfterMutate()}
           />
         )}
 
@@ -1085,7 +1085,7 @@ function ProjectDetailContent() {
             projectId={id}
             projectTitle={project?.title}
             onClose={closeApplicationsModal}
-            onUpdated={() => void reloadProject()}
+            onUpdated={() => void refreshProjectAfterMutate()}
             showProjectLink={false}
           />
         )}
