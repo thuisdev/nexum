@@ -148,7 +148,6 @@ export default function FreelancerDashboard() {
     setAcceptingId(projectId)
     try {
       await acceptInvite(projectId)
-      await Promise.all([refreshProjects(), refreshApplications()])
       navigate(ROUTES.project(projectId))
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))
