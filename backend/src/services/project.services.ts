@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Prisma } from '../generated/prisma/client.js';
 import type { Role } from '../generated/prisma/enums.js';
 import { DisputeStatus } from '../generated/prisma/enums.js';
@@ -266,13 +268,12 @@ export const getProjectById = async (
     (openDispute.arbiterId === userId || openDispute.arbiterId === null);
 
   const isOpenPublicJob = isEscrowBackedPublicJob(project);
+  const isParticipant =
+    canAccessProject(project, userId, userRole) ||
+    Boolean(arbiterCanAccess) ||
+    userRole === 'ADMIN';
 
-  if (
-    !canAccessProject(project, userId, userRole) &&
-    !arbiterCanAccess &&
-    userRole !== 'ADMIN' &&
-    !isOpenPublicJob
-  ) {
+  if (!isParticipant && !isOpenPublicJob) {
     return 'forbidden' as const;
   }
 
@@ -280,7 +281,8 @@ export const getProjectById = async (
     ...serializeProject(project),
     client: project.client,
     freelancer: project.freelancer,
-    invitedFreelancer: project.invitedFreelancer,
+    invitedFreelancerId: isParticipant ? project.invitedFreelancerId : null,
+    invitedFreelancer: isParticipant ? project.invitedFreelancer : null,
     ...(userRole === 'CLIENT' &&
     project.clientId === userId &&
     '_count' in project &&
@@ -323,8 +325,121 @@ export const deleteProject = async (projectId: string, clientId: string) => {
     return 'freelancer_assigned' as const;
   }
 
-  await prisma.project.delete({ where: { id: projectId } });
+  const deleted = await prisma.project.deleteMany({
+    where: {
+      id: projectId,
+      clientId,
+      status: 'DRAFT',
+      escrowStatus: 'NOT_FUNDED',
+      freelancerId: null,
+    },
+  });
+
+  if (deleted.count === 0) {
+    return 'not_deletable' as const;
+  }
+
   return { id: projectId };
+};
+
+/** Cancel a funded job that nobody accepted — simulated escrow refund. */
+export const cancelProject = async (projectId: string, clientId: string) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (project.freelancerId) {
+    return 'freelancer_assigned' as const;
+  }
+
+  if (project.status !== 'FUNDED' || project.escrowStatus !== 'FUNDED') {
+    return 'not_cancellable' as const;
+  }
+
+  const outcome = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        status: 'FUNDED',
+        escrowStatus: 'FUNDED',
+        freelancerId: null,
+      },
+      data: {
+        status: 'CANCELLED',
+        escrowStatus: 'REFUNDED',
+        invitedFreelancerId: null,
+      },
+    });
+
+    if (claimed.count === 0) {
+      return 'not_cancellable' as const;
+    }
+
+    const pendingApplications = await tx.application.findMany({
+      where: { projectId, status: 'PENDING' },
+      select: { freelancerId: true },
+    });
+
+    if (pendingApplications.length > 0) {
+      await tx.application.updateMany({
+        where: { projectId, status: 'PENDING' },
+        data: { status: 'REJECTED' },
+      });
+
+      for (const row of pendingApplications) {
+        await tx.notification.create({
+          data: {
+            userId: row.freelancerId,
+            projectId,
+            type: 'APPLICATION_REJECTED',
+            message: `Project "${project.title}" was cancelled`,
+          },
+        });
+      }
+    }
+
+    if (project.invitedFreelancerId) {
+      await notifyInviteCancelled(tx, {
+        userId: project.invitedFreelancerId,
+        projectId,
+        title: project.title,
+      });
+    }
+
+    const refundTxRef = `SIM-${randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'PROJECT_CANCELLED',
+        metadata: {
+          escrowStatus: 'REFUNDED',
+          refundTxRef,
+          amount: project.totalBudget.toString(),
+        },
+      },
+    });
+
+    // Phase 2: on-chain refund to client when no freelancer was assigned (SC)
+
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
+  });
+
+  if (outcome === 'not_cancellable') {
+    return outcome;
+  }
+
+  return serializeProject(outcome);
 };
 
 const draftEditable = (project: { status: string; escrowStatus: string }) =>
@@ -358,12 +473,13 @@ export const updateProject = async (
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    if (input.milestones) {
-      await tx.milestone.deleteMany({ where: { projectId } });
-    }
-
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        status: 'DRAFT',
+        escrowStatus: 'NOT_FUNDED',
+        freelancerId: null,
+      },
       data: {
         ...(input.title !== undefined && { title: input.title }),
         ...(input.description !== undefined && { description: input.description }),
@@ -373,24 +489,26 @@ export const updateProject = async (
         ...(input.currency !== undefined && { currency: input.currency }),
         ...(input.isPublic !== undefined && { isPublic: input.isPublic }),
         ...(input.skills !== undefined && { skills: input.skills }),
-        ...(input.milestones && {
-          milestones: {
-            create: input.milestones.map((milestone) => ({
-              orderIndex: milestone.orderIndex,
-              title: milestone.title,
-              description: milestone.description,
-              amount: new Prisma.Decimal(milestone.amount),
-              deadline: milestone.deadline,
-            })),
-          },
-        }),
-      },
-      include: {
-        milestones: true,
-        client: { select: clientPublicSelect },
-        freelancer: { select: clientPublicSelect },
       },
     });
+
+    if (claimed.count === 0) {
+      return 'not_editable' as const;
+    }
+
+    if (input.milestones) {
+      await tx.milestone.deleteMany({ where: { projectId } });
+      await tx.milestone.createMany({
+        data: input.milestones.map((milestone) => ({
+          projectId,
+          orderIndex: milestone.orderIndex,
+          title: milestone.title,
+          description: milestone.description,
+          amount: new Prisma.Decimal(milestone.amount),
+          deadline: milestone.deadline,
+        })),
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -401,8 +519,19 @@ export const updateProject = async (
       },
     });
 
-    return result;
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: {
+        milestones: true,
+        client: { select: clientPublicSelect },
+        freelancer: { select: clientPublicSelect },
+      },
+    });
   });
+
+  if (updated === 'not_editable') {
+    return updated;
+  }
 
   return {
     ...serializeProject(updated),
@@ -438,25 +567,47 @@ export const appendMilestones = async (
     return 'no_freelancer' as const;
   }
 
-  const hasStartedWork = project.milestones.some((m) => m.status !== 'PENDING');
-  if (hasStartedWork) {
-    return 'milestones_in_progress' as const;
-  }
+  let updated;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
 
-  const startIndex = project.milestones.length;
-  const newMilestones = input.milestones.map((milestone, index) => ({
-    orderIndex: startIndex + index,
-    title: milestone.title,
-    description: milestone.description,
-    amount: milestone.amount,
-    deadline: milestone.deadline,
-  }));
+    const locked = await tx.project.findFirst({
+      where: {
+        id: projectId,
+        clientId,
+        status: 'DRAFT',
+        escrowStatus: 'NOT_FUNDED',
+        freelancerId: { not: null },
+      },
+      include: { milestones: true },
+    });
 
-  const newTotal =
-    project.milestones.reduce((sum, m) => sum + Number(m.amount), 0) +
-    newMilestones.reduce((sum, m) => sum + Number(m.amount), 0);
+    if (!locked) {
+      return 'not_editable' as const;
+    }
 
-  const updated = await prisma.$transaction(async (tx) => {
+    if (locked.milestones.some((m) => m.status !== 'PENDING')) {
+      return 'milestones_in_progress' as const;
+    }
+
+    const startIndex = locked.milestones.length;
+    const newMilestones = input.milestones.map((milestone, index) => ({
+      orderIndex: startIndex + index,
+      title: milestone.title,
+      description: milestone.description,
+      amount: milestone.amount,
+      deadline: milestone.deadline,
+    }));
+
+    let newTotal = locked.milestones.reduce(
+      (sum, m) => sum.plus(m.amount),
+      new Prisma.Decimal(0),
+    );
+    for (const milestone of newMilestones) {
+      newTotal = newTotal.plus(milestone.amount);
+    }
+
     await tx.milestone.createMany({
       data: newMilestones.map((milestone) => ({
         projectId,
@@ -468,14 +619,9 @@ export const appendMilestones = async (
       })),
     });
 
-    const result = await tx.project.update({
+    await tx.project.update({
       where: { id: projectId },
-      data: { totalBudget: new Prisma.Decimal(newTotal.toFixed(2)) },
-      include: {
-        milestones: true,
-        client: { select: clientPublicSelect },
-        freelancer: { select: clientPublicSelect },
-      },
+      data: { totalBudget: newTotal },
     });
 
     await tx.activityLog.create({
@@ -487,8 +633,28 @@ export const appendMilestones = async (
       },
     });
 
-    return result;
-  });
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: {
+        milestones: true,
+        client: { select: clientPublicSelect },
+        freelancer: { select: clientPublicSelect },
+      },
+    });
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      return 'not_editable' as const;
+    }
+    throw error;
+  }
+
+  if (updated === 'not_editable' || updated === 'milestones_in_progress') {
+    return updated;
+  }
 
   return {
     ...serializeProject(updated),
@@ -650,9 +816,22 @@ export const inviteFreelancer = async (
   const previousInviteeId = project.invitedFreelancerId;
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        clientId,
+        freelancerId: null,
+        status: { in: ['DRAFT', 'FUNDED'] },
+      },
       data: { invitedFreelancerId: freelancer.id },
+    });
+
+    if (claimed.count === 0) {
+      return 'freelancer_already_assigned' as const;
+    }
+
+    const result = await tx.project.findUniqueOrThrow({
+      where: { id: projectId },
       include: { milestones: true },
     });
 
@@ -687,6 +866,10 @@ export const inviteFreelancer = async (
     return result;
   });
 
+  if (updated === 'freelancer_already_assigned') {
+    return updated;
+  }
+
   return serializeProject(updated);
 };
 
@@ -717,11 +900,20 @@ export const cancelInvite = async (projectId: string, clientId: string) => {
   const invitedFreelancerId = project.invitedFreelancerId;
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        clientId,
+        freelancerId: null,
+        invitedFreelancerId,
+        status: { in: ['DRAFT', 'FUNDED'] },
+      },
       data: { invitedFreelancerId: null },
-      include: { milestones: true },
     });
+
+    if (claimed.count === 0) {
+      return 'freelancer_already_assigned' as const;
+    }
 
     await notifyInviteCancelled(tx, {
       userId: invitedFreelancerId,
@@ -738,8 +930,15 @@ export const cancelInvite = async (projectId: string, clientId: string) => {
       },
     });
 
-    return result;
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
   });
+
+  if (updated === 'freelancer_already_assigned') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };
@@ -765,11 +964,18 @@ export const declineInvite = async (
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.project.update({
-      where: { id: projectId },
+    const claimed = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        invitedFreelancerId: freelancerId,
+        freelancerId: null,
+      },
       data: { invitedFreelancerId: null },
-      include: { milestones: true },
     });
+
+    if (claimed.count === 0) {
+      return 'already_accepted' as const;
+    }
 
     const reasonSnippet = reason?.trim()
       ? `: "${reason.trim().slice(0, 120)}"`
@@ -793,8 +999,15 @@ export const declineInvite = async (
       },
     });
 
-    return result;
+    return tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { milestones: true },
+    });
   });
+
+  if (updated === 'already_accepted') {
+    return updated;
+  }
 
   return serializeProject(updated);
 };

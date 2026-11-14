@@ -1,9 +1,15 @@
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
   applyUploadStaticHeaders,
+  filenameFromStoredUrl,
   isAllowedAvatarFile,
   isAllowedSubmitFile,
+  isAvatarUploadFilename,
+  resolveUploadDir,
+  safeUploadFilename,
 } from './upload.js';
 
 describe('isAllowedSubmitFile', () => {
@@ -62,5 +68,63 @@ describe('applyUploadStaticHeaders', () => {
 
     expect(headers['Cross-Origin-Resource-Policy']).toBe('cross-origin');
     expect(headers['Content-Disposition']).toBe('attachment');
+  });
+});
+
+describe('isAvatarUploadFilename', () => {
+  it('allows raster avatar extensions', () => {
+    expect(isAvatarUploadFilename('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png')).toBe(
+      true,
+    );
+  });
+
+  it('rejects deliverable extensions', () => {
+    expect(isAvatarUploadFilename('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf')).toBe(
+      false,
+    );
+  });
+});
+
+describe('safeUploadFilename', () => {
+  it('accepts a stored uuid filename', () => {
+    expect(
+      safeUploadFilename('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf'),
+    ).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf');
+  });
+
+  it('rejects path traversal', () => {
+    expect(safeUploadFilename('../secret.png')).toBeNull();
+    expect(safeUploadFilename('..\\secret.png')).toBeNull();
+    expect(safeUploadFilename('foo/bar.png')).toBeNull();
+  });
+});
+
+describe('resolveUploadDir', () => {
+  it('uses UPLOAD_DIR when set', () => {
+    expect(resolveUploadDir('/var/data/uploads', '/app')).toBe(
+      path.resolve('/var/data/uploads'),
+    );
+  });
+
+  it('falls back to cwd/uploads', () => {
+    expect(resolveUploadDir('  ', '/app')).toBe(path.resolve('/app/uploads'));
+    expect(resolveUploadDir(undefined, '/app')).toBe(
+      path.resolve('/app/uploads'),
+    );
+  });
+});
+
+describe('filenameFromStoredUrl', () => {
+  it('reads the filename from a stored /uploads path', () => {
+    expect(
+      filenameFromStoredUrl(
+        '/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf',
+      ),
+    ).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf');
+  });
+
+  it('rejects a path that is not a stored upload url', () => {
+    expect(filenameFromStoredUrl('/uploads/../secret.png')).toBeNull();
+    expect(filenameFromStoredUrl('https://cdn.example/file.pdf')).toBeNull();
   });
 });

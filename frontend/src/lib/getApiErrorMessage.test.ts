@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getApiErrorMessage } from './getApiErrorMessage'
+import { getApiErrorMessage, parseJsonBlobErrorBody } from './getApiErrorMessage'
 
 function axiosError(data: unknown) {
   return {
@@ -51,5 +51,22 @@ describe('getApiErrorMessage', () => {
     )
 
     expect(message).toBe('Forbidden')
+  })
+
+  it('reads a JSON error that arrived as a blob', async () => {
+    const error = axiosError({
+      type: 'application/json',
+      text: async () => JSON.stringify({ error: 'Forbidden' }),
+    })
+
+    expect(getApiErrorMessage(error, 'Could not download attachment')).toBe(
+      'Could not download attachment',
+    )
+
+    await parseJsonBlobErrorBody(error)
+
+    expect(getApiErrorMessage(error, 'Could not download attachment')).toBe(
+      'Forbidden',
+    )
   })
 })

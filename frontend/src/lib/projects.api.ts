@@ -126,6 +126,11 @@ export const approveMilestone = async (milestoneId: string) => {
   return res.data
 }
 
+export const returnMilestone = async (milestoneId: string) => {
+  const res = await api.post<Project>(`/milestones/${milestoneId}/return`)
+  return res.data
+}
+
 export const submitMilestone = async (
   milestoneId: string,
   content: string,
@@ -140,8 +145,29 @@ export const submitMilestone = async (
   return res.data
 }
 
+export const downloadMilestoneAttachment = async (milestoneId: string) => {
+  const res = await api.get(`/milestones/${milestoneId}/attachment`, {
+    responseType: 'blob',
+  })
+  const disposition = String(res.headers['content-disposition'] ?? '')
+  const match = /filename="([^"]+)"/.exec(disposition)
+  const url = URL.createObjectURL(res.data as Blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = match?.[1] ?? 'attachment'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export const deleteProject = async (projectId: string) => {
   const res = await api.delete<{ id: string }>(`/projects/${projectId}`)
+  return res.data
+}
+
+export const cancelProject = async (projectId: string) => {
+  const res = await api.post<Project>(`/projects/${projectId}/cancel`)
   return res.data
 }
 
@@ -152,6 +178,13 @@ export const openDispute = async (
   const res = await api.post<import('@/types/project').ProjectOpenDispute>(
     `/projects/${projectId}/disputes`,
     payload,
+  )
+  return res.data
+}
+
+export const startDisputeReview = async (disputeId: string) => {
+  const res = await api.post<import('@/types/project').ProjectOpenDispute>(
+    `/projects/disputes/${disputeId}/review`,
   )
   return res.data
 }

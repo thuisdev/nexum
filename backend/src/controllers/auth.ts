@@ -5,6 +5,19 @@ import { prisma } from '../lib/prisma.js';
 import { registerSchema, loginSchema } from '../schemas/auth.schema.js';
 import { hashPassword, comparePassword, DUMMY_PASSWORD_HASH } from '../services/auth.services.js';
 
+const publicUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  createdAt: true,
+  displayName: true,
+  bio: true,
+  skills: true,
+  avatarUrl: true,
+  avatarColor: true,
+} as const;
+
 /** POST /api/auth/register — create account (no token issued). */
 export const registerHandler = async (
   req: Request,
@@ -41,16 +54,7 @@ export const registerHandler = async (
         displayName,
         ...(role ? { role } : {}),
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        displayName: true,
-        role: true,
-        bio: true,
-        skills: true,
-        createdAt: true,
-      },
+      select: publicUserSelect,
     });
 
     res.status(201).json(user);
@@ -101,8 +105,14 @@ export const loginHandler = async (
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
         name: user.name,
+        role: user.role,
+        createdAt: user.createdAt,
+        displayName: user.displayName,
+        bio: user.bio,
+        skills: user.skills,
+        avatarUrl: user.avatarUrl,
+        avatarColor: user.avatarColor,
       },
     });
   } catch (error) {
@@ -119,18 +129,7 @@ export const meHandler = async (
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        displayName: true,
-        bio: true,
-        skills: true,
-        avatarUrl: true,
-        avatarColor: true,
-      },
+      select: publicUserSelect,
     });
 
     if (!user) {

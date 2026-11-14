@@ -9,3 +9,8 @@ export function splitSimulatedPayout(amount: Prisma.Decimal) {
   const clientShare = total.minus(freelancerShare);
   return { freelancerShare, clientShare };
 }
+
+/** SPLIT needs a non-zero freelancer share (0.01 rounds down to 0.00). */
+export function canSplitSimulatedPayout(amount: Prisma.Decimal) {
+  return splitSimulatedPayout(amount).freelancerShare.gt(0);
+}

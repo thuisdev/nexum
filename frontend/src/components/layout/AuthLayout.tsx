@@ -19,7 +19,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
         <p className="font-display text-2xl font-bold tracking-[-0.5px] text-ink-900">
           Nexum
         </p>
-        <Trustline text="Milestone escrow · 0% platform fees" />
+        <Trustline text="Milestone escrow · no platform fee yet" />
       </div>
 
       <div className="relative w-full max-w-[480px] overflow-hidden rounded-2xl border border-ink-200 bg-white p-6 shadow-sm md:p-8">

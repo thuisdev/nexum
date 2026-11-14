@@ -17,7 +17,7 @@ export function DisputePanel({ dispute, className }: DisputePanelProps) {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-medium uppercase tracking-[1px] text-red-700">
-          Active dispute
+          {dispute.status === 'IN_REVIEW' ? 'In review' : 'Open dispute'}
         </span>
         <span className="text-xs text-ink-500">
           {new Date(dispute.createdAt).toLocaleDateString()}

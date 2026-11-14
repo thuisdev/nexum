@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { Prisma } from '../generated/prisma/client.js';
+import type { Role } from '../generated/prisma/enums.js';
 import { prisma } from '../lib/prisma.js';
 import type { SubmitMilestoneInput } from '../schemas/milestone.schema.js';
 
@@ -35,6 +36,7 @@ export const releaseMilestonePayout = async (
 ) => {
   const projectId = milestone.projectId;
   const payoutTxRef = simulatedPayoutRef();
+  const refundTxRef = options.split ? simulatedPayoutRef() : null;
   const now = new Date();
   const payoutAmount = options.amount ?? milestone.amount;
   const isSplit = Boolean(options.split);
@@ -51,6 +53,7 @@ export const releaseMilestonePayout = async (
           split: true,
           milestoneAmount: milestone.amount.toString(),
           refundedAmount: refundedAmount.toString(),
+          refundTxRef,
         }
       : {}),
   };
@@ -76,6 +79,7 @@ export const releaseMilestonePayout = async (
       milestoneId: milestone.id,
       approvedBy,
       payoutTxRef,
+      refundTxRef,
       payoutMethod: isSplit ? 'SIMULATED_SPLIT' : 'SIMULATED',
     },
   });
@@ -125,9 +129,26 @@ export const releaseMilestonePayout = async (
     });
   }
 
+  if (isSplit && refundedAmount && refundTxRef) {
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: approvedBy,
+        action: 'MILESTONE_REFUNDED',
+        metadata: {
+          milestoneId: milestone.id,
+          milestoneTitle: milestone.title,
+          amount: refundedAmount.toString(),
+          refundTxRef,
+          split: true,
+        },
+      },
+    });
+  }
+
   await advanceProjectAfterTerminal(tx, milestone, approvedBy, now, 'PAID');
 
-  return { projectId, payoutTxRef } as const;
+  return { projectId, payoutTxRef, refundTxRef } as const;
 };
 
 const isTerminalStatus = (status: string) =>
@@ -167,11 +188,19 @@ async function advanceProjectAfterTerminal(
       (item) => item.id !== milestone.id && item.status === 'PAID',
     );
 
+  const splitApproval = await tx.approval.findFirst({
+    where: {
+      payoutMethod: 'SIMULATED_SPLIT',
+      milestone: { projectId },
+    },
+    select: { id: true },
+  });
+
   await tx.project.update({
     where: { id: projectId },
     data: {
       status: 'COMPLETED',
-      escrowStatus: anyPaid ? 'RELEASED' : 'REFUNDED',
+      escrowStatus: splitApproval ? 'SPLIT' : anyPaid ? 'RELEASED' : 'REFUNDED',
       completedAt: now,
     },
   });
@@ -225,7 +254,7 @@ export const refundMilestone = async (
   return { projectId } as const;
 };
 
-/** Freelancer submits work on an IN_PROGRESS milestone. */
+/** Freelancer submits or replaces work while the milestone is still awaiting review. */
 export const submitMilestone = async (
   milestoneId: string,
   freelancerId: string,
@@ -249,30 +278,47 @@ export const submitMilestone = async (
     return 'project_not_active' as const;
   }
 
-  if (milestone.status !== 'IN_PROGRESS') {
+  if (
+    milestone.status !== 'IN_PROGRESS' &&
+    milestone.status !== 'SUBMITTED'
+  ) {
     return 'invalid_status' as const;
   }
 
-  const existingCount = await prisma.submission.count({
-    where: { milestoneId },
-  });
-
   const projectId = milestone.projectId;
 
-  await prisma.$transaction(async (tx) => {
+  let outcome;
+  try {
+    outcome = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.milestone.updateMany({
+      where: {
+        id: milestoneId,
+        status: { in: ['IN_PROGRESS', 'SUBMITTED'] },
+      },
+      data: { status: 'SUBMITTED' },
+    });
+
+    if (claimed.count === 0) {
+      return 'invalid_status' as const;
+    }
+
+    const latest = await tx.submission.findFirst({
+      where: { milestoneId },
+      orderBy: { version: 'desc' },
+      select: { fileUrl: true, version: true },
+    });
+
+    const storedFileUrl = fileUrl ?? latest?.fileUrl ?? null;
+    const nextVersion = (latest?.version ?? 0) + 1;
+
     await tx.submission.create({
       data: {
         milestoneId,
         submittedBy: freelancerId,
         content: input.content,
-        fileUrl,
-        version: existingCount + 1,
+        fileUrl: storedFileUrl,
+        version: nextVersion,
       },
-    });
-
-    await tx.milestone.update({
-      where: { id: milestoneId },
-      data: { status: 'SUBMITTED' },
     });
 
     await tx.activityLog.create({
@@ -283,7 +329,8 @@ export const submitMilestone = async (
         metadata: {
           milestoneId,
           milestoneTitle: milestone.title,
-          hasFile: Boolean(fileUrl),
+          hasFile: Boolean(storedFileUrl),
+          version: nextVersion,
         },
       },
     });
@@ -293,12 +340,26 @@ export const submitMilestone = async (
         userId: milestone.project.clientId,
         projectId,
         type: 'MILESTONE_SUBMITTED',
-        message: `Work submitted for milestone "${milestone.title}"`,
+        message:
+          nextVersion === 1
+            ? `Work submitted for milestone "${milestone.title}"`
+            : `Updated work submitted for milestone "${milestone.title}"`,
       },
     });
-  });
 
-  return { projectId } as const;
+    return { projectId } as const;
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      return 'invalid_status' as const;
+    }
+    throw error;
+  }
+
+  return outcome;
 };
 
 /** Client approves a SUBMITTED milestone — simulated payout, advances workflow. */
@@ -347,4 +408,117 @@ export const approveMilestone = async (
   }
 
   return { projectId, payoutTxRef: payout.payoutTxRef } as const;
+};
+
+/** Client sends SUBMITTED work back — no payout, freelancer can submit again. */
+export const returnMilestone = async (milestoneId: string, clientId: string) => {
+  const milestone = await prisma.milestone.findUnique({
+    where: { id: milestoneId },
+    include: { project: true },
+  });
+
+  if (!milestone) {
+    return null;
+  }
+
+  if (milestone.project.clientId !== clientId) {
+    return 'forbidden' as const;
+  }
+
+  if (milestone.project.status !== 'IN_PROGRESS') {
+    return 'project_not_active' as const;
+  }
+
+  if (milestone.status !== 'SUBMITTED') {
+    return 'invalid_status' as const;
+  }
+
+  const projectId = milestone.projectId;
+  const freelancerId = milestone.project.freelancerId;
+
+  const outcome = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.milestone.updateMany({
+      where: { id: milestoneId, status: 'SUBMITTED' },
+      data: { status: 'IN_PROGRESS' },
+    });
+
+    if (claimed.count === 0) {
+      return 'invalid_status' as const;
+    }
+
+    await tx.activityLog.create({
+      data: {
+        projectId,
+        actorId: clientId,
+        action: 'MILESTONE_CHANGES_REQUESTED',
+        metadata: {
+          milestoneId,
+          milestoneTitle: milestone.title,
+        },
+      },
+    });
+
+    if (freelancerId) {
+      await tx.notification.create({
+        data: {
+          userId: freelancerId,
+          projectId,
+          type: 'MILESTONE_CHANGES_REQUESTED',
+          message: `Changes requested on "${milestone.title}"`,
+        },
+      });
+    }
+
+    return { projectId } as const;
+  });
+
+  return outcome;
+};
+
+/** Latest deliverable for a project member — not a public job viewer. */
+export const getMilestoneAttachment = async (
+  milestoneId: string,
+  userId: string,
+  userRole: Role,
+) => {
+  const milestone = await prisma.milestone.findUnique({
+    where: { id: milestoneId },
+    include: {
+      submissions: {
+        orderBy: { version: 'desc' },
+        take: 1,
+        select: { fileUrl: true },
+      },
+      project: {
+        select: {
+          clientId: true,
+          freelancerId: true,
+          invitedFreelancerId: true,
+          arbiterId: true,
+        },
+      },
+    },
+  });
+
+  if (!milestone) {
+    return null;
+  }
+
+  const isMember =
+    userRole === 'ADMIN' ||
+    milestone.project.clientId === userId ||
+    milestone.project.freelancerId === userId ||
+    milestone.project.invitedFreelancerId === userId ||
+    (userRole === 'ARBITER' && milestone.project.arbiterId === userId);
+
+  if (!isMember) {
+    return 'forbidden' as const;
+  }
+
+  const fileUrl = milestone.submissions[0]?.fileUrl;
+  if (!fileUrl) {
+    return 'no_file' as const;
+  }
+
+  return { fileUrl };
 };

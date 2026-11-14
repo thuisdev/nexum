@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { displayName, formatDeadline, mapMilestoneStatus, mapProjectStatus, projectDraftMeta } from './projectDisplay'
-import type { Project } from '@/types/project'
+import {
+  canCancelProject,
+  canReturnMilestone,
+  canSubmitMilestone,
+  canWithdrawApplication,
+  displayName,
+  formatDeadline,
+  mapMilestoneStatus,
+  mapProjectStatus,
+  projectDraftMeta,
+  projectEscrowFunded,
+} from './projectDisplay'
+import type { Milestone, Project } from '@/types/project'
 
 describe('displayName', () => {
   it('prefers displayName over name', () => {
@@ -67,5 +78,109 @@ describe('projectDraftMeta', () => {
     } as Project
 
     expect(projectDraftMeta(project)).toContain('job board')
+  })
+})
+
+describe('canSubmitMilestone', () => {
+  const project = {
+    freelancerId: 'freelancer-1',
+    status: 'IN_PROGRESS',
+  } as Project
+
+  it('allows the assigned freelancer to submit while in progress', () => {
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'IN_PROGRESS' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(true)
+  })
+
+  it('allows a new version while the milestone is still submitted', () => {
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'SUBMITTED' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not allow submit after payout or dispute', () => {
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'PAID' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(false)
+    expect(
+      canSubmitMilestone(
+        project,
+        { status: 'DISPUTED' } as Milestone,
+        'freelancer-1',
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('canWithdrawApplication', () => {
+  it('hides withdraw while an invite is open', () => {
+    expect(canWithdrawApplication('PENDING', true)).toBe(false)
+  })
+
+  it('lets a freelancer withdraw a pending application without an invite', () => {
+    expect(canWithdrawApplication('PENDING', false)).toBe(true)
+  })
+})
+
+describe('canCancelProject', () => {
+  it('lets the client cancel a funded job before anyone is assigned', () => {
+    expect(
+      canCancelProject(
+        {
+          clientId: 'client-1',
+          freelancerId: null,
+          status: 'FUNDED',
+          escrowStatus: 'FUNDED',
+        } as Project,
+        'client-1',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not cancel after a freelancer is assigned', () => {
+    expect(
+      canCancelProject(
+        {
+          clientId: 'client-1',
+          freelancerId: 'freelancer-1',
+          status: 'IN_PROGRESS',
+          escrowStatus: 'FUNDED',
+        } as Project,
+        'client-1',
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('projectEscrowFunded', () => {
+  it('treats a split close as escrow that already held funds', () => {
+    expect(
+      projectEscrowFunded({ escrowStatus: 'SPLIT', status: 'COMPLETED' }),
+    ).toBe(true)
+  })
+})
+
+describe('canReturnMilestone', () => {
+  it('lets the client send submitted work back without a dispute', () => {
+    expect(
+      canReturnMilestone(
+        { clientId: 'client-1', status: 'IN_PROGRESS' } as Project,
+        { status: 'SUBMITTED' } as Milestone,
+        'client-1',
+      ),
+    ).toBe(true)
   })
 })

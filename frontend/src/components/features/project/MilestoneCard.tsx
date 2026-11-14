@@ -15,8 +15,11 @@ export type MilestoneCardProps = {
   actionLabel?: string
   actionVariant?: 'primary' | 'approve'
   onAction?: () => void
+  secondaryLabel?: string
+  onSecondaryAction?: () => void
   submission?: MilestoneSubmission | null
-  fileDownloadUrl?: string | null
+  hasAttachment?: boolean
+  onDownloadAttachment?: () => void
   paidAt?: string | null
   className?: string
 }
@@ -31,14 +34,18 @@ export function MilestoneCard({
   actionLabel,
   actionVariant = 'primary',
   onAction,
+  secondaryLabel,
+  onSecondaryAction,
   submission,
-  fileDownloadUrl,
+  hasAttachment,
+  onDownloadAttachment,
   paidAt,
   className,
 }: MilestoneCardProps) {
   const showSubmission =
     submission &&
     (status === 'SUBMITTED' ||
+      status === 'IN_PROGRESS' ||
       status === 'PAID' ||
       status === 'APPROVED' ||
       status === 'DISPUTED' ||
@@ -69,15 +76,28 @@ export function MilestoneCard({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {actionLabel && onAction ? (
-            <Button
-              size="sm"
-              variant={actionVariant}
-              fullWidth
-              className="md:w-auto"
-              onClick={onAction}
-            >
-              {actionLabel}
-            </Button>
+            <>
+              {secondaryLabel && onSecondaryAction ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  fullWidth
+                  className="md:w-auto"
+                  onClick={onSecondaryAction}
+                >
+                  {secondaryLabel}
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant={actionVariant}
+                fullWidth
+                className="md:w-auto"
+                onClick={onAction}
+              >
+                {actionLabel}
+              </Button>
+            </>
           ) : (
             <StatusBadge status={status} />
           )}
@@ -87,21 +107,20 @@ export function MilestoneCard({
       {showSubmission && (
         <div className="rounded-lg border border-ink-100 bg-ink-50 p-3 text-left">
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-500">
-            Submission
+            {status === 'IN_PROGRESS' ? 'Previous submission' : 'Submission'}
           </p>
           <p className="whitespace-pre-wrap text-sm leading-5 text-ink-800">
             {submission.content}
           </p>
-          {fileDownloadUrl && (
-            <a
-              href={fileDownloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+          {hasAttachment && onDownloadAttachment && (
+            <button
+              type="button"
+              onClick={onDownloadAttachment}
               className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700"
             >
               <Download className="size-3.5" aria-hidden />
               Download attachment
-            </a>
+            </button>
           )}
         </div>
       )}

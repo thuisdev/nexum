@@ -21,6 +21,7 @@ import {
   type ProjectOverflowItem,
 } from '@/components/features'
 import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
+import { RequestChangesDialog } from '@/components/features/dialogs/RequestChangesDialog'
 import { ReviewDialog } from '@/components/features/dialogs/ReviewDialog'
 import { DisputeDialog } from '@/components/features/dialogs/DisputeDialog'
 import {
@@ -35,9 +36,11 @@ import {
   acceptInvite,
   approveMilestone,
   cancelInvite,
+  cancelProject,
   createProjectReview,
   declineInvite,
   deleteProject,
+  downloadMilestoneAttachment,
   fundProject,
   getMyProjectReview,
   getProject,
@@ -45,6 +48,8 @@ import {
   getProjectPreview,
   openDispute,
   resolveDispute,
+  startDisputeReview,
+  returnMilestone,
   submitMilestone,
   type ProjectReview,
 } from '@/lib/projects.api'
@@ -56,10 +61,12 @@ import {
 import { markProjectNotificationsRead } from '@/lib/notifications.api'
 import {
   canApproveMilestone,
+  canCancelProject,
   canDeleteProject,
   canEditProject,
   canOpenApplicationsReview,
   canSubmitMilestone,
+  canWithdrawApplication,
   displayName,
   formatDeadline,
   mapMilestoneStatus,
@@ -69,7 +76,6 @@ import {
   resolveClientCardStatus,
   resolveDisputeCta,
   resolveFreelancerCardStatus,
-  uploadFileUrl,
 } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
@@ -131,6 +137,11 @@ function resolveParties(
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
+  return <ProjectDetailContent key={id} />
+}
+
+function ProjectDetailContent() {
+  const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user, isLoading: authLoading } = useAuth()
@@ -147,6 +158,7 @@ export default function ProjectDetailPage() {
   )
   const [actionLoading, setActionLoading] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
   const [disputeOpen, setDisputeOpen] = useState(false)
   const [resolveOpen, setResolveOpen] = useState(false)
   const [viewDisputeOpen, setViewDisputeOpen] = useState(false)
@@ -154,6 +166,7 @@ export default function ProjectDetailPage() {
   const [submitNote, setSubmitNote] = useState('')
   const [submitFile, setSubmitFile] = useState<File | null>(null)
   const [approveMilestoneId, setApproveMilestoneId] = useState<string | null>(null)
+  const [returnMilestoneId, setReturnMilestoneId] = useState<string | null>(null)
   const [applyOpen, setApplyOpen] = useState(false)
   const [applyPitch, setApplyPitch] = useState('')
   const [declineOpen, setDeclineOpen] = useState(false)
@@ -163,6 +176,28 @@ export default function ProjectDetailPage() {
   const [myReview, setMyReview] = useState<ProjectReview | null>(null)
   const [myApplication, setMyApplication] = useState<Application | null>(null)
   const reloadGen = useRef(0)
+
+  const refreshActivity = async (projectId: string) => {
+    try {
+      setActivity(await getProjectActivity(projectId))
+    } catch {
+      setActivity([])
+    }
+  }
+
+  const refreshProjectAfterMutate = async () => {
+    if (!id) return
+    try {
+      const full = await getProject(id)
+      setProject(full)
+      setPreview(null)
+      setMode('full')
+    } catch {
+      // write already succeeded
+    }
+    await refreshActivity(id)
+  }
+
   const reloadProject = useCallback(async () => {
     if (!id || authLoading) return
 
@@ -220,10 +255,8 @@ export default function ProjectDetailPage() {
         return
       } catch (err) {
         if (!isCurrent()) return
-        if (
-          !axios.isAxiosError(err) ||
-          (err.response?.status !== 403 && err.response?.status !== 404)
-        ) {
+        const status = axios.isAxiosError(err) ? err.response?.status : undefined
+        if (status !== 401 && status !== 403 && status !== 404) {
           setError(getApiErrorMessage(err, 'Could not load project'))
           setMode('error')
           setLoading(false)
@@ -273,11 +306,6 @@ export default function ProjectDetailPage() {
     }
   }, [reloadProject])
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when switching projects
-    setShowCompletedMilestones(false)
-  }, [id])
-
   const closeInviteModal = () => {
     setInviteOpen(false)
     if (searchParams.get('invite')) {
@@ -300,11 +328,7 @@ export default function ProjectDetailPage() {
     try {
       await acceptInvite(id)
       void markProjectNotificationsRead(id).catch(() => undefined)
-      const full = await getProject(id)
-      setProject(full)
-      setMode('full')
-      const logs = await getProjectActivity(id)
-      setActivity(logs)
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not accept invite'))
     } finally {
@@ -364,11 +388,7 @@ export default function ProjectDetailPage() {
     setActionLoading(true)
     try {
       await fundProject(id)
-      const full = await getProject(id)
-      setProject(full)
-      setMode('full')
-      const logs = await getProjectActivity(id)
-      setActivity(logs)
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not fund project'))
     } finally {
@@ -405,6 +425,9 @@ export default function ProjectDetailPage() {
   const canDelete =
     mode === 'full' && project && user && canDeleteProject(project, user.id)
 
+  const canCancel =
+    mode === 'full' && project && user && canCancelProject(project, user.id)
+
   const disputeCta =
     mode === 'full' && project && user
       ? resolveDisputeCta(project, user.id, user.role)
@@ -431,7 +454,7 @@ export default function ProjectDetailPage() {
     setActionLoading(true)
     try {
       await cancelInvite(id)
-      await reloadProject()
+      await refreshProjectAfterMutate()
       setError(null)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not cancel invite'))
@@ -471,10 +494,19 @@ export default function ProjectDetailPage() {
       (!myApplication || myApplication.status === 'REJECTED'),
   )
 
-  const applicationPending = myApplication?.status === 'PENDING'
+  const applicationPending = canWithdrawApplication(
+    myApplication?.status,
+    Boolean(isInvitedFreelancer),
+  )
+
+  const isReviewParty = Boolean(
+    project &&
+      user &&
+      (user.id === project.clientId || user.id === project.freelancerId),
+  )
 
   const reviewSubject =
-    project && user
+    project && user && isReviewParty
       ? user.id === project.clientId
         ? project.freelancer
         : project.client
@@ -556,6 +588,21 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const handleCancelProject = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      const full = await cancelProject(id)
+      setProject(full)
+      setCancelOpen(false)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not cancel project'))
+      setCancelOpen(false)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleOpenDispute = async (reason: string) => {
     if (!id || !disputeCta || disputeCta.action !== 'open') return
     if (reason.length < 10) {
@@ -569,9 +616,23 @@ export default function ProjectDetailPage() {
         reason,
       })
       setDisputeOpen(false)
-      await reloadProject()
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not open dispute'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleStartReview = async () => {
+    if (!project?.openDispute) return
+    setActionLoading(true)
+    try {
+      await startDisputeReview(project.openDispute.id)
+      await refreshProjectAfterMutate()
+      setResolveOpen(true)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not start dispute review'))
     } finally {
       setActionLoading(false)
     }
@@ -583,7 +644,7 @@ export default function ProjectDetailPage() {
     try {
       await resolveDispute(project.openDispute.id, { outcome, resolution })
       setResolveOpen(false)
-      await reloadProject()
+      await refreshProjectAfterMutate()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not resolve dispute'))
     } finally {
@@ -601,6 +662,10 @@ export default function ProjectDetailPage() {
     setApproveMilestoneId(null)
   }
 
+  const closeReturnDialog = () => {
+    setReturnMilestoneId(null)
+  }
+
   const handleSubmitWork = async () => {
     if (!submitMilestoneId || submitNote.trim().length < 50) return
     setActionLoading(true)
@@ -611,10 +676,7 @@ export default function ProjectDetailPage() {
         submitFile,
       )
       setProject(full)
-      if (id) {
-        const logs = await getProjectActivity(id)
-        setActivity(logs)
-      }
+      if (id) await refreshActivity(id)
       closeSubmitDialog()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not submit work'))
@@ -629,15 +691,36 @@ export default function ProjectDetailPage() {
     try {
       const full = await approveMilestone(approveMilestoneId)
       setProject(full)
-      if (id) {
-        const logs = await getProjectActivity(id)
-        setActivity(logs)
-      }
+      if (id) await refreshActivity(id)
       closeApproveDialog()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not approve milestone'))
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  const handleReturnWork = async () => {
+    if (!returnMilestoneId) return
+    setActionLoading(true)
+    try {
+      const full = await returnMilestone(returnMilestoneId)
+      setProject(full)
+      if (id) await refreshActivity(id)
+      closeReturnDialog()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not request changes'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDownloadAttachment = async (milestoneId: string) => {
+    try {
+      setError(null)
+      await downloadMilestoneAttachment(milestoneId)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not download attachment'))
     }
   }
 
@@ -649,14 +732,24 @@ export default function ProjectDetailPage() {
     ? project?.milestones.find((m) => m.id === approveMilestoneId)
     : null
 
+  const returnTarget = returnMilestoneId
+    ? project?.milestones.find((m) => m.id === returnMilestoneId)
+    : null
+
   const resolveMilestoneCardAction = (milestone: Milestone) => {
     if (!project || !user) return {}
 
     if (canSubmitMilestone(project, milestone, user.id)) {
       return {
-        actionLabel: 'Submit work',
+        actionLabel:
+          milestone.status === 'SUBMITTED'
+            ? 'Update submission'
+            : 'Submit work',
         actionVariant: 'primary' as const,
-        onAction: () => setSubmitMilestoneId(milestone.id),
+        onAction: () => {
+          setSubmitNote(milestone.latestSubmission?.content ?? '')
+          setSubmitMilestoneId(milestone.id)
+        },
       }
     }
 
@@ -665,6 +758,8 @@ export default function ProjectDetailPage() {
         actionLabel: 'Approve',
         actionVariant: 'approve' as const,
         onAction: () => setApproveMilestoneId(milestone.id),
+        secondaryLabel: 'Request changes',
+        onSecondaryAction: () => setReturnMilestoneId(milestone.id),
       }
     }
 
@@ -686,7 +781,14 @@ export default function ProjectDetailPage() {
         deadline={formatDeadline(milestone.deadline)}
         status={mapMilestoneStatus(milestone.status)}
         submission={milestone.latestSubmission}
-        fileDownloadUrl={uploadFileUrl(milestone.latestSubmission?.fileUrl)}
+        hasAttachment={Boolean(milestone.latestSubmission?.fileUrl)}
+        onDownloadAttachment={
+          milestone.latestSubmission?.fileUrl
+            ? () => {
+                void handleDownloadAttachment(milestone.id)
+              }
+            : undefined
+        }
         paidAt={milestone.paidAt}
         {...cardAction}
       />
@@ -711,8 +813,16 @@ export default function ProjectDetailPage() {
         onClick: () => setDeleteOpen(true),
       })
     }
+    if (canCancel) {
+      items.push({
+        id: 'cancel',
+        label: 'Cancel project',
+        tone: 'danger',
+        onClick: () => setCancelOpen(true),
+      })
+    }
     return items
-  }, [canDelete, canEdit, id, navigate])
+  }, [canCancel, canDelete, canEdit, id, navigate])
 
   const workflowActions = (
     <>
@@ -955,7 +1065,7 @@ export default function ProjectDetailPage() {
               openDispute={project?.openDispute}
               onOpenDispute={() => setDisputeOpen(true)}
               onViewDispute={() => setViewDisputeOpen(true)}
-              onResolveDispute={() => setResolveOpen(true)}
+              onResolveDispute={() => void handleStartReview()}
             />
           )}
         </div>
@@ -965,7 +1075,7 @@ export default function ProjectDetailPage() {
             open={inviteOpen}
             projectId={id}
             onClose={closeInviteModal}
-            onSuccess={() => void reloadProject()}
+            onSuccess={() => void refreshProjectAfterMutate()}
           />
         )}
 
@@ -975,7 +1085,7 @@ export default function ProjectDetailPage() {
             projectId={id}
             projectTitle={project?.title}
             onClose={closeApplicationsModal}
-            onUpdated={() => void reloadProject()}
+            onUpdated={() => void refreshProjectAfterMutate()}
             showProjectLink={false}
           />
         )}
@@ -997,6 +1107,26 @@ export default function ProjectDetailPage() {
           <p className="text-base leading-6 text-ink-900">
             This permanently removes the project and all milestones. This can&apos;t
             be undone.
+          </p>
+        </Modal>
+
+        <Modal
+          open={cancelOpen}
+          onClose={() => setCancelOpen(false)}
+          title="Cancel project?"
+          footer={
+            <ModalActions
+              onCancel={() => setCancelOpen(false)}
+              onConfirm={() => void handleCancelProject()}
+              confirmLabel="Cancel project"
+              confirmVariant="danger"
+              loading={actionLoading}
+            />
+          }
+        >
+          <p className="text-base leading-6 text-ink-900">
+            This takes the job off the board and marks escrow as refunded. No
+            freelancer is assigned yet, so no milestone payout is due.
           </p>
         </Modal>
 
@@ -1048,6 +1178,7 @@ export default function ProjectDetailPage() {
             onNoteChange={setSubmitNote}
             file={submitFile}
             onFileChange={setSubmitFile}
+            isUpdate={submitTarget.status === 'SUBMITTED'}
           />
         )}
 
@@ -1059,6 +1190,16 @@ export default function ProjectDetailPage() {
             loading={actionLoading}
             amount={approveTarget.amount}
             recipient={displayName(project.freelancer)}
+          />
+        )}
+
+        {returnTarget && (
+          <RequestChangesDialog
+            open={Boolean(returnMilestoneId)}
+            onClose={closeReturnDialog}
+            onConfirm={() => void handleReturnWork()}
+            loading={actionLoading}
+            milestoneTitle={returnTarget.title}
           />
         )}
 

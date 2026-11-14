@@ -138,6 +138,7 @@ export function projectEscrowFunded(
   return (
     project.escrowStatus === 'FUNDED' ||
     project.escrowStatus === 'RELEASED' ||
+    project.escrowStatus === 'SPLIT' ||
     project.status === 'IN_PROGRESS' ||
     project.status === 'COMPLETED'
   )
@@ -295,6 +296,15 @@ export function canDeleteProject(project: Project, userId: string) {
   return canFullEditProject(project, userId)
 }
 
+export function canCancelProject(project: Project, userId: string) {
+  return (
+    project.clientId === userId &&
+    !project.freelancerId &&
+    project.status === 'FUNDED' &&
+    project.escrowStatus === 'FUNDED'
+  )
+}
+
 const DISPUTABLE_MILESTONE_STATUSES = ['IN_PROGRESS', 'SUBMITTED'] as const
 
 export function canApproveMilestone(
@@ -309,6 +319,14 @@ export function canApproveMilestone(
   )
 }
 
+export function canReturnMilestone(
+  project: Project,
+  milestone: Milestone,
+  userId: string,
+) {
+  return canApproveMilestone(project, milestone, userId)
+}
+
 export function canSubmitMilestone(
   project: Project,
   milestone: Milestone,
@@ -317,8 +335,16 @@ export function canSubmitMilestone(
   return (
     project.freelancerId === userId &&
     project.status === 'IN_PROGRESS' &&
-    milestone.status === 'IN_PROGRESS'
+    (milestone.status === 'IN_PROGRESS' || milestone.status === 'SUBMITTED')
   )
+}
+
+/** Invite wins over a leftover pending application. */
+export function canWithdrawApplication(
+  applicationStatus: string | null | undefined,
+  isInvited: boolean,
+) {
+  return applicationStatus === 'PENDING' && !isInvited
 }
 
 /** Base URL for uploaded files (strip trailing /api from VITE_API_URL). */

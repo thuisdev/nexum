@@ -166,6 +166,25 @@ export const handleUpdateUser = async (
 
     const { name, displayName, bio, skills, avatarUrl, avatarColor } = result.data;
 
+    if (avatarUrl && avatarUrl.startsWith('/uploads/')) {
+      const deliverable = await prisma.submission.findFirst({
+        where: { fileUrl: avatarUrl },
+        select: { id: true },
+      });
+
+      if (deliverable) {
+        const current = await prisma.user.findUnique({
+          where: { id: req.userId },
+          select: { avatarUrl: true },
+        });
+
+        if (current?.avatarUrl !== avatarUrl) {
+          res.status(400).json({ error: 'Avatar cannot point at a project file' });
+          return;
+        }
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: {

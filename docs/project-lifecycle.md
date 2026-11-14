@@ -14,9 +14,9 @@ A user has a global `Role` (`CLIENT`, `FREELANCER`, `ARBITER`, `ADMIN`), but **p
 
 | Project role | How assigned | Typical actions |
 |--------------|--------------|-----------------|
-| **Client** | `project.clientId` — creator | Create, edit (unfunded draft), invite, fund, approve, open dispute |
+| **Client** | `project.clientId` — creator | Create, edit (unfunded draft), invite, fund, cancel unassigned funded job, approve, request changes, open dispute |
 | **Freelancer** | `project.freelancerId` — invite accept or application accept | Accept/decline invite, apply, submit work, open dispute |
-| **Arbiter** | First `ARBITER` user in the DB, set on `project.arbiterId` when a dispute opens | Resolve open disputes |
+| **Arbiter** | First `ARBITER` user in the DB, set on `project.arbiterId` when a dispute opens | Start review (`IN_REVIEW`), then resolve |
 | **Admin** | Platform role | Same dispute resolve as arbiter; can open a dispute only on `IN_PROGRESS` / `SUBMITTED` like everyone else |
 
 **Rule:** An endpoint must verify the caller is the correct participant on that project (e.g. only `clientId` may fund or approve). Admin is not a silent bypass on milestone status gates.
@@ -43,8 +43,8 @@ Prefunded public jobs stay `FUNDED` until a freelancer is assigned, then become 
 | **DRAFT** | Created; not yet funded | `NOT_FUNDED` | `FUNDED` or `IN_PROGRESS` (on fund) |
 | **FUNDED** | Client funded; no freelancer yet (job board) | `FUNDED` | `IN_PROGRESS` |
 | **IN_PROGRESS** | Freelancer assigned and work is active | `FUNDED` until every milestone is terminal | `COMPLETED` |
-| **COMPLETED** | Every milestone is `PAID` or `REFUNDED` | `RELEASED` if any was paid, else `REFUNDED` | — |
-| **CANCELLED** | Exists on the enum | — | **Not implemented** (unfunded drafts are **deleted**, not cancelled) |
+| **COMPLETED** | Every milestone is `PAID` or `REFUNDED` | `SPLIT` if any payout was a split; else `RELEASED` if any was paid; else `REFUNDED` | — |
+| **CANCELLED** | Client cancelled a funded job before a freelancer was assigned | `REFUNDED` | Unfunded drafts are still **deleted** |
 
 ### Transitions (detail)
 
@@ -56,10 +56,13 @@ Prefunded public jobs stay `FUNDED` until a freelancer is assigned, then become 
 | `DRAFT` | `FUNDED` | Fund (`POST …/fund`) with **no** freelancer — job stays listed | **Client** |
 | `DRAFT` | `IN_PROGRESS` | Fund with freelancer already assigned — M0 → `IN_PROGRESS` | **Client** |
 | `FUNDED` | `IN_PROGRESS` | Application or invite accept on a prefunded job — M0 → `IN_PROGRESS` | **Client** / **Freelancer** |
+| `FUNDED` | `CANCELLED` | `POST …/cancel` while no freelancer is assigned | **Client** |
 | `IN_PROGRESS` | `IN_PROGRESS` | A milestone becomes `PAID` or `REFUNDED`; others remain | *System* |
 | `IN_PROGRESS` | `COMPLETED` | Last remaining milestone is `PAID` or `REFUNDED` | *System* |
 
 Full edit / delete: only while `DRAFT`, `escrowStatus = NOT_FUNDED`, and `freelancerId` is null.
+
+Cancel funded listing: `POST /api/projects/:id/cancel` while `FUNDED`, escrow `FUNDED`, and `freelancerId` is null. Escrow → `REFUNDED`. Pending applications are rejected; a pending invite is cancelled.
 
 ---
 
@@ -71,7 +74,7 @@ Milestones are ordered by `orderIndex`. Only **one** milestone should be active 
 |--------|------|---------------|
 | **PENDING** | Created with the project; not started | — |
 | **IN_PROGRESS** | Active; freelancer may deliver | **Freelancer** → submit; either party may dispute |
-| **SUBMITTED** | Delivered; awaiting client | **Client** → approve, or either party → dispute |
+| **SUBMITTED** | Delivered; awaiting client | **Client** → approve or request changes; either party → dispute |
 | **APPROVED** | Enum only | **Unused** — approve writes `PAID` in the same transaction |
 | **PAID** | Payout recorded (`paidAt`, simulated `payoutTxRef`) | — |
 | **DISPUTED** | Open dispute; escrow stays locked | **Arbiter** or **Admin** → resolve |
@@ -85,6 +88,7 @@ Milestones are ordered by `orderIndex`. Only **one** milestone should be active 
 | `PENDING` | `IN_PROGRESS` | Fund with freelancer, accept on prefunded job, or previous milestone terminal | *System* |
 | `IN_PROGRESS` | `SUBMITTED` | `POST /api/milestones/:id/submit` | **Freelancer** |
 | `SUBMITTED` | `PAID` | `POST /api/milestones/:id/approve` | **Client** |
+| `SUBMITTED` | `IN_PROGRESS` | `POST /api/milestones/:id/return` | **Client** |
 | `IN_PROGRESS` / `SUBMITTED` | `DISPUTED` | `POST /api/projects/:id/disputes` | **Client** or **Freelancer** (or **Admin**) |
 | `DISPUTED` | `PAID` | Resolve `RESOLVED_FREELANCER` (100%) or `SPLIT` (half) | **Arbiter** / **Admin** |
 | `DISPUTED` | `REFUNDED` | Resolve `RESOLVED_CLIENT` | **Arbiter** / **Admin** |
@@ -92,8 +96,8 @@ Milestones are ordered by `orderIndex`. Only **one** milestone should be active 
 
 ### Submission rules
 
-- Only the assigned **freelancer** on an `IN_PROGRESS` milestone may submit.
-- `content` minimum 50 characters; `fileUrl` optional (PDF, ZIP, raster image, or text; max 10 MB).
+- Only the assigned **freelancer** on an `IN_PROGRESS` or `SUBMITTED` milestone may submit.
+- `content` minimum 50 characters; `fileUrl` optional (PDF, ZIP, raster image, or text; max 10 MB). Omitting a file on re-submit keeps the previous attachment.
 - Re-submit is a new `Submission` row with incremented `version` (milestone stays `SUBMITTED`).
 
 ---
@@ -106,17 +110,17 @@ Implemented in Phase 1 (simulated money). Opening requires at least one user wit
 |--------|-----------|-------------------|
 | `RESOLVED_FREELANCER` | `PAID` | Full milestone amount to freelancer |
 | `RESOLVED_CLIENT` | `REFUNDED` | Full amount treated as returned to client |
-| `SPLIT` | `PAID` (split metadata) | Half to freelancer (rounded down); leftover cent stays with the client |
+| `SPLIT` | `PAID` + client refund ledger | Half to freelancer (rounded down) as `Approval.payoutTxRef`; remainder as `Approval.refundTxRef`. Leftover cent stays with the client. Rejected with 409 if the freelancer share would be `0.00` |
 
 Rules:
 
 - Project must be `FUNDED` or `IN_PROGRESS`.
 - Milestone must be `IN_PROGRESS` or `SUBMITTED` (including when an admin opens).
-- One open dispute per project (`OPEN` or `IN_REVIEW`). Opening writes `OPEN`.
+- One open dispute per project (`OPEN` or `IN_REVIEW`). Opening writes `OPEN`. Assigned arbiter or admin starts review (`POST …/disputes/:id/review`) and writes `IN_REVIEW`.
 - Freelancer and client are notified; the assigned arbiter is notified too.
 - Resolve is claimed with `updateMany` so a double-click cannot pay twice.
 
-Escrow does **not** jump to `RELEASED` after a single paid milestone. It stays `FUNDED` until **every** milestone is `PAID` or `REFUNDED`.
+Escrow does **not** jump to `RELEASED` after a single paid milestone. It stays `FUNDED` until **every** milestone is `PAID` or `REFUNDED`. A completed project with any `SIMULATED_SPLIT` approval is `SPLIT`, not `RELEASED`.
 
 ---
 
@@ -128,8 +132,9 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 |--------|------|
 | `NOT_FUNDED` | Draft, no deposit |
 | `FUNDED` | Client funded; budget locked — **including** after some (but not all) milestones are paid or refunded |
-| `RELEASED` | Project completed and at least one milestone was `PAID` |
+| `RELEASED` | Project completed and at least one milestone was `PAID`, none as a split |
 | `REFUNDED` | Project completed and every milestone was `REFUNDED` |
+| `SPLIT` | Project completed and at least one milestone was paid as a split |
 
 ---
 
@@ -142,11 +147,14 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 | Invite freelancer | **Client** | `DRAFT` or `FUNDED`, no freelancer | `POST …/invite` | — |
 | Accept / decline invite | **Freelancer** | Pending invite | `POST …/accept` or `…/decline` | `freelancerId` set on accept |
 | Fund project | **Client** | `DRAFT`, not yet funded | `POST …/fund` | Escrow → `FUNDED`; project → `FUNDED` or `IN_PROGRESS` |
+| Cancel funded job | **Client** | `FUNDED`, no freelancer | `POST …/cancel` | → `CANCELLED`; escrow → `REFUNDED` |
 | Apply (job board) | **Freelancer** | Public, escrow `FUNDED`, no freelancer | `POST …/apply` | — |
 | Accept application | **Client** | Pending application, project still open | `POST …/applications/:id/accept` | Same assignment as invite accept |
-| Submit work | **Freelancer** | Milestone `IN_PROGRESS` | `POST …/milestones/:id/submit` | → `SUBMITTED` |
+| Submit work | **Freelancer** | Milestone `IN_PROGRESS` or `SUBMITTED` | `POST …/milestones/:id/submit` | → `SUBMITTED` (new version if already submitted) |
 | Approve & release | **Client** | Milestone `SUBMITTED` | `POST …/milestones/:id/approve` | → `PAID` (no `APPROVED` row) |
-| Open dispute | **Client** or **Freelancer** | Active/submitted milestone, no other open dispute, an arbiter exists | `POST …/disputes` | Milestone → `DISPUTED` |
+| Request changes | **Client** | Milestone `SUBMITTED` | `POST …/milestones/:id/return` | → `IN_PROGRESS`; no payout |
+| Open dispute | **Client** or **Freelancer** | Active/submitted milestone, no other open dispute, an arbiter exists | `POST …/disputes` | Milestone → `DISPUTED`; dispute → `OPEN` |
+| Start dispute review | **Arbiter** or **Admin** | Dispute `OPEN` (idempotent if already `IN_REVIEW`) | `POST …/disputes/:id/review` | Dispute → `IN_REVIEW` |
 | Resolve dispute | **Arbiter** or **Admin** | Dispute `OPEN` / `IN_REVIEW` | `POST …/disputes/:id/resolve` | See outcomes above |
 | Review | Either party | Project `COMPLETED`, one review each | `POST …/reviews` | — |
 
@@ -154,8 +162,8 @@ Parallel to project status; tracks money state (simulated in Phase 1).
 
 | Surface | Role | Primary | Hidden when |
 |---------|------|---------|-------------|
-| MilestoneCard | Freelancer | Submit work | status ≠ `IN_PROGRESS` |
-| MilestoneCard | Client | Review & approve | status ≠ `SUBMITTED` |
+| MilestoneCard | Freelancer | Submit work / Update submission | not `IN_PROGRESS` or `SUBMITTED` |
+| MilestoneCard | Client | Approve / Request changes | status ≠ `SUBMITTED` |
 | Project detail | Client | Fund project | not `DRAFT` |
 | Project detail | Client | Invite freelancer | freelancer already set, or not `DRAFT`/`FUNDED` |
 | ProjectCard | Freelancer (pending) | Accept invite | already accepted |
@@ -173,6 +181,7 @@ stateDiagram-v2
     DRAFT --> FUNDED: Fund without freelancer
     DRAFT --> IN_PROGRESS: Fund with freelancer
     FUNDED --> IN_PROGRESS: Freelancer assigned
+    FUNDED --> CANCELLED: Client cancels unassigned job
     IN_PROGRESS --> IN_PROGRESS: Milestone PAID or REFUNDED, more remain
     IN_PROGRESS --> COMPLETED: All milestones PAID or REFUNDED
 ```
@@ -185,6 +194,8 @@ stateDiagram-v2
     PENDING --> IN_PROGRESS: Activated
     IN_PROGRESS --> SUBMITTED: Freelancer submits
     IN_PROGRESS --> DISPUTED: Either party disputes
+    SUBMITTED --> SUBMITTED: Freelancer updates
+    SUBMITTED --> IN_PROGRESS: Client requests changes
     SUBMITTED --> PAID: Client approves
     SUBMITTED --> DISPUTED: Either party disputes
     DISPUTED --> PAID: Freelancer-win or SPLIT
@@ -205,12 +216,14 @@ stateDiagram-v2
 | Application received / accepted / rejected | `APPLICATION_*` | Client or freelancer |
 | Work submitted | `MILESTONE_SUBMITTED` | Client |
 | Milestone approved | `MILESTONE_APPROVED` | Freelancer |
+| Changes requested | `MILESTONE_CHANGES_REQUESTED` | Freelancer |
 | Dispute raised | `MILESTONE_DISPUTED` | Counterparty + arbiter |
+| Dispute review started | `DISPUTE_IN_REVIEW` | Client and freelancer |
 | Dispute resolved | `DISPUTE_RESOLVED` | Client and freelancer |
 | Payment released | `PAYMENT_RELEASED` | Freelancer |
 | Review received | `REVIEW_RECEIVED` | Subject |
 
-`ActivityLog.action` examples: `PROJECT_CREATED`, `FREELANCER_INVITED`, `FREELANCER_ACCEPTED`, `PROJECT_FUNDED`, `MILESTONE_SUBMITTED`, `MILESTONE_APPROVED`, `MILESTONE_PAID`, `MILESTONE_DISPUTED`, `MILESTONE_REFUNDED`, `DISPUTE_RESOLVED`, `PROJECT_COMPLETED`.
+`ActivityLog.action` examples: `PROJECT_CREATED`, `FREELANCER_INVITED`, `FREELANCER_ACCEPTED`, `PROJECT_FUNDED`, `PROJECT_CANCELLED`, `MILESTONE_SUBMITTED`, `MILESTONE_APPROVED`, `MILESTONE_CHANGES_REQUESTED`, `MILESTONE_PAID`, `MILESTONE_DISPUTED`, `MILESTONE_REFUNDED`, `DISPUTE_IN_REVIEW`, `DISPUTE_RESOLVED`, `PROJECT_COMPLETED`.
 
 ---
 
@@ -218,19 +231,20 @@ stateDiagram-v2
 
 | Feature | Statuses involved | Notes |
 |---------|-------------------|--------|
-| Project cancel after create | `CANCELLED` | Unfunded drafts are deleted instead |
-| Milestone `APPROVED` as a stored status | `APPROVED` | Approve goes `SUBMITTED` → `PAID` |
-| Dispute `IN_REVIEW` as a written status | `IN_REVIEW` | Treated as still-open if present; open writes `OPEN` |
+| Milestone `APPROVED` as a stored status | `APPROVED` | Intentional: approve goes `SUBMITTED` → `PAID` |
+| Verify / KYC | `VerificationMethod`, `verifiedAt` | Seed sets `isVerified`; no KYC flow yet |
 | Real escrow / wallet | `payoutTxRef` | Phase 2 (Solidity) |
-| Client reject without dispute | — | Not implemented; use dispute or wait for approve |
+
+Unfunded drafts are still **deleted** (not `CANCELLED`). Funded unassigned jobs cancel as above.
 
 ---
 
 ## Resolved vs still open
 
+- Opening a dispute writes `OPEN`. The assigned arbiter starting review writes `IN_REVIEW`.
 - Approve **does** skip `APPROVED` and go straight to `PAID` in one transaction.
 - Freelancer may submit again while the milestone is `SUBMITTED` (new version). There is no `REVISION` status.
-- Client cannot send a submission back to `IN_PROGRESS` without a dispute.
+- Client can send a submission back to `IN_PROGRESS` with request changes (no dispute, no payout).
 - Job board: `isPublic` + escrow `FUNDED` + no freelancer. Unfunded public drafts are **not** listed.
 
 ---

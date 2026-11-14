@@ -5,11 +5,13 @@ import {
   handleListProjectDisputes,
   handleOpenDispute,
   handleResolveDispute,
+  handleStartDisputeReview,
 } from '../controllers/disputes.js';
 import {
   handleAcceptInvite,
   handleAppendMilestones,
   handleCancelInvite,
+  handleCancelProject,
   handleCreateProject,
   handleDeclineInvite,
   handleDeleteProject,
@@ -63,12 +65,14 @@ router.get(
   handleGetMyApplication,
 );
 router.post('/:id/fund', checkAuth, requireRole('CLIENT'), handleFundProject);
+router.post('/:id/cancel', checkAuth, requireRole('CLIENT'), handleCancelProject);
 router.post('/:id/review', checkAuth, handleCreateProjectReview);
 router.get('/:id/my-review', checkAuth, handleGetMyProjectReview);
 router.post('/:id/milestones', checkAuth, requireRole('CLIENT'), handleAppendMilestones);
 router.get('/:id/activity', checkAuth, handleGetProjectActivity);
 router.get('/:id/disputes', checkAuth, handleListProjectDisputes);
 router.post('/:id/disputes', checkAuth, handleOpenDispute);
+router.post('/disputes/:disputeId/review', checkAuth, requireRole('ARBITER', 'ADMIN'), handleStartDisputeReview);
 router.post('/disputes/:disputeId/resolve', checkAuth, requireRole('ARBITER', 'ADMIN'), handleResolveDispute);
 router.get('/:id', checkAuth, handleGetProject);
 router.patch('/:id', checkAuth, requireRole('CLIENT'), handleUpdateProject);

@@ -11,7 +11,7 @@ import jobsRouter from './routes/jobs.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
 import statsRouter from './routes/stats.routes.js';
 import applicationsRouter from './routes/applications.routes.js';
-import { applyUploadStaticHeaders, uploadDirPath } from './lib/upload.js';
+import { handlePublicAvatar } from './controllers/uploads.js';
 
 /** Reflect any origin in local/test; fail closed in production unless CORS_ORIGIN is set. */
 export function resolveCorsOrigin(
@@ -41,13 +41,7 @@ export function createApp() {
     res.json({ ok: true });
   });
 
-  app.use(
-    '/uploads',
-    express.static(uploadDirPath, {
-      index: false,
-      setHeaders: applyUploadStaticHeaders,
-    }),
-  );
+  app.get('/uploads/:filename', handlePublicAvatar);
 
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);

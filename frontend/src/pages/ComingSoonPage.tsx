@@ -14,7 +14,7 @@ const PAGE_COPY: Record<string, { title: string; description: string }> = {
   [ROUTES.pricing]: {
     title: 'Pricing',
     description:
-      'Transparent fee structure and plan details will be published here soon.',
+      'This version charges no platform fee. Public pricing will be published here before launch.',
   },
   [ROUTES.about]: {
     title: 'About',

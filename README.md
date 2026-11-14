@@ -148,7 +148,7 @@ npm run dev
 
 - API: `http://localhost:4000`
 - Health: `GET /api/health`
-- Uploads: `backend/uploads/` served at `/uploads/*`
+- Uploads: avatars at `GET /uploads/:filename` (only stored avatar files). Milestone attachments: `GET /api/milestones/:id/attachment` (signed-in project members).
 
 ### 3. Frontend
 
@@ -316,11 +316,12 @@ Status rules: [`docs/project-lifecycle.md`](docs/project-lifecycle.md)
 
 ```
 PENDING → IN_PROGRESS → SUBMITTED → PAID
-              ↑                          │
+              ↑              │
+              │              └→ request changes → IN_PROGRESS
               └──── next milestone ──────┘
 ```
 
-Project moves `DRAFT` → `IN_PROGRESS` on fund and `COMPLETED` when all milestones are `PAID`. Escrow is simulated; `Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2.
+Project moves `DRAFT` → `FUNDED` on fund (or `IN_PROGRESS` if a freelancer is already assigned) and `COMPLETED` when every milestone is `PAID` or `REFUNDED`. Escrow is simulated; `Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2. A split also writes `Approval.refundTxRef` for the client half and closes escrow as `SPLIT`.
 
 ---
 
@@ -352,6 +353,7 @@ The API is a long-running Express server with file uploads. Host it on a **Node 
 | `JWT_SECRET` | Random 32+ byte secret |
 | `CORS_ORIGIN` | `https://your-app.vercel.app` (**required** in production) |
 | `PORT` | `4000` |
+| `UPLOAD_DIR` | Persistent disk path (e.g. `/var/data/uploads`). Default `./uploads` |
 
 3. Run migrations on deploy: `npx prisma migrate deploy`
 4. Seed once on empty DB: `npm run db:seed`
@@ -369,7 +371,7 @@ That fail-closed default is intentional: a missing env must not silently allow e
 ### Production notes
 
 - Set `CORS_ORIGIN` on the API host to your Vercel frontend URL before the first production deploy
-- File uploads use local disk on the backend host — use persistent storage or object storage for production
+- File uploads use the API host disk. On Render the container disk is wiped on deploy — attach a persistent disk and set `UPLOAD_DIR` to the mount path (e.g. `/var/data/uploads`)
 - Re-run `db:seed` only on empty databases (seed uses upserts)
 
 ---

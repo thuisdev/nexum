@@ -58,7 +58,9 @@ enum NotificationType {
   APPLICATION_REJECTED
   MILESTONE_SUBMITTED
   MILESTONE_APPROVED
+  MILESTONE_CHANGES_REQUESTED
   MILESTONE_DISPUTED
+  DISPUTE_IN_REVIEW
   DISPUTE_RESOLVED
   PAYMENT_RELEASED
   REVIEW_RECEIVED
@@ -82,6 +84,7 @@ enum EscrowStatus {
   FUNDED
   RELEASED
   REFUNDED
+  SPLIT
 }
 
 // MODELS
@@ -153,6 +156,7 @@ model Project {
   @@index([clientId])
   @@index([freelancerId])
   @@index([invitedFreelancerId])
+  @@index([arbiterId])
   @@index([status])
   @@index([isPublic])
 }
@@ -178,6 +182,7 @@ model Milestone {
   disputes    Dispute[]
 
   @@index([projectId])
+  @@unique([projectId, orderIndex])
 }
 
 model Submission {
@@ -192,6 +197,10 @@ model Submission {
 
   milestone       Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   submittedByUser User      @relation(fields: [submittedBy], references: [id])
+
+  @@index([milestoneId])
+  @@index([submittedBy])
+  @@unique([milestoneId, version])
 }
 
 model Approval {
@@ -199,12 +208,15 @@ model Approval {
   milestoneId  String  @unique
   approvedBy   String
   payoutTxRef  String?
+  refundTxRef  String?
   payoutMethod String? @default("SIMULATED")
 
   approvedAt DateTime @default(now())
 
   milestone      Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   approvedByUser User      @relation(fields: [approvedBy], references: [id])
+
+  @@index([approvedBy])
 }
 
 model Dispute {
@@ -222,6 +234,10 @@ model Dispute {
   milestone    Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   raisedByUser User      @relation("RaisedDisputes", fields: [raisedBy], references: [id])
   arbiter      User?     @relation("ArbiterDisputes", fields: [arbiterId], references: [id])
+
+  @@index([milestoneId])
+  @@index([raisedBy])
+  @@index([arbiterId])
 }
 
 model Notification {
@@ -237,6 +253,7 @@ model Notification {
   project Project? @relation(fields: [projectId], references: [id])
 
   @@index([userId])
+  @@index([projectId])
 }
 
 model ActivityLog {
@@ -251,6 +268,7 @@ model ActivityLog {
   actor   User    @relation(fields: [actorId], references: [id])
 
   @@index([projectId])
+  @@index([actorId])
 }
 
 model Review {
@@ -267,6 +285,8 @@ model Review {
   subject User    @relation("ReviewsReceived", fields: [subjectId], references: [id])
 
   @@unique([projectId, authorId])
+  @@index([authorId])
+  @@index([subjectId])
 }
 
 model Application {

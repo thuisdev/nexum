@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { TOKEN_KEY } from './constants';
+import { parseJsonBlobErrorBody } from './getApiErrorMessage';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -33,7 +34,9 @@ api.interceptors.request.use((config) => {
 // Drop a dead session on 401 — not on failed login/register
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    await parseJsonBlobErrorBody(error);
+
     if (
       axios.isAxiosError(error) &&
       error.response?.status === 401 &&

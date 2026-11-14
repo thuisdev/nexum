@@ -38,6 +38,14 @@ describe('updateProfileSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('rejects a stored deliverable used as an avatar', () => {
+    const result = updateProfileSchema.safeParse({
+      avatarUrl: '/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.pdf',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('allows clearing optional name fields', () => {
     const result = updateProfileSchema.safeParse({
       name: '',

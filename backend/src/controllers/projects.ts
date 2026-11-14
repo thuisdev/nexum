@@ -4,6 +4,7 @@ import {
   acceptInvite,
   appendMilestones,
   cancelInvite,
+  cancelProject,
   createProject,
   declineInvite,
   deleteProject,
@@ -536,6 +537,45 @@ export const handleDeleteProject = async (
     if (result === 'freelancer_assigned') {
       res.status(409).json({
         error: 'Project can only be deleted before a freelancer is assigned',
+      });
+      return;
+    }
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/projects/:id/cancel — cancel funded job before a freelancer is assigned. */
+export const handleCancelProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = await cancelProject(String(req.params.id), req.userId!);
+
+    if (result === null) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (result === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (result === 'freelancer_assigned') {
+      res.status(409).json({
+        error: 'Project can only be cancelled before a freelancer is assigned',
+      });
+      return;
+    }
+
+    if (result === 'not_cancellable') {
+      res.status(409).json({
+        error: 'Project can only be cancelled while funded and unassigned',
       });
       return;
     }

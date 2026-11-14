@@ -5,7 +5,10 @@ import type {
   OpenDisputeInput,
   ResolveDisputeInput,
 } from '../schemas/dispute.schema.js';
-import { splitSimulatedPayout } from '../lib/splitPayout.js';
+import {
+  canSplitSimulatedPayout,
+  splitSimulatedPayout,
+} from '../lib/splitPayout.js';
 import {
   refundMilestone,
   releaseMilestonePayout,
@@ -43,7 +46,12 @@ const serializeDispute = (dispute: {
   resolution: dispute.resolution,
   createdAt: dispute.createdAt.toISOString(),
   resolvedAt: dispute.resolvedAt?.toISOString() ?? null,
-  milestone: dispute.milestone,
+  milestone: {
+    id: dispute.milestone.id,
+    title: dispute.milestone.title,
+    status: dispute.milestone.status,
+    orderIndex: dispute.milestone.orderIndex,
+  },
 });
 
 export const listProjectDisputes = async (
@@ -237,6 +245,103 @@ export const openDispute = async (
   return serializeDispute(dispute);
 };
 
+/** Assigned arbiter starts work — OPEN becomes IN_REVIEW. */
+export const startDisputeReview = async (
+  disputeId: string,
+  userId: string,
+  userRole: Role,
+) => {
+  const dispute = await prisma.dispute.findUnique({
+    where: { id: disputeId },
+    include: {
+      milestone: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          orderIndex: true,
+          projectId: true,
+          project: {
+            select: { clientId: true, freelancerId: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!dispute) {
+    return null;
+  }
+
+  if (
+    userRole !== 'ADMIN' &&
+    !(userRole === 'ARBITER' && dispute.arbiterId === userId)
+  ) {
+    return 'forbidden' as const;
+  }
+
+  if (!openDisputeStatuses.includes(dispute.status)) {
+    return 'already_resolved' as const;
+  }
+
+  if (dispute.status === DisputeStatus.IN_REVIEW) {
+    return serializeDispute(dispute);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const moved = await tx.dispute.updateMany({
+      where: { id: disputeId, status: DisputeStatus.OPEN },
+      data: { status: DisputeStatus.IN_REVIEW },
+    });
+
+    if (moved.count !== 1) {
+      return moved;
+    }
+
+    const notifyIds = [
+      dispute.milestone.project.clientId,
+      dispute.milestone.project.freelancerId,
+    ].filter((id): id is string => Boolean(id) && id !== userId);
+
+    for (const notifyId of notifyIds) {
+      await tx.notification.create({
+        data: {
+          userId: notifyId,
+          projectId: dispute.milestone.projectId,
+          type: 'DISPUTE_IN_REVIEW',
+          message: `An arbiter started reviewing the dispute on "${dispute.milestone.title}"`,
+        },
+      });
+    }
+
+    await tx.activityLog.create({
+      data: {
+        projectId: dispute.milestone.projectId,
+        actorId: userId,
+        action: 'DISPUTE_IN_REVIEW',
+        metadata: { disputeId },
+      },
+    });
+
+    return moved;
+  });
+
+  const updated = await prisma.dispute.findUniqueOrThrow({
+    where: { id: disputeId },
+    include: {
+      milestone: {
+        select: { id: true, title: true, status: true, orderIndex: true },
+      },
+    },
+  });
+
+  if (!openDisputeStatuses.includes(updated.status)) {
+    return 'already_resolved' as const;
+  }
+
+  return serializeDispute(updated);
+};
+
 export const resolveDispute = async (
   disputeId: string,
   userId: string,
@@ -276,6 +381,13 @@ export const resolveDispute = async (
     return 'already_resolved' as const;
   }
 
+  if (
+    input.outcome === 'SPLIT' &&
+    !canSplitSimulatedPayout(dispute.milestone.amount)
+  ) {
+    return 'split_too_small' as const;
+  }
+
   const project = dispute.milestone.project;
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -295,13 +407,22 @@ export const resolveDispute = async (
       return 'already_resolved' as const;
     }
 
+    let splitShares: {
+      freelancerShare: string;
+      clientShare: string;
+      payoutTxRef: string;
+      refundTxRef: string;
+    } | null = null;
+
     if (input.outcome === 'RESOLVED_CLIENT') {
       const refund = await refundMilestone(tx, dispute.milestone, userId);
       if (refund === 'already_released') {
         throw new Error('Dispute resolve lost the refund claim');
       }
     } else if (input.outcome === 'SPLIT') {
-      const { freelancerShare } = splitSimulatedPayout(dispute.milestone.amount);
+      const { freelancerShare, clientShare } = splitSimulatedPayout(
+        dispute.milestone.amount,
+      );
       const payout = await releaseMilestonePayout(tx, dispute.milestone, userId, {
         amount: freelancerShare,
         split: true,
@@ -310,6 +431,15 @@ export const resolveDispute = async (
       if (payout === 'already_released') {
         throw new Error('Dispute resolve lost the payout claim');
       }
+      if (!payout.refundTxRef) {
+        throw new Error('Split payout did not record a client refund');
+      }
+      splitShares = {
+        freelancerShare: freelancerShare.toString(),
+        clientShare: clientShare.toString(),
+        payoutTxRef: payout.payoutTxRef,
+        refundTxRef: payout.refundTxRef,
+      };
     } else {
       const payout = await releaseMilestonePayout(tx, dispute.milestone, userId, {
         expectedStatuses: ['DISPUTED'],
@@ -345,6 +475,7 @@ export const resolveDispute = async (
           ...(input.outcome === 'RESOLVED_CLIENT'
             ? { refundedAmount: dispute.milestone.amount.toString() }
             : {}),
+          ...(splitShares ?? {}),
         },
       },
     });

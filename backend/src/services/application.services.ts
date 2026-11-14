@@ -19,6 +19,8 @@ const clientPublicSelect = {
   avatarUrl: true,
 } as const;
 
+const ACCEPT_LOST_PENDING = 'Application accept lost the pending claim';
+
 const serializeApplication = (application: {
   id: string;
   projectId: string;
@@ -88,6 +90,23 @@ export const applyToProject = async (
   }
 
   const application = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
+
+    const stillOpen = await tx.project.findFirst({
+      where: {
+        id: projectId,
+        isPublic: true,
+        status: 'FUNDED',
+        escrowStatus: 'FUNDED',
+        freelancerId: null,
+      },
+      select: { id: true },
+    });
+
+    if (!stillOpen) {
+      return 'freelancer_already_assigned' as const;
+    }
+
     const result = existing
       ? await tx.application.update({
           where: { id: existing.id },
@@ -123,6 +142,10 @@ export const applyToProject = async (
 
     return result;
   });
+
+  if (application === 'freelancer_already_assigned') {
+    return application;
+  }
 
   return serializeApplication(application);
 };
@@ -234,7 +257,9 @@ export const acceptApplication = async (
     return 'freelancer_already_assigned' as const;
   }
 
-  const updated = await prisma.$transaction(async (tx) => {
+  let updated;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
     const pendingOthers = await tx.application.findMany({
       where: {
         projectId: application.projectId,
@@ -270,10 +295,14 @@ export const acceptApplication = async (
       });
     }
 
-    await tx.application.update({
-      where: { id: applicationId },
+    const claimedApp = await tx.application.updateMany({
+      where: { id: applicationId, status: 'PENDING' },
       data: { status: 'ACCEPTED' },
     });
+
+    if (claimedApp.count === 0) {
+      throw new Error(ACCEPT_LOST_PENDING);
+    }
 
     if (pendingOthers.length > 0) {
       await tx.application.updateMany({
@@ -331,7 +360,13 @@ export const acceptApplication = async (
       where: { id: application.projectId },
       include: { milestones: true },
     });
-  });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === ACCEPT_LOST_PENDING) {
+      return 'not_pending' as const;
+    }
+    throw error;
+  }
 
   if (updated === 'freelancer_already_assigned') {
     return updated;
@@ -363,9 +398,17 @@ export const rejectApplication = async (
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.application.update({
-      where: { id: applicationId },
+    const claimed = await tx.application.updateMany({
+      where: { id: applicationId, status: 'PENDING' },
       data: { status: 'REJECTED' },
+    });
+
+    if (claimed.count === 0) {
+      return 'not_pending' as const;
+    }
+
+    const result = await tx.application.findUniqueOrThrow({
+      where: { id: applicationId },
       include: { freelancer: { select: freelancerPublicSelect } },
     });
 
@@ -393,6 +436,10 @@ export const rejectApplication = async (
     return result;
   });
 
+  if (updated === 'not_pending') {
+    return updated;
+  }
+
   return serializeApplication(updated);
 };
 
@@ -415,6 +462,13 @@ export const withdrawApplication = async (
     return 'not_pending' as const;
   }
 
-  await prisma.application.delete({ where: { id: application.id } });
+  const deleted = await prisma.application.deleteMany({
+    where: { id: application.id, status: 'PENDING' },
+  });
+
+  if (deleted.count === 0) {
+    return 'not_pending' as const;
+  }
+
   return { id: application.id };
 };

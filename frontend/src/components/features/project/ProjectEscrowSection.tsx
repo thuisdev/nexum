@@ -36,11 +36,17 @@ export function ProjectEscrowSection({
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 className="font-display text-lg font-semibold leading-7 text-ink-900">
-              {showPanel ? 'Dispute in review' : 'Escrow protection'}
+              {showPanel
+                ? openDispute?.status === 'IN_REVIEW'
+                  ? 'Dispute in review'
+                  : 'Open dispute'
+                : 'Escrow protection'}
             </h2>
             <p className="text-sm leading-6 text-ink-500">
               {showPanel
-                ? 'An arbiter is reviewing this milestone. Escrow stays locked until a decision is made.'
+                ? openDispute?.status === 'IN_REVIEW'
+                  ? 'An arbiter is reviewing this milestone. Escrow stays locked until a decision is made.'
+                  : 'A dispute is open. Escrow stays locked until an arbiter decides.'
                 : funded
                   ? 'Budget is locked in escrow. Funds release per milestone after approval — either side can request an arbiter if something goes wrong.'
                   : 'Once funded, the full budget locks in escrow until milestones are approved. Either side can request an independent arbiter if needed.'}
