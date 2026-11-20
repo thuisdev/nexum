@@ -484,7 +484,3 @@ Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 | Deploy contract to an L2 testnet, connect frontend via wagmi/viem | Phase 2 |
 | Live demo (frontend + API) | Done |
 | Demo video | Planned |
-
-## License
-
-Private – capstone / portfolio project.
