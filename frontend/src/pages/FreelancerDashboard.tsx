@@ -68,19 +68,6 @@ export default function FreelancerDashboard() {
     }
   }, [])
 
-  const refreshProjects = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await listProjects()
-      setProjects(data)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not load projects'))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
     let cancelled = false
 
@@ -158,12 +145,13 @@ export default function FreelancerDashboard() {
 
   const handleDecline = async () => {
     if (!declineProjectId) return
+    const declinedId = declineProjectId
     setDeclineLoading(true)
     try {
-      await declineInvite(declineProjectId, declineReason)
+      await declineInvite(declinedId, declineReason)
       setDeclineProjectId(null)
       setDeclineReason('')
-      await refreshProjects()
+      setProjects((prev) => prev.filter((project) => project.id !== declinedId))
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not decline invite'))
     } finally {
