@@ -90,12 +90,12 @@ export function ReviewApplicationsModal({
     setError(null)
     try {
       await rejectApplication(applicationId)
-      if (projectId) {
-        const apps = await listProjectApplications(projectId)
-        setApplications(apps)
-        onUpdated?.()
-        if (apps.length === 0) onClose()
-      }
+      const remaining = applications.filter(
+        (application) => application.id !== applicationId,
+      )
+      setApplications(remaining)
+      onUpdated?.()
+      if (remaining.length === 0) onClose()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not reject application'))
     } finally {
