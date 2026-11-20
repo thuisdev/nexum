@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Briefcase, Mail, Send } from 'lucide-react'
 import { AppSection } from '@/components/layout/AppSection'
@@ -58,15 +58,6 @@ export default function FreelancerDashboard() {
 
     return { active, invitations, applied, completed }
   }, [projects, applications, user])
-
-  const refreshApplications = useCallback(async () => {
-    try {
-      const data = await listMyApplications()
-      setApplications(data)
-    } catch {
-      setApplications([])
-    }
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -164,7 +155,9 @@ export default function FreelancerDashboard() {
     setError(null)
     try {
       await withdrawApplication(projectId)
-      await refreshApplications()
+      setApplications((prev) =>
+        prev.filter((application) => application.project.id !== projectId),
+      )
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not withdraw application'))
     } finally {
