@@ -1,40 +1,34 @@
-# Nexum
+# Nexum – Freelance Marketplace with Milestone Escrow
 
-Freelance marketplace with **milestone-based escrow** for Web3-oriented work. Clients fund projects in stages; freelancers deliver per milestone; payment releases only after client approval.
+A freelance marketplace where clients fund work in milestones and freelancers get paid only after
+each milestone is approved. Disputes go to an arbiter who can split the locked funds.
 
-**Author:** Adrian — [@thuisdev](https://github.com/thuisdev)
+**Phase 1 (done):** full-stack MVP with simulated escrow in PostgreSQL. Both main flows (invite and
+public job board) work end to end in the browser.
+**Phase 2 (in development):** replace the simulated payout layer with my own escrow smart contract on an
+Ethereum L2 testnet. The contract is being built in a separate branch and is not pushed to this repo yet.
+See [Smart Contract Design](#phase-2-escrow-smart-contract-in-development).
 
-Phase 1 is a full-stack Web2 MVP with simulated escrow in PostgreSQL. Phase 2 will replace the payout layer with a self-authored escrow contract on an Ethereum L2 testnet.
+**Live demo:** [nexum-gamma.vercel.app](https://nexum-gamma.vercel.app/) (log in with the demo accounts below)
 
-**MVP status:** Feature-complete for local demo and deployment. See [Manual test plan](#manual-test-plan) before recording a demo.
+**Highlights**
 
----
+- Two complete flows: private invite and public job board → fund → submit → approve → paid
+- Dispute flow with arbiter dashboard and fund splitting
+- Role-based access (client, freelancer, arbiter, admin) with JWT
+- Unit, integration and Playwright E2E tests, all running in GitHub Actions CI
+- Escrow logic and state machine already modelled so the on-chain version can replace it 1:1
 
-## MVP feature checklist
+**Stack:** Node.js · Express · Prisma · PostgreSQL · React · Vite · Tailwind · Playwright · Docker · GitHub Actions
+**Planned for Phase 2:** Solidity · Foundry · OpenZeppelin · wagmi/viem
 
-| Area | Status |
-|------|--------|
-| Auth (register, login, JWT, roles) | Done |
-| Projects (CRUD, milestones, public/private) | Done |
-| Invite / accept (private projects) | Done |
-| Job board + applications (public projects) | Done |
-| Simulated fund + escrow | Done |
-| Submit work + file upload | Done |
-| Approve milestone + payout ref | Done |
-| Activity timeline | Done |
-| In-app notifications | Done |
-| Profiles + settings (skills / industries) | Done |
-| Disputes + arbiter dashboard | Done (stretch) |
-| Demo seed data | Done |
-| Postman collection | Done |
-| Vercel frontend deploy config | Done |
-| Unit + integration + E2E tests | Done |
+**Author:** Adrian Thuis – [@thuisdev](https://github.com/thuisdev)
 
 ---
 
 ## North-star flows
 
-Both paths below work end-to-end in the browser:
+Both paths work end to end in the browser.
 
 **Private (invite)**
 
@@ -50,26 +44,120 @@ Client → Create public project → Freelancer applies from /jobs
 → Client accepts application → Fund → Submit → Approve → COMPLETED
 ```
 
+## Milestone lifecycle
+
+```
+PENDING → IN_PROGRESS → SUBMITTED → PAID
+              ↑              │
+              │              └→ request changes → IN_PROGRESS
+              └──── next milestone ──────┘
+```
+
+A project moves `DRAFT` → `FUNDED` on fund (or `IN_PROGRESS` if a freelancer is already assigned)
+and `COMPLETED` when every milestone is `PAID` or `REFUNDED`. Escrow is simulated:
+`Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2. A dispute
+split also writes `Approval.refundTxRef` for the client's share and closes escrow as `SPLIT`.
+
 ---
 
-## Demo accounts
+## MVP status
 
-After seeding (`npm run db:seed`), use password **`12345678`** for all accounts:
+| Area | Status |
+|------|--------|
+| Auth (register, login, JWT, roles) | Done |
+| Projects (CRUD, milestones, public/private) | Done |
+| Invite / accept (private projects) | Done |
+| Job board + applications (public projects) | Done |
+| Simulated fund + escrow | Done |
+| Submit work + file upload | Done |
+| Approve milestone + payout reference | Done |
+| Activity timeline | Done |
+| In-app notifications | Done |
+| Profiles + settings (skills / industries) | Done |
+| Disputes + arbiter dashboard | Done |
+| Demo seed data | Done |
+| Postman collection | Done |
+| Vercel frontend deploy config | Done |
+| Unit + integration + E2E tests | Done |
+| **Escrow smart contract** | **In development (Phase 2), not in this repo yet** |
 
-| Email | Role | Seeded state |
-|-------|------|----------------|
-| `client@example.com` | Client | Owns public + private projects |
-| `freelancer@example.com` | Freelancer | Pending invite on private project |
-| `freelancer2@example.com` | Freelancer | Pending application on public project |
-| `arbiter@example.com` | Arbiter | For dispute resolution |
-| `admin@example.com` | Admin | Can review and resolve any open dispute |
+---
 
-Stable seeded project IDs:
+## Phase 2: Escrow Smart Contract (in development)
 
-| Project | ID |
-|---------|-----|
-| Public (job board) | `00000000-0000-4000-8000-000000000001` |
-| Private (invite E2E) | `00000000-0000-4000-8000-000000000002` |
+> The escrow contract is currently in development and not pushed to this repository yet. It will be
+> added here together with its Foundry tests once it is complete. This section documents the design.
+
+### Goal
+
+Move the money part of Nexum on-chain, keep everything else off-chain. The database already tracks
+escrow state per milestone, so the contract replaces the simulated payout layer without changing
+the product flows.
+
+| Stays off-chain (PostgreSQL) | Moves on-chain (escrow contract) |
+|---|---|
+| Profiles, skills, reviews | Locking the client's funds |
+| Project descriptions, applications, invites | Releasing a milestone payment to the freelancer |
+| Submitted work and file uploads | Refunds to the client |
+| Notifications and activity timeline | Dispute resolution and fund split by the arbiter |
+
+### Planned flow
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant E as NexumEscrow
+    participant F as Freelancer
+    participant A as Arbiter
+    C->>E: fund milestone (locks funds)
+    F-->>C: submits work (off-chain)
+    alt client approves
+        C->>E: approve milestone
+        E->>F: release payment
+    else dispute
+        C->>E: open dispute (or freelancer)
+        A->>E: resolve with split
+        E->>F: freelancer share
+        E->>C: client share (refund)
+    end
+```
+
+### Planned contract surface
+
+| Function | Who | Effect |
+|---|---|---|
+| `createEscrow` | Client | Registers project, freelancer, arbiter and milestone amounts |
+| `fundMilestone` | Client | Locks the milestone amount in the contract |
+| `approveMilestone` | Client | Releases the locked amount to the freelancer |
+| `openDispute` | Client or freelancer | Freezes the milestone until the arbiter decides |
+| `resolveDispute` | Arbiter | Splits the locked amount between freelancer and client |
+| `refundMilestone` | Client | Returns funds for a milestone that was never started |
+
+The off-chain backend listens to the contract's events and writes the real transaction hash into
+`payoutTxRef` / `refundTxRef`, replacing today's `SIM-…` placeholders.
+
+### Security principles
+
+The same patterns I use in my other contracts:
+
+- **Checks-effects-interactions** and `ReentrancyGuard` on every payout path
+- **One status per milestone** (enum instead of several bools), so a milestone can never be both paid and refunded
+- **Internal accounting** of locked funds instead of relying on the contract balance
+- **Role checks** per function: only the client funds and approves, only the assigned arbiter resolves
+
+### Open design questions
+
+- ETH only, or a stablecoin (e.g. USDC) as well? Freelancers usually want stable payouts.
+- What happens if a client never responds after a submission? A timeout that lets the freelancer claim, or an automatic dispute?
+- One contract for all projects, or a contract per project via a factory?
+- Platform fee: on-chain at release, or off-chain?
+- Which L2 testnet to deploy on.
+
+### Planned tests
+
+Foundry unit tests for every function and revert path, fuzz tests for split amounts, and an
+invariant test: **the contract's locked balance always equals the sum of all funded, unreleased
+milestones.**
 
 ---
 
@@ -80,8 +168,7 @@ Stable seeded project IDs:
 | Backend | Node.js 22, Express 5, Prisma 7, PostgreSQL, JWT, Zod, Multer |
 | Frontend | React 19, Vite 8, Tailwind CSS v4, React Router v7, React Hook Form, Axios |
 | Tooling | Docker Compose, GitHub Actions, Postman, Vercel (frontend) |
-
----
+| Phase 2 (planned) | Solidity, Foundry, OpenZeppelin, wagmi/viem |
 
 ## Repository layout
 
@@ -162,6 +249,25 @@ npm run dev
 - App: `http://localhost:5173`
 - `VITE_API_URL` must be `http://localhost:4000/api`
 
+### Demo accounts
+
+On the live demo and after seeding (`npm run db:seed`), all accounts use the password **`12345678`** (demo data only):
+
+| Email | Role | Seeded state |
+|-------|------|----------------|
+| `client@example.com` | Client | Owns public + private projects |
+| `freelancer@example.com` | Freelancer | Pending invite on private project |
+| `freelancer2@example.com` | Freelancer | Pending application on public project |
+| `arbiter@example.com` | Arbiter | For dispute resolution |
+| `admin@example.com` | Admin | Can review and resolve any open dispute |
+
+Stable seeded project IDs:
+
+| Project | ID |
+|---------|-----|
+| Public (job board) | `00000000-0000-4000-8000-000000000001` |
+| Private (invite E2E) | `00000000-0000-4000-8000-000000000002` |
+
 ### Useful scripts
 
 | Command | Where | Purpose |
@@ -199,13 +305,11 @@ npm run test:e2e
 
 E2E runs migrations + seed automatically via `e2e/global-setup.ts`.
 
----
+### Manual test plan
 
-## Manual test plan
+Run through both flows once before a demo or deploy sign-off.
 
-Run through both flows once before demo or deploy sign-off.
-
-### Flow A — Invite (private)
+**Flow A — Invite (private)**
 
 1. Login as `client@example.com`
 2. Open private project → confirm invite pending for freelancer
@@ -214,20 +318,18 @@ Run through both flows once before demo or deploy sign-off.
 5. Login as freelancer → submit work (≥50 chars) on milestone 1
 6. Login as client → approve → verify milestone `PAID` and activity log
 
-### Flow B — Apply (public)
+**Flow B — Apply (public)**
 
-1. Login as `freelancer2@example.com` → dashboard **Applications sent** card shows pending app  
+1. Login as `freelancer2@example.com` → dashboard **Applications sent** card shows pending app
    *(or apply fresh from `/jobs` as any freelancer)*
 2. Login as `client@example.com` → open public project → accept application
 3. Fund → submit → approve (same as Flow A steps 4–6)
 
-### API smoke test (Postman)
+**API smoke test (Postman)**
 
-Import [`docs/postman/Nexum.postman_collection.json`](docs/postman/Nexum.postman_collection.json).
-
-Set collection variable `baseUrl` to `http://localhost:4000`.
-
-Run folders in order: **Authentication → Projects → Applications → Job Board**.
+Import [`docs/postman/Nexum.postman_collection.json`](docs/postman/Nexum.postman_collection.json),
+set the collection variable `baseUrl` to `http://localhost:4000` and run the folders in order:
+**Authentication → Projects → Applications → Job Board**.
 
 ---
 
@@ -290,8 +392,6 @@ Run folders in order: **Authentication → Projects → Applications → Job Boa
 
 Status rules: [`docs/project-lifecycle.md`](docs/project-lifecycle.md)
 
----
-
 ## Frontend routes
 
 | Path | Page | Access |
@@ -312,19 +412,6 @@ Status rules: [`docs/project-lifecycle.md`](docs/project-lifecycle.md)
 
 ---
 
-## Milestone lifecycle
-
-```
-PENDING → IN_PROGRESS → SUBMITTED → PAID
-              ↑              │
-              │              └→ request changes → IN_PROGRESS
-              └──── next milestone ──────┘
-```
-
-Project moves `DRAFT` → `FUNDED` on fund (or `IN_PROGRESS` if a freelancer is already assigned) and `COMPLETED` when every milestone is `PAID` or `REFUNDED`. Escrow is simulated; `Approval.payoutTxRef` holds a placeholder (`SIM-…`) until on-chain release in Phase 2. A split also writes `Approval.refundTxRef` for the client half and closes escrow as `SPLIT`.
-
----
-
 ## Deploy
 
 ### Frontend (Vercel)
@@ -332,17 +419,12 @@ Project moves `DRAFT` → `FUNDED` on fund (or `IN_PROGRESS` if a freelancer is 
 1. Import the repo in [Vercel](https://vercel.com)
 2. Set **Root Directory** to `frontend`
 3. Framework preset: **Vite** (defaults are fine)
-4. Environment variable:
-
-| Variable | Example |
-|----------|---------|
-| `VITE_API_URL` | `https://your-api.example.com/api` |
-
-5. Deploy — `frontend/vercel.json` rewrites all routes to `index.html` for React Router
+4. Environment variable `VITE_API_URL`, e.g. `https://your-api.example.com/api`
+5. Deploy. `frontend/vercel.json` rewrites all routes to `index.html` for React Router
 
 ### Backend + database
 
-The API is a long-running Express server with file uploads. Host it on a **Node platform** (e.g. Render, Fly.io, Railway) — not Vercel serverless.
+The API is a long-running Express server with file uploads. Host it on a **Node platform** (e.g. Render, Fly.io, Railway), not Vercel serverless.
 
 1. Provision **PostgreSQL** (Neon, Supabase, or Docker)
 2. Deploy `backend/` with:
@@ -356,25 +438,22 @@ The API is a long-running Express server with file uploads. Host it on a **Node 
 | `UPLOAD_DIR` | Persistent disk path (e.g. `/var/data/uploads`). Default `./uploads` |
 
 3. Run migrations on deploy: `npx prisma migrate deploy`
-4. Seed once on empty DB: `npm run db:seed`
+4. Seed once on an empty DB: `npm run db:seed`
 5. Health check: `GET /api/health`
 
 `CORS_ORIGIN` is an **API** env var (Railway / Render / Fly), not a Vercel one. Vercel needs `VITE_API_URL`; the API needs `CORS_ORIGIN` set to that Vercel origin (no trailing slash).
 
-If `CORS_ORIGIN` is set, only that origin may call the API from a browser. If it is **missing**:
+If `CORS_ORIGIN` is **missing**:
 
-- **local / test** (`NODE_ENV` is not `production`) — any origin is allowed, so Vite and tests keep working
-- **production** — CORS is closed. The live frontend cannot call the API until you set `CORS_ORIGIN`
+- **local / test** (`NODE_ENV` is not `production`): any origin is allowed, so Vite and tests keep working
+- **production**: CORS is closed, and the live frontend cannot call the API until you set it
 
 That fail-closed default is intentional: a missing env must not silently allow every website.
 
-### Production notes
+**Production notes**
 
-- Set `CORS_ORIGIN` on the API host to your Vercel frontend URL before the first production deploy
-- File uploads use the API host disk. On Render the container disk is wiped on deploy — attach a persistent disk and set `UPLOAD_DIR` to the mount path (e.g. `/var/data/uploads`)
-- Re-run `db:seed` only on empty databases (seed uses upserts)
-
----
+- File uploads use the API host's disk. On Render the container disk is wiped on deploy, so attach a persistent disk and set `UPLOAD_DIR` to its mount path.
+- Re-run `db:seed` only on empty databases (the seed uses upserts).
 
 ## CI
 
@@ -401,11 +480,11 @@ Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 | Dispute flow, arbiter dashboard | Done |
 | Seed data, Postman, Vercel config | Done |
 | Unit, integration, and E2E tests | Done |
-| Demo video / live URL | Record after deploy |
-| On-chain escrow (L2 testnet) | Phase 2 |
-
----
+| Escrow contract + Foundry tests | In development (not in repo yet) |
+| Deploy contract to an L2 testnet, connect frontend via wagmi/viem | Phase 2 |
+| Live demo (frontend + API) | Done |
+| Demo video | Planned |
 
 ## License
 
-Private — capstone / portfolio project.
+Private – capstone / portfolio project.
