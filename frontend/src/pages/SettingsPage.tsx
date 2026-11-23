@@ -33,6 +33,11 @@ import {
 import { ROUTES } from '@/router/routes'
 import type { User } from '@/types/user'
 import { cn } from '@/lib/utils'
+import axios from 'axios'
+
+function isUnauthorized(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 401
+}
 
 type SettingsFormInput = UpdateProfileInput & {
   skills?: string[]
@@ -82,6 +87,7 @@ function SettingsForm({ user }: { user: User }) {
 
       navigate(ROUTES.profile(user.id))
     } catch (err) {
+      if (isUnauthorized(err)) return
       setError(getApiErrorMessage(err, 'Could not save profile'))
     }
   }
@@ -96,7 +102,9 @@ function SettingsForm({ user }: { user: User }) {
       setAvatarDirty(true)
       applyUser(updated)
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not upload image'))
+      if (!isUnauthorized(err)) {
+        setError(getApiErrorMessage(err, 'Could not upload image'))
+      }
     } finally {
       setUploadingAvatar(false)
     }
