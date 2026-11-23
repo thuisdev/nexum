@@ -14,6 +14,7 @@ import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { displayName } from '@/lib/projectDisplay'
 import { listArbiterDisputes } from '@/lib/projects.api'
 import { ROUTES } from '@/router/routes'
+import axios from 'axios'
 
 export default function ArbiterDashboard() {
   const { user } = useAuth()
@@ -28,18 +29,18 @@ export default function ArbiterDashboard() {
 
     listArbiterDisputes()
       .then((data) => {
-        if (!cancelled) {
-          setDisputes(data)
-          setError(null)
-        }
+        if (cancelled) return
+        setDisputes(data)
+        setError(null)
+        setLoading(false)
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Could not load disputes'))
+        if (cancelled) return
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          return
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        setError(getApiErrorMessage(err, 'Could not load disputes'))
+        setLoading(false)
       })
 
     return () => {
