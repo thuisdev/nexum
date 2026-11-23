@@ -16,6 +16,7 @@ import { getApiErrorMessage } from '@/lib/getApiErrorMessage'
 import { displayName, formatRelativeTime } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import type { Application } from '@/types/application'
+import axios from 'axios'
 
 export type ReviewApplicationsModalProps = {
   open: boolean
@@ -52,15 +53,17 @@ export function ReviewApplicationsModal({
 
     listProjectApplications(projectId)
       .then((data) => {
-        if (!cancelled) setApplications(data)
+        if (cancelled) return
+        setApplications(data)
+        setLoading(false)
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Could not load applications'))
+        if (cancelled) return
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          return
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        setError(getApiErrorMessage(err, 'Could not load applications'))
+        setLoading(false)
       })
 
     return () => {
