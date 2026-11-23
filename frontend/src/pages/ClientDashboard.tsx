@@ -21,6 +21,7 @@ import { projectToClientCardProps } from '@/lib/projectDisplay'
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
+import axios from 'axios'
 
 type ClientFilter = 'all' | 'drafts' | 'active'
 
@@ -50,18 +51,18 @@ export default function ClientDashboard() {
 
     listProjects()
       .then((data) => {
-        if (!cancelled) {
-          setProjects(data)
-          setError(null)
-        }
+        if (cancelled) return
+        setProjects(data)
+        setError(null)
+        setLoading(false)
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Could not load projects'))
+        if (cancelled) return
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          return
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        setError(getApiErrorMessage(err, 'Could not load projects'))
+        setLoading(false)
       })
 
     return () => {
