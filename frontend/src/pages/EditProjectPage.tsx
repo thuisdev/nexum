@@ -26,6 +26,7 @@ import {
 import { ROUTES } from '@/router/routes'
 import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
+import axios from 'axios'
 
 function emptyMilestone(): MilestoneRowData {
   return {
@@ -128,14 +129,15 @@ function EditProjectContent() {
           })),
         )
         setLoadError(null)
+        setLoading(false)
       })
       .catch((err) => {
-        if (!cancelled) {
-          setLoadError(getApiErrorMessage(err, 'Could not load project'))
+        if (cancelled) return
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          return
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        setLoadError(getApiErrorMessage(err, 'Could not load project'))
+        setLoading(false)
       })
 
     return () => {
