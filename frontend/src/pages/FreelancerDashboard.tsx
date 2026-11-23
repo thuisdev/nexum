@@ -21,6 +21,11 @@ import { useAuth } from '@/hooks/useAuth'
 import type { Project } from '@/types/project'
 import type { FreelancerApplication } from '@/types/application'
 import { DeclineInviteDialog } from '@/components/features/dialogs/DeclineInviteDialog'
+import axios from 'axios'
+
+function isUnauthorized(reason: unknown) {
+  return axios.isAxiosError(reason) && reason.response?.status === 401
+}
 
 type FreelancerFilter = 'active' | 'applied' | 'invitations'
 
@@ -66,11 +71,23 @@ export default function FreelancerDashboard() {
       .then(([projectsResult, applicationsResult]) => {
         if (cancelled) return
 
+        const sessionExpired =
+          (projectsResult.status === 'rejected' &&
+            isUnauthorized(projectsResult.reason)) ||
+          (applicationsResult.status === 'rejected' &&
+            isUnauthorized(applicationsResult.reason))
+
+        if (sessionExpired) {
+          return
+        }
+
         if (projectsResult.status === 'fulfilled') {
           setProjects(projectsResult.value)
           setError(null)
         } else {
-          setError(getApiErrorMessage(projectsResult.reason, 'Could not load projects'))
+          setError(
+            getApiErrorMessage(projectsResult.reason, 'Could not load projects'),
+          )
         }
 
         if (applicationsResult.status === 'fulfilled') {
@@ -78,9 +95,8 @@ export default function FreelancerDashboard() {
         } else {
           setApplications([])
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+
+        setLoading(false)
       })
 
     return () => {
