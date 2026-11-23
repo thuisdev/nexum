@@ -37,15 +37,11 @@ export default function ClientDashboard() {
   const [showClosed, setShowClosed] = useState(false)
 
   const refreshProjects = useCallback(async () => {
-    setLoading(true)
-    setError(null)
     try {
       const data = await listProjects()
       setProjects(data)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not load projects'))
-    } finally {
-      setLoading(false)
+    } catch {
+      // Invite / review already succeeded — keep the current list.
     }
   }, [])
 
